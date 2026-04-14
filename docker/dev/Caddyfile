@@ -3,6 +3,7 @@
 # https://caddyserver.com/docs/caddyfile
 
 {
+    auto_https off
     skip_install_trust
 
     frankenphp {
