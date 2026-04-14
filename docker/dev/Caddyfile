@@ -14,7 +14,10 @@
 {$SERVER_NAME::80} {
     encode zstd br gzip
     php_server {
-        try_files {path} index.php
         root /app/public
+        worker {
+            match *
+            file /app/worker.php
+        }
     }
 }

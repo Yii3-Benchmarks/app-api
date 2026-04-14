@@ -5,12 +5,12 @@ declare(strict_types=1);
 use App\Environment;
 use Psr\Log\LogLevel;
 use Yiisoft\ErrorHandler\ErrorHandler;
-use Yiisoft\ErrorHandler\Renderer\JsonRenderer;
+use Yiisoft\ErrorHandler\Renderer\PlainTextRenderer;
 use Yiisoft\Log\Logger;
 use Yiisoft\Log\StreamTarget;
-use Yiisoft\Yii\Runner\Http\HttpApplicationRunner;
+use Yiisoft\Yii\Runner\FrankenPHP\FrankenPHPApplicationRunner;
 
-$root = dirname(__DIR__);
+$root = __DIR__;
 
 require_once $root . '/src/bootstrap.php';
 
@@ -21,24 +21,7 @@ if (Environment::appC3()) {
     }
 }
 
-/**
- * @psalm-var string $_SERVER['REQUEST_URI']
- */
-// PHP built-in server routing.
-if (PHP_SAPI === 'cli-server') {
-    // Serve static files as is.
-    /** @var string $path */
-    $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-    if (is_file(__DIR__ . $path)) {
-        return false;
-    }
-
-    // Explicitly set for URLs with dot.
-    $_SERVER['SCRIPT_NAME'] = '/index.php';
-}
-
-// Run HTTP application runner
-$runner = new HttpApplicationRunner(
+$runner = new FrankenPHPApplicationRunner(
     rootPath: $root,
     debug: Environment::appDebug(),
     checkEvents: Environment::appDebug(),
@@ -53,7 +36,7 @@ $runner = new HttpApplicationRunner(
                 ]),
             ],
         ),
-        new JsonRenderer(),
+        new PlainTextRenderer(),
     ),
 );
 $runner->run();
