@@ -1,25 +1,20 @@
 FROM composer/composer:2-bin AS composer
 
-FROM dunglas/frankenphp:1-php8.5-bookworm AS base
+FROM php:8.5-fpm-bookworm AS base
 
-RUN apt update && apt -y install \
-    unzip
+ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
 
-RUN install-php-extensions \
-    opcache \
-    mbstring \
-    intl \
-    dom \
-    ctype \
-    curl \
-    phar \
-    openssl \
-    xml \
-    xmlwriter \
-    simplexml \
-    pdo
+RUN chmod +x /usr/local/bin/install-php-extensions && \
+    install-php-extensions opcache mbstring intl dom
+
+RUN apt-get update && apt-get install -y \
+    unzip \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV LC_ALL=C.UTF-8
+
+WORKDIR /app
 
 #
 # Development
@@ -31,22 +26,15 @@ ARG GROUP_ID=10001
 ARG USER_NAME=appuser
 ARG GROUP_NAME=appuser
 
-RUN install-php-extensions \
-    xdebug
-
 COPY --from=composer /composer /usr/bin/composer
 
-# Based on https://frankenphp.dev/docs/docker/#running-as-a-non-root-user
 RUN \
-	groupadd --gid ${GROUP_ID} ${GROUP_NAME}; \
-    useradd --gid ${GROUP_ID} --uid ${USER_ID} ${GROUP_NAME}; \
-	# Add additional capability to bind to port 80 and 443
-	setcap CAP_NET_BIND_SERVICE=+eip /usr/local/bin/frankenphp; \
-	# Give write access to /data/caddy and /config/caddy
-	chown -R ${USER_NAME}:${GROUP_NAME} /data/caddy && chown -R ${USER_NAME}:${GROUP_NAME} /config/caddy
-USER ${USER_NAME}
+    groupadd --gid ${GROUP_ID} ${GROUP_NAME} && \
+    useradd --gid ${GROUP_ID} --uid ${USER_ID} ${USER_NAME}
 
-COPY docker/dev/Caddyfile /etc/frankenphp/Caddyfile
+COPY docker/dev/php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
+
+USER ${USER_NAME}
 
 #
 # Production
@@ -61,6 +49,6 @@ RUN --mount=type=cache,target=/tmp/cache \
 
 FROM base AS prod
 ENV APP_ENV=prod
-COPY docker/Caddyfile /etc/frankenphp/Caddyfile
+COPY docker/php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
 COPY --from=prod-builder --chown=www-data:www-data /app /app
 USER www-data

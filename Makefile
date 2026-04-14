@@ -52,7 +52,7 @@ endif
 
 ifeq ($(PRIMARY_GOAL),shell)
 shell: ## Get into container shell.
-	$(DOCKER_COMPOSE_DEV) exec app /bin/bash
+	$(DOCKER_COMPOSE_DEV) exec php /bin/bash
 endif
 
 #
@@ -61,23 +61,23 @@ endif
 
 ifeq ($(PRIMARY_GOAL),yii)
 yii: ## Execute Yii command.
-	$(DOCKER_COMPOSE_DEV) run --rm app ./yii $(CLI_ARGS)
+	$(DOCKER_COMPOSE_DEV) run --rm php ./yii $(CLI_ARGS)
 .PHONY: yii
 endif
 
 ifeq ($(PRIMARY_GOAL),composer)
 composer: ## Run Composer.
-	$(DOCKER_COMPOSE_DEV) run --rm app composer $(CLI_ARGS)
+	$(DOCKER_COMPOSE_DEV) run --rm php composer $(CLI_ARGS)
 endif
 
 ifeq ($(PRIMARY_GOAL),rector)
 rector: ## Run Rector.
-	$(DOCKER_COMPOSE_DEV) run --rm app ./vendor/bin/rector $(CLI_ARGS)
+	$(DOCKER_COMPOSE_DEV) run --rm php ./vendor/bin/rector $(CLI_ARGS)
 endif
 
 ifeq ($(PRIMARY_GOAL),cs-fix)
 cs-fix: ## Run PHP CS Fixer.
-	$(DOCKER_COMPOSE_DEV) run --rm app ./vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.php --diff
+	$(DOCKER_COMPOSE_DEV) run --rm php ./vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.php --diff
 endif
 
 #
@@ -86,27 +86,27 @@ endif
 
 ifeq ($(PRIMARY_GOAL),test)
 test: ## Run tests.
-	$(DOCKER_COMPOSE_TEST) run --rm app ./vendor/bin/codecept run $(CLI_ARGS)
+	$(DOCKER_COMPOSE_TEST) run --rm php ./vendor/bin/codecept run $(CLI_ARGS)
 endif
 
 ifeq ($(PRIMARY_GOAL),test-coverage)
 test-coverage: ## Run tests with coverage.
-	$(DOCKER_COMPOSE_TEST) run --rm app ./vendor/bin/codecept run --coverage --coverage-html --disable-coverage-php
+	$(DOCKER_COMPOSE_TEST) run --rm php ./vendor/bin/codecept run --coverage --coverage-html --disable-coverage-php
 endif
 
 ifeq ($(PRIMARY_GOAL),codecept)
 codecept: ## Run Codeception.
-	$(DOCKER_COMPOSE_TEST) run --rm app ./vendor/bin/codecept $(CLI_ARGS)
+	$(DOCKER_COMPOSE_TEST) run --rm php ./vendor/bin/codecept $(CLI_ARGS)
 endif
 
 ifeq ($(PRIMARY_GOAL),psalm)
 psalm: ## Run Psalm.
-	$(DOCKER_COMPOSE_DEV) run --rm app ./vendor/bin/psalm $(CLI_ARGS)
+	$(DOCKER_COMPOSE_DEV) run --rm php ./vendor/bin/psalm $(CLI_ARGS)
 endif
 
 ifeq ($(PRIMARY_GOAL),composer-dependency-analyser)
 composer-dependency-analyser: ## Run Composer Dependency Analyser.
-	$(DOCKER_COMPOSE_DEV) run --rm app ./vendor/bin/composer-dependency-analyser --config=composer-dependency-analyser.php $(CLI_ARGS)
+	$(DOCKER_COMPOSE_DEV) run --rm php ./vendor/bin/composer-dependency-analyser --config=composer-dependency-analyser.php $(CLI_ARGS)
 endif
 
 #
