@@ -141,6 +141,18 @@ prod-deploy: ## Deploy to production.
 endif
 
 #
+# Benchmarks
+#
+
+ifeq ($(PRIMARY_GOAL),bench)
+bench: ## Run k6 benchmark
+	docker run --rm -i --network=host \
+		-e BASE_URL=http://localhost:9991 \
+		-v $(CURDIR)/benchmark:/benchmark \
+		grafana/k6 run /benchmark/bench.js
+endif
+
+#
 # Other
 #
 
