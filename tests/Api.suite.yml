@@ -1,0 +1,11 @@
+actor: ApiTester
+extensions:
+  enabled:
+    - Codeception\Extension\RunProcess:
+        0: composer serve
+        sleep: 3
+modules:
+  enabled:
+    - REST:
+        url: http://127.0.0.1:8080
+        depends: PhpBrowser
