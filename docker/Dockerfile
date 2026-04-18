@@ -24,11 +24,10 @@ RUN install-php-extensions \
     xmlwriter \
     simplexml \
     pdo \
+    pdo_pgsql \
     zip
 
 ENV LC_ALL=C.UTF-8
-WORKDIR /app
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 CMD php -r "exit(@file_get_contents('http://127.0.0.1:2114/health?plugin=http') === false ? 1 : 0);"
 
 #
 # Development
@@ -40,8 +39,8 @@ ARG GROUP_ID=10001
 ARG USER_NAME=appuser
 ARG GROUP_NAME=appuser
 
-RUN install-php-extensions \
-    xdebug
+# RUN install-php-extensions \
+#    xdebug
 
 COPY --from=composer /composer /usr/bin/composer
 
