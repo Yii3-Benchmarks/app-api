@@ -32,8 +32,8 @@ ARG GROUP_ID=10001
 ARG USER_NAME=appuser
 ARG GROUP_NAME=appuser
 
-RUN install-php-extensions \
-    xdebug
+# RUN install-php-extensions \
+#    xdebug
 
 COPY --from=composer /composer /usr/bin/composer
 
