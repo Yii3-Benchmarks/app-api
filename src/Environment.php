@@ -29,6 +29,14 @@ final class Environment
         self::setBoolean('APP_C3', false);
         self::setBoolean('APP_DEBUG', false);
         self::setNonEmptyStringOrNull('APP_HOST_PATH', null);
+        self::setString('VALKEY_HOST', '127.0.0.1');
+        self::setString('VALKEY_PORT', '6379');
+        self::setInteger('VALKEY_DATABASE', 0);
+        self::setString('PGSQL_HOST', '127.0.0.1');
+        self::setString('PGSQL_PORT', '5432');
+        self::setString('PGSQL_DATABASE', 'benchmark');
+        self::setString('PGSQL_USERNAME', 'benchmark');
+        self::setString('PGSQL_PASSWORD', 'benchmark');
     }
 
     /**
@@ -74,6 +82,75 @@ final class Environment
     {
         /** @var bool */
         return self::$values['APP_DEBUG'];
+    }
+
+    /**
+     * @return non-empty-string
+     */
+    public static function valkeyHost(): string
+    {
+        /** @var non-empty-string */
+        return self::$values['VALKEY_HOST'];
+    }
+
+    /**
+     * @return non-empty-string
+     */
+    public static function valkeyPort(): string
+    {
+        /** @var non-empty-string */
+        return self::$values['VALKEY_PORT'];
+    }
+
+    public static function valkeyDatabase(): int
+    {
+        /** @var int */
+        return self::$values['VALKEY_DATABASE'];
+    }
+
+    /**
+     * @return non-empty-string
+     */
+    public static function pgsqlHost(): string
+    {
+        /** @var non-empty-string */
+        return self::$values['PGSQL_HOST'];
+    }
+
+    /**
+     * @return non-empty-string
+     */
+    public static function pgsqlPort(): string
+    {
+        /** @var non-empty-string */
+        return self::$values['PGSQL_PORT'];
+    }
+
+    /**
+     * @return non-empty-string
+     */
+    public static function pgsqlDatabase(): string
+    {
+        /** @var non-empty-string */
+        return self::$values['PGSQL_DATABASE'];
+    }
+
+    /**
+     * @return non-empty-string
+     */
+    public static function pgsqlUsername(): string
+    {
+        /** @var non-empty-string */
+        return self::$values['PGSQL_USERNAME'];
+    }
+
+    /**
+     * @return non-empty-string
+     */
+    public static function pgsqlPassword(): string
+    {
+        /** @var non-empty-string */
+        return self::$values['PGSQL_PASSWORD'];
     }
 
     private static function setEnvironment(): void

@@ -20,6 +20,14 @@ endif
 export COMPOSE_PROJECT_NAME=${STACK_NAME}
 DOCKER_COMPOSE_DEV := docker compose -f docker/compose.yml -f docker/dev/compose.yml
 DOCKER_COMPOSE_TEST := docker compose -f docker/compose.yml -f docker/test/compose.yml
+MODE ?= ramp
+CAPTURE_METRICS ?= 1
+BENCH_NAME ?= FrankenPHP classic
+ifeq ($(MODE),ramp)
+BENCH_SCRIPT := bench-ramp.js
+else
+BENCH_SCRIPT := bench.js
+endif
 
 #
 # Development
@@ -145,11 +153,35 @@ endif
 #
 
 ifeq ($(PRIMARY_GOAL),bench)
-bench: ## Run k6 benchmark
-	docker run --rm -i --network=host \
-		-e BASE_URL=http://localhost:9991 \
-		-v $(CURDIR)/benchmark:/benchmark \
-		grafana/k6 run /benchmark/bench.js
+bench: ## Run home benchmark. Options: BENCH_NAME="..." MODE=steady|ramp CAPTURE_METRICS=1 RATE=... STAGES=...
+	BASE_URL=http://localhost:9991 \
+	TARGET_PATH=/ \
+	TARGET_NAME=home \
+	BENCH_NAME="$(BENCH_NAME)" \
+	BENCH_SCRIPT=$(BENCH_SCRIPT) \
+	CAPTURE_METRICS=$(CAPTURE_METRICS) \
+	./tools/run-k6-benchmark.sh
+endif
+
+ifeq ($(PRIMARY_GOAL),bench-db)
+bench-db: ## Run PostgreSQL benchmark. Options: BENCH_NAME="..." MODE=steady|ramp CAPTURE_METRICS=1 RATE=... STAGES=...
+	BASE_URL=http://localhost:9991 \
+	TARGET_PATH=/postgres/orders \
+	TARGET_NAME=postgres-orders \
+	BENCH_NAME="$(BENCH_NAME) DB" \
+	BENCH_SCRIPT=$(BENCH_SCRIPT) \
+	CAPTURE_METRICS=$(CAPTURE_METRICS) \
+	./tools/run-k6-benchmark.sh
+endif
+
+ifeq ($(PRIMARY_GOAL),generate-pgsql-dump)
+generate-pgsql-dump: ## Regenerate PostgreSQL benchmark dump.
+	php tools/generate-pgsql-dump.php
+endif
+
+ifeq ($(PRIMARY_GOAL),bench-report)
+bench-report: ## Generate an HTML benchmark report. Default input: runtime/benchmarks
+	./tools/render-benchmark-report.sh $(CLI_ARGS)
 endif
 
 #

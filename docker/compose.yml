@@ -1,4 +1,8 @@
 services:
-  php: &phpconfig
+  app: &appconfig
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+volumes:
+  postgres_data:
+  valkey_data:
