@@ -180,7 +180,7 @@ generate-pgsql-dump: ## Regenerate PostgreSQL benchmark dump.
 endif
 
 ifeq ($(PRIMARY_GOAL),bench-report)
-bench-report: ## Generate an HTML benchmark report. Usage: make bench-report runtime/benchmarks/<run-dir> [...]
+bench-report: ## Generate an HTML benchmark report. Default input: runtime/benchmarks
 	./tools/render-benchmark-report.sh $(CLI_ARGS)
 endif
 

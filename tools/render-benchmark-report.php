@@ -29,7 +29,7 @@ echo $outputFile . PHP_EOL;
 function parseArguments(array $argv): array
 {
     $outputFile = dirname(__DIR__) . '/runtime/benchmarks/report-' . gmdate('Ymd\THis\Z') . '.html';
-    $runDirectories = [];
+    $inputPaths = [];
 
     for ($i = 1, $count = count($argv); $i < $count; $i++) {
         $argument = $argv[$i];
@@ -45,14 +45,17 @@ function parseArguments(array $argv): array
             continue;
         }
 
-        $runDirectories[] = normalizePath($argument);
+        $inputPaths[] = normalizePath($argument);
     }
 
+    if ($inputPaths === []) {
+        $inputPaths[] = dirname(__DIR__) . '/runtime/benchmarks';
+    }
+
+    $runDirectories = expandRunDirectories($inputPaths);
+
     if ($runDirectories === []) {
-        fwrite(
-            STDERR,
-            "Usage: php tools/render-benchmark-report.php [--output <report.html>] <run-dir> [<run-dir>...]\n",
-        );
+        fwrite(STDERR, "No benchmark runs found.\n");
         exit(1);
     }
 
@@ -70,6 +73,48 @@ function normalizePath(string $path): string
     }
 
     return getcwd() . DIRECTORY_SEPARATOR . $path;
+}
+
+function expandRunDirectories(array $inputPaths): array
+{
+    $runDirectories = [];
+
+    foreach ($inputPaths as $inputPath) {
+        if (!is_dir($inputPath)) {
+            fwrite(STDERR, "Benchmark path not found: $inputPath\n");
+            exit(1);
+        }
+
+        if (isRunDirectory($inputPath)) {
+            $runDirectories[$inputPath] = true;
+            continue;
+        }
+
+        $children = glob($inputPath . '/*', GLOB_ONLYDIR);
+        if ($children === false) {
+            continue;
+        }
+
+        sort($children);
+        foreach ($children as $child) {
+            if (isRunDirectory($child)) {
+                $runDirectories[$child] = true;
+            }
+        }
+    }
+
+    return array_keys($runDirectories);
+}
+
+function isRunDirectory(string $directory): bool
+{
+    return is_file($directory . '/metadata.env')
+        && is_file($directory . '/summary.json')
+        && is_file($directory . '/docker-stats.csv')
+        && (
+            is_file($directory . '/k6-timeseries.json')
+            || is_file($directory . '/k6-metrics.json')
+        );
 }
 
 function loadRun(string $runDirectory): array
@@ -153,41 +198,11 @@ function summarizeRun(array $summary): array
 function buildRunLabel(string $runDirectory, array $metadata): string
 {
     $benchmarkName = trim((string) ($metadata['BENCH_NAME'] ?? ''));
-    $targetName = humanizeTargetName($metadata['TARGET_NAME'] ?? basename($runDirectory));
-    $mode = (($metadata['BENCH_SCRIPT'] ?? 'bench.js') === 'bench-ramp.js') ? 'Ramp' : 'Steady';
-    $timestamp = formatRunTimestamp(basename($runDirectory));
-
-    $parts = [];
     if ($benchmarkName !== '') {
-        $parts[] = $benchmarkName;
-    }
-    $parts[] = $targetName;
-    $parts[] = $mode;
-    if ($timestamp !== null) {
-        $parts[] = $timestamp;
+        return $benchmarkName;
     }
 
-    return implode(' · ', $parts);
-}
-
-function humanizeTargetName(string $targetName): string
-{
-    return match ($targetName) {
-        'home' => 'Home',
-        'postgres-orders' => 'PostgreSQL Orders',
-        default => ucwords(str_replace(['-', '_', '/'], ' ', $targetName)),
-    };
-}
-
-function formatRunTimestamp(string $directoryName): ?string
-{
-    if (!preg_match('/^(\d{8}T\d{6}Z)-/', $directoryName, $matches)) {
-        return null;
-    }
-
-    $timestamp = DateTimeImmutable::createFromFormat('Ymd\THis\Z', $matches[1], new DateTimeZone('UTC'));
-
-    return $timestamp?->format('Y-m-d H:i \U\T\C');
+    return basename($runDirectory);
 }
 
 function parseCompactK6Timeseries(string $file): array

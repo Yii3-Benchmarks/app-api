@@ -118,6 +118,8 @@ To turn one or more captured runs into a self-contained HTML report with graphs 
 iterations, CPU, and memory:
 
 ```shell
+make bench-report
+make bench-report runtime/benchmarks
 make bench-report runtime/benchmarks/<run-dir>
 make bench-report runtime/benchmarks/<run-dir-1> runtime/benchmarks/<run-dir-2>
 ```
