@@ -153,7 +153,7 @@ endif
 #
 
 ifeq ($(PRIMARY_GOAL),bench)
-bench: ## Run home benchmark. Options: BENCH_NAME="..." MODE=steady|ramp CAPTURE_METRICS=1 RATE=... STAGES=...
+bench: ## Run home benchmark. Options: BENCH_NAME="..." MODE=steady|ramp CAPTURE_METRICS=1 RATE=... STAGES=... PREALLOCATED_VUS=... MAX_VUS=...
 	BASE_URL=http://localhost:9991 \
 	TARGET_PATH=/ \
 	TARGET_NAME=home \
@@ -164,7 +164,7 @@ bench: ## Run home benchmark. Options: BENCH_NAME="..." MODE=steady|ramp CAPTURE
 endif
 
 ifeq ($(PRIMARY_GOAL),bench-db)
-bench-db: ## Run PostgreSQL benchmark. Options: BENCH_NAME="..." MODE=steady|ramp CAPTURE_METRICS=1 RATE=... STAGES=...
+bench-db: ## Run PostgreSQL benchmark. Options: BENCH_NAME="..." MODE=steady|ramp CAPTURE_METRICS=1 RATE=... STAGES=... PREALLOCATED_VUS=... MAX_VUS=...
 	BASE_URL=http://localhost:9991 \
 	TARGET_PATH=/postgres/orders \
 	TARGET_NAME=postgres-orders \

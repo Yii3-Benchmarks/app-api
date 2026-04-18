@@ -15,15 +15,81 @@ DOCKER_STATS_INTERVAL="${DOCKER_STATS_INTERVAL:-1}"
 DOCKER_STATS_SERVICES="${DOCKER_STATS_SERVICES:-app postgres valkey}"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:?COMPOSE_PROJECT_NAME is required}"
 
-RATE="${RATE:-5000}"
+RATE="${RATE:-10000}"
 DURATION="${DURATION:-160s}"
 START_RATE="${START_RATE:-1000}"
 TIME_UNIT="${TIME_UNIT:-1s}"
-PREALLOCATED_VUS="${PREALLOCATED_VUS:-200}"
-MAX_VUS="${MAX_VUS:-2000}"
+PREALLOCATED_VUS="${PREALLOCATED_VUS:-auto}"
+MAX_VUS="${MAX_VUS:-auto}"
 if [[ -z "${STAGES:-}" ]]; then
-    STAGES='[{"target":5000,"duration":"30s"},{"target":10000,"duration":"30s"},{"target":15000,"duration":"30s"},{"target":20000,"duration":"30s"}]'
+    STAGES='[{"target":5000,"duration":"15s"},{"target":15000,"duration":"15s"},{"target":25000,"duration":"15s"},{"target":35000,"duration":"15s"},{"target":45000,"duration":"15s"},{"target":55000,"duration":"15s"},{"target":65000,"duration":"15s"},{"target":80000,"duration":"15s"}]'
 fi
+VUS_SIZING_MODE="manual"
+PEAK_RATE=""
+
+max_target_rate() {
+    if [[ "${BENCH_SCRIPT}" == "bench-ramp.js" ]]; then
+        php -r '
+            $max = (int) getenv("START_RATE");
+            $stages = json_decode((string) getenv("STAGES"), true);
+            if (is_array($stages)) {
+                foreach ($stages as $stage) {
+                    $max = max($max, (int) ($stage["target"] ?? 0));
+                }
+            }
+            echo $max;
+        '
+        return
+    fi
+
+    echo "${RATE}"
+}
+
+autosize_vus() {
+    local peak_rate="${1}"
+
+    php -r '
+        $peakRate = max(1, (int) ($argv[1] ?? 1));
+        $preallocated = max(50, (int) ceil($peakRate / 20));
+        $maxVus = max($preallocated * 4, (int) ceil($peakRate / 5));
+
+        echo $preallocated, " ", $maxVus;
+    ' "${peak_rate}"
+}
+
+resolve_vus_configuration() {
+    local peak_rate
+
+    if [[ "${PREALLOCATED_VUS}" != "auto" && "${MAX_VUS}" != "auto" ]]; then
+        PEAK_RATE="$(max_target_rate)"
+        if (( MAX_VUS < PREALLOCATED_VUS )); then
+            echo "MAX_VUS must be greater than or equal to PREALLOCATED_VUS." >&2
+            exit 1
+        fi
+        return
+    fi
+
+    peak_rate="$(max_target_rate)"
+    read -r auto_preallocated_vus auto_max_vus <<< "$(autosize_vus "${peak_rate}")"
+
+    if [[ "${PREALLOCATED_VUS}" == "auto" ]]; then
+        PREALLOCATED_VUS="${auto_preallocated_vus}"
+        VUS_SIZING_MODE="auto"
+    fi
+
+    if [[ "${MAX_VUS}" == "auto" ]]; then
+        MAX_VUS="${auto_max_vus}"
+        VUS_SIZING_MODE="auto"
+    fi
+
+    if (( MAX_VUS < PREALLOCATED_VUS )); then
+        MAX_VUS="${PREALLOCATED_VUS}"
+    fi
+
+    PEAK_RATE="${peak_rate}"
+}
+
+resolve_vus_configuration
 
 print_config() {
     echo "Benchmark configuration:"
@@ -32,6 +98,8 @@ print_config() {
     echo "  target_name: ${TARGET_NAME}"
     echo "  target_path: ${TARGET_PATH}"
     echo "  script: ${BENCH_SCRIPT}"
+    echo "  peak_rate: ${PEAK_RATE}"
+    echo "  vus_sizing: ${VUS_SIZING_MODE}"
     echo "  preallocated_vus: ${PREALLOCATED_VUS}"
     echo "  max_vus: ${MAX_VUS}"
 
@@ -107,6 +175,8 @@ START_RATE=${START_RATE}
 TIME_UNIT=${TIME_UNIT}
 PREALLOCATED_VUS=${PREALLOCATED_VUS}
 MAX_VUS=${MAX_VUS}
+VUS_SIZING_MODE=${VUS_SIZING_MODE}
+PEAK_RATE=${PEAK_RATE}
 STAGES=${STAGES}
 DOCKER_STATS_INTERVAL=${DOCKER_STATS_INTERVAL}
 DOCKER_STATS_SERVICES=${DOCKER_STATS_SERVICES}

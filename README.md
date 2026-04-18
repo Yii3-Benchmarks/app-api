@@ -104,14 +104,19 @@ Both targets accept `BENCH_NAME="..."`, `MODE=steady|ramp` and `CAPTURE_METRICS=
 `k6-timeseries.json` for compact request/latency/failure series, `summary.json` for the aggregate k6 summary,
 `docker-stats.csv` for container CPU and memory samples, and `metadata.env` for the exact run settings.
 
+By default, the benchmark runner auto-sizes `PREALLOCATED_VUS` and `MAX_VUS` from the configured request rate. For
+steady mode it uses `RATE`; for ramp mode it uses the highest target found in `STAGES`. You normally do not need to
+set VU counts manually, but both variables still work as explicit overrides.
+
 Examples:
 
 ```shell
 make bench
-make bench-db RATE=8000 PREALLOCATED_VUS=400 MAX_VUS=4000
+make bench-db RATE=8000
 make bench MODE=ramp
 make bench-db MODE=ramp CAPTURE_METRICS=1
 make bench-db BENCH_NAME="FrankenPHP worker" MODE=ramp CAPTURE_METRICS=1
+make bench PREALLOCATED_VUS=500 MAX_VUS=3000
 ```
 
 To turn one or more captured runs into a self-contained HTML report with graphs for RPS, failure rate, latency, dropped

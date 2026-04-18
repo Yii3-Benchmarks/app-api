@@ -11,10 +11,14 @@ const MAX_VUS = Number(__ENV.MAX_VUS || 2000);
 const STAGES = JSON.parse(
     __ENV.STAGES ||
         JSON.stringify([
-            { target: 5000, duration: '30s' },
-            { target: 10000, duration: '30s' },
-            { target: 15000, duration: '30s' },
-            { target: 20000, duration: '30s' },
+            { target: 5000, duration: '15s' },
+            { target: 15000, duration: '15s' },
+            { target: 25000, duration: '15s' },
+            { target: 35000, duration: '15s' },
+            { target: 45000, duration: '15s' },
+            { target: 55000, duration: '15s' },
+            { target: 65000, duration: '15s' },
+            { target: 80000, duration: '15s' },
         ]),
 );
 

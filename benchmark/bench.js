@@ -4,7 +4,7 @@ import { check } from 'k6';
 const BASE_URL = __ENV.BASE_URL;
 const TARGET_PATH = __ENV.TARGET_PATH || '/';
 const TARGET_NAME = __ENV.TARGET_NAME || TARGET_PATH;
-const RATE = Number(__ENV.RATE || 5000);
+const RATE = Number(__ENV.RATE || 10000);
 const DURATION = __ENV.DURATION || '160s';
 const PREALLOCATED_VUS = Number(__ENV.PREALLOCATED_VUS || 200);
 const MAX_VUS = Number(__ENV.MAX_VUS || 2000);
