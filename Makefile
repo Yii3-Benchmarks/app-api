@@ -181,7 +181,7 @@ endif
 
 ifeq ($(PRIMARY_GOAL),bench-report)
 bench-report: ## Generate an HTML benchmark report. Default input: runtime/benchmarks
-	./tools/render-benchmark-report.sh $(CLI_ARGS)
+	@./tools/render-benchmark-report.sh $(CLI_ARGS)
 endif
 
 #

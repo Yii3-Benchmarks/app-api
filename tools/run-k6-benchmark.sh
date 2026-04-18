@@ -21,6 +21,7 @@ START_RATE="${START_RATE:-1000}"
 TIME_UNIT="${TIME_UNIT:-1s}"
 PREALLOCATED_VUS="${PREALLOCATED_VUS:-auto}"
 MAX_VUS="${MAX_VUS:-auto}"
+AUTO_MAX_VUS_LIMIT="${AUTO_MAX_VUS_LIMIT:-500000}"
 if [[ -z "${STAGES:-}" ]]; then
     STAGES='[{"target":5000,"duration":"15s"},{"target":15000,"duration":"15s"},{"target":25000,"duration":"15s"},{"target":35000,"duration":"15s"},{"target":45000,"duration":"15s"},{"target":55000,"duration":"15s"},{"target":65000,"duration":"15s"},{"target":80000,"duration":"15s"}]'
 fi
@@ -47,14 +48,26 @@ max_target_rate() {
 
 autosize_vus() {
     local peak_rate="${1}"
+    local bench_script="${2}"
+    local auto_max_vus_limit="${3}"
 
     php -r '
         $peakRate = max(1, (int) ($argv[1] ?? 1));
-        $preallocated = max(50, (int) ceil($peakRate / 20));
-        $maxVus = max($preallocated * 4, (int) ceil($peakRate / 5));
+        $benchScript = (string) ($argv[2] ?? "");
+        $autoMaxVusLimit = max(1000, (int) ($argv[3] ?? 500000));
+
+        if ($benchScript === "bench-ramp.js") {
+            $preallocated = max(1000, (int) ceil($peakRate / 5));
+            $maxVus = max($preallocated * 10, (int) ceil($peakRate * 4));
+        } else {
+            $preallocated = max(500, (int) ceil($peakRate / 10));
+            $maxVus = max($preallocated * 8, (int) ceil($peakRate * 2));
+        }
+
+        $maxVus = min($autoMaxVusLimit, max($maxVus, $preallocated));
 
         echo $preallocated, " ", $maxVus;
-    ' "${peak_rate}"
+    ' "${peak_rate}" "${bench_script}" "${auto_max_vus_limit}"
 }
 
 resolve_vus_configuration() {
@@ -70,7 +83,7 @@ resolve_vus_configuration() {
     fi
 
     peak_rate="$(max_target_rate)"
-    read -r auto_preallocated_vus auto_max_vus <<< "$(autosize_vus "${peak_rate}")"
+    read -r auto_preallocated_vus auto_max_vus <<< "$(autosize_vus "${peak_rate}" "${BENCH_SCRIPT}" "${AUTO_MAX_VUS_LIMIT}")"
 
     if [[ "${PREALLOCATED_VUS}" == "auto" ]]; then
         PREALLOCATED_VUS="${auto_preallocated_vus}"
@@ -102,6 +115,7 @@ print_config() {
     echo "  vus_sizing: ${VUS_SIZING_MODE}"
     echo "  preallocated_vus: ${PREALLOCATED_VUS}"
     echo "  max_vus: ${MAX_VUS}"
+    echo "  auto_max_vus_limit: ${AUTO_MAX_VUS_LIMIT}"
 
     if [[ "${BENCH_SCRIPT}" == "bench-ramp.js" ]]; then
         echo "  start_rate: ${START_RATE}"
@@ -179,6 +193,7 @@ PREALLOCATED_VUS=${PREALLOCATED_VUS}
 MAX_VUS=${MAX_VUS}
 VUS_SIZING_MODE=${VUS_SIZING_MODE}
 PEAK_RATE=${PEAK_RATE}
+AUTO_MAX_VUS_LIMIT=${AUTO_MAX_VUS_LIMIT}
 STAGES=${STAGES}
 DOCKER_STATS_INTERVAL=${DOCKER_STATS_INTERVAL}
 DOCKER_STATS_SERVICES=${DOCKER_STATS_SERVICES}

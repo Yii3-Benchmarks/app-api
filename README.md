@@ -106,7 +106,9 @@ Both targets accept `BENCH_NAME="..."`, `MODE=steady|ramp` and `CAPTURE_METRICS=
 
 By default, the benchmark runner auto-sizes `PREALLOCATED_VUS` and `MAX_VUS` from the configured request rate. For
 steady mode it uses `RATE`; for ramp mode it uses the highest target found in `STAGES`. You normally do not need to
-set VU counts manually, but both variables still work as explicit overrides.
+set VU counts manually, but both variables still work as explicit overrides. The default heuristic is intentionally
+aggressive and aims to avoid dropped iterations; `AUTO_MAX_VUS_LIMIT` may be used as a higher or lower automatic
+safety ceiling when needed.
 
 Examples:
 
