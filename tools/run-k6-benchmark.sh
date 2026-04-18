@@ -30,15 +30,15 @@ PEAK_RATE=""
 max_target_rate() {
     if [[ "${BENCH_SCRIPT}" == "bench-ramp.js" ]]; then
         php -r '
-            $max = (int) getenv("START_RATE");
-            $stages = json_decode((string) getenv("STAGES"), true);
+            $max = (int) ($argv[1] ?? 0);
+            $stages = json_decode((string) ($argv[2] ?? "[]"), true);
             if (is_array($stages)) {
                 foreach ($stages as $stage) {
                     $max = max($max, (int) ($stage["target"] ?? 0));
                 }
             }
             echo $max;
-        '
+        ' "${START_RATE}" "${STAGES}"
         return
     fi
 
@@ -155,8 +155,10 @@ start_stats_sampler() {
 
 stop_stats_sampler() {
     if [[ -n "${SAMPLER_PID:-}" ]] && kill -0 "${SAMPLER_PID}" 2>/dev/null; then
+        echo "Stopping Docker stats sampler..."
         kill "${SAMPLER_PID}" 2>/dev/null || true
         wait "${SAMPLER_PID}" 2>/dev/null || true
+        echo "Docker stats sampler stopped."
     fi
 }
 
@@ -193,8 +195,10 @@ compact_k6_metrics() {
         return
     fi
 
+    echo "Compacting k6 metrics..."
     php "${ROOT_DIR}/tools/compact-k6-metrics.php" "${raw_file}" "${compact_file}"
     rm -f "${raw_file}"
+    echo "k6 metrics compacted: ${compact_file}"
 }
 
 print_config
@@ -244,7 +248,9 @@ docker_args+=(
     "/benchmark/${BENCH_SCRIPT}"
 )
 
+echo "Running k6 benchmark..."
 docker "${docker_args[@]}"
+echo "k6 benchmark finished."
 
 if [[ "${CAPTURE_METRICS}" == "1" ]]; then
     compact_k6_metrics "${OUTPUT_DIR}"
