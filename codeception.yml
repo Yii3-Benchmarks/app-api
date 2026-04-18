@@ -18,7 +18,7 @@ coverage:
   show_only_summary: true
   include:
     - src/*
-    - public/index.php
+    - worker.php
     - yii
 
 extensions:

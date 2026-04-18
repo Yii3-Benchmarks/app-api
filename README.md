@@ -57,11 +57,11 @@ cp .env.example .env
 To run the app:
 
 ```shell
-./yii serve
+composer serve
 ```
 
-Now you should be able to access the application through the URL printed to console.
-Usually it is `http://localhost:8080`.
+This starts RoadRunner using [yiisoft/yii-runner-roadrunner](https://github.com/yiisoft/yii-runner-roadrunner).
+The application listens on `http://localhost:8080` by default.
 
 > [!TIP]
 > The `.env` file is for local development only and is excluded from version control.
@@ -91,7 +91,7 @@ To stop the app:
 make down
 ```
 
-The application is available at `https://localhost`.
+The application is available at `http://localhost:9991` by default.
 
 Other make commands are available in the `Makefile` and can be listed with:
 
@@ -111,7 +111,6 @@ config/                     Configuration files.
     web/                    Web-specific configuration.
 docker/                     Docker-specific files.
 public/                     Files publically accessible from the Internet.
-    index.php               Entry script.
 runtime/                    Files generated during runtime.
 src/                        Application source code.
     Api/                    API action handlers and API-specific code.
@@ -127,6 +126,7 @@ tests/                      A set of Codeception tests for the application.
     Unit/                   Unit tests.
 vendor/                     Installed Composer packages.
 Makefile                    Config for make command.
+worker.php                  RoadRunner worker entry point.
 yii                         Console application entry point.
 ```
 
@@ -138,7 +138,7 @@ To execute tests, in local installation run:
 ```shell
 ./vendor/bin/codecept build
 
-APP_ENV=test ./yii serve > ./runtime/yii.log 2>&1 &
+APP_ENV=test composer serve > ./runtime/yii.log 2>&1 &
 ./vendor/bin/codecept run
 ```
 

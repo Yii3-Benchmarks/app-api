@@ -13,8 +13,10 @@ services:
         required: false
     restart: unless-stopped
     ports:
-      - "${DEV_PORT:-80}:80"
+      - "${DEV_PORT:-80}:8080"
     volumes:
       - ../:/app
       - ../runtime:/app/runtime
+    working_dir: /app
+    command: ["rr", "serve", "-c", ".rr.yaml", "-w", "/app"]
     tty: true

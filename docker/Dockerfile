@@ -1,6 +1,11 @@
 FROM composer/composer:2-bin AS composer
+FROM ghcr.io/mlocati/php-extension-installer:2 AS php-extension-installer
+FROM ghcr.io/roadrunner-server/roadrunner:2025.1.13 AS roadrunner
 
-FROM dunglas/frankenphp:1-php8.5-bookworm AS base
+FROM php:8.5-cli-bookworm AS base
+
+COPY --from=php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/install-php-extensions
+COPY --from=roadrunner /usr/bin/rr /usr/local/bin/rr
 
 RUN apt update && apt -y install \
     unzip
@@ -14,12 +19,16 @@ RUN install-php-extensions \
     curl \
     phar \
     openssl \
+    sockets \
     xml \
     xmlwriter \
     simplexml \
-    pdo
+    pdo \
+    zip
 
 ENV LC_ALL=C.UTF-8
+WORKDIR /app
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 CMD php -r "exit(@file_get_contents('http://127.0.0.1:2114/health?plugin=http') === false ? 1 : 0);"
 
 #
 # Development
@@ -36,17 +45,10 @@ RUN install-php-extensions \
 
 COPY --from=composer /composer /usr/bin/composer
 
-# Based on https://frankenphp.dev/docs/docker/#running-as-a-non-root-user
 RUN \
 	groupadd --gid ${GROUP_ID} ${GROUP_NAME}; \
-    useradd --gid ${GROUP_ID} --uid ${USER_ID} ${GROUP_NAME}; \
-	# Add additional capability to bind to port 80 and 443
-	setcap CAP_NET_BIND_SERVICE=+eip /usr/local/bin/frankenphp; \
-	# Give write access to /data/caddy and /config/caddy
-	chown -R ${USER_NAME}:${GROUP_NAME} /data/caddy && chown -R ${USER_NAME}:${GROUP_NAME} /config/caddy
+    useradd --gid ${GROUP_ID} --uid ${USER_ID} ${GROUP_NAME}
 USER ${USER_NAME}
-
-COPY docker/dev/Caddyfile /etc/frankenphp/Caddyfile
 
 #
 # Production
@@ -56,11 +58,11 @@ FROM base AS prod-builder
 COPY --from=composer /composer /usr/bin/composer
 COPY .. /app
 RUN --mount=type=cache,target=/tmp/cache \
-    composer install --no-dev --no-progress --no-interaction --classmap-authoritative && \
+    composer install --no-dev --no-progress --no-interaction --no-scripts --classmap-authoritative && \
     rm composer.lock composer.json
 
 FROM base AS prod
 ENV APP_ENV=prod
-COPY docker/Caddyfile /etc/frankenphp/Caddyfile
 COPY --from=prod-builder --chown=www-data:www-data /app /app
 USER www-data
+CMD ["rr", "serve", "-c", ".rr.yaml", "-w", "/app"]

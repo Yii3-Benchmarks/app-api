@@ -8,7 +8,6 @@ use App\Environment;
 use Codeception\Actor;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
-use Yiisoft\Yii\Runner\Http\HttpApplicationRunner;
 
 use function dirname;
 
@@ -38,8 +37,10 @@ class FunctionalTester extends Actor
 
     public function sendRequest(ServerRequestInterface $request): ResponseInterface
     {
-        $runner = new HttpApplicationRunner(
+        $runner = new FunctionalApplicationRunner(
             rootPath: dirname(__DIR__, 2),
+            debug: Environment::appDebug(),
+            checkEvents: Environment::appDebug(),
             environment: Environment::appEnv(),
         );
 

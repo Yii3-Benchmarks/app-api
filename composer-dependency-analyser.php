@@ -13,7 +13,7 @@ return (new Configuration())
     ->addPathToExclude($root . '/src/bootstrap.php')
     ->addPathToScan($root . '/src/bootstrap.php', isDev: true)
     ->addPathToScan($root . '/config', isDev: false)
-    ->addPathToScan($root . '/public/index.php', isDev: false)
+    ->addPathToScan($root . '/worker.php', isDev: false)
     ->addPathToScan($root . '/yii', isDev: false)
     ->addPathToScan($root . '/tests', isDev: true)
     ->ignoreErrorsOnPackages(
