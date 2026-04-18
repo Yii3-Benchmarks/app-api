@@ -146,6 +146,12 @@ function loadRun(string $runDirectory): array
     $summary = json_decode((string) file_get_contents($summaryFile), true, 512, JSON_THROW_ON_ERROR);
     $k6Series = is_file($k6TimeseriesFile) ? parseCompactK6Timeseries($k6TimeseriesFile) : parseK6Metrics($k6MetricsFile);
     $dockerSeries = parseDockerStats($dockerStatsFile);
+    $successfulResponsesPerSecond = $k6Series['successfulResponsesPerSecond']
+        ?? deriveSuccessfulResponsesSeries(
+            $k6Series['requestsPerSecond'] ?? [],
+            $k6Series['failureRatePercent'] ?? [],
+        );
+    $targetRequestsPerSecond = buildTargetRequestsPerSecondSeries($metadata);
 
     $label = buildRunLabel($runDirectory, $metadata);
 
@@ -156,6 +162,8 @@ function loadRun(string $runDirectory): array
         'summary' => summarizeRun($summary),
         'series' => [
             'requestsPerSecond' => $k6Series['requestsPerSecond'],
+            'successfulResponsesPerSecond' => $successfulResponsesPerSecond,
+            'targetRequestsPerSecond' => $targetRequestsPerSecond,
             'failureRatePercent' => $k6Series['failureRatePercent'],
             'avgLatencyMs' => $k6Series['avgLatencyMs'],
             'p95LatencyMs' => $k6Series['p95LatencyMs'],
@@ -215,6 +223,123 @@ function parseCompactK6Timeseries(string $file): array
     }
 
     return $payload['series'] ?? [];
+}
+
+function deriveSuccessfulResponsesSeries(array $requestsPerSecond, array $failureRatePercent): array
+{
+    if ($requestsPerSecond === []) {
+        return [];
+    }
+
+    $failureRateBySecond = [];
+    foreach ($failureRatePercent as $point) {
+        if (!is_array($point) || !isset($point['x'])) {
+            continue;
+        }
+
+        $failureRateBySecond[(int) $point['x']] = (float) ($point['y'] ?? 0.0);
+    }
+
+    $successfulResponses = [];
+    foreach ($requestsPerSecond as $point) {
+        if (!is_array($point) || !isset($point['x'])) {
+            continue;
+        }
+
+        $second = (int) $point['x'];
+        $requests = (float) ($point['y'] ?? 0.0);
+        $failureRate = $failureRateBySecond[$second] ?? 0.0;
+        $successfulResponses[] = [
+            'x' => $second,
+            'y' => max(0.0, round($requests * (1.0 - ($failureRate / 100.0)), 4)),
+        ];
+    }
+
+    return $successfulResponses;
+}
+
+function buildTargetRequestsPerSecondSeries(array $metadata): array
+{
+    $benchScript = (string) ($metadata['BENCH_SCRIPT'] ?? '');
+    $timeUnitSeconds = max(1, parseDurationSeconds((string) ($metadata['TIME_UNIT'] ?? '1s')));
+
+    if ($benchScript === 'bench-ramp.js') {
+        return buildRampTargetRequestsPerSecondSeries(
+            (int) ($metadata['START_RATE'] ?? 0),
+            (string) ($metadata['STAGES'] ?? '[]'),
+            $timeUnitSeconds,
+        );
+    }
+
+    $rate = (int) ($metadata['RATE'] ?? 0);
+    $durationSeconds = max(0, parseDurationSeconds((string) ($metadata['DURATION'] ?? '0s')));
+    $ratePerSecond = (float) ($rate / $timeUnitSeconds);
+
+    return [
+        ['x' => 0, 'y' => $ratePerSecond],
+        ['x' => $durationSeconds, 'y' => $ratePerSecond],
+    ];
+}
+
+function buildRampTargetRequestsPerSecondSeries(int $startRate, string $stagesJson, int $timeUnitSeconds): array
+{
+    $stages = json_decode($stagesJson, true);
+    if (!is_array($stages)) {
+        return [];
+    }
+
+    $points = [
+        ['x' => 0, 'y' => (float) ($startRate / $timeUnitSeconds)],
+    ];
+
+    $currentRate = (float) $startRate;
+    $currentSecond = 0;
+
+    foreach ($stages as $stage) {
+        if (!is_array($stage)) {
+            continue;
+        }
+
+        $targetRate = (float) ($stage['target'] ?? $currentRate);
+        $durationSeconds = max(1, parseDurationSeconds((string) ($stage['duration'] ?? '0s')));
+
+        for ($offset = 1; $offset <= $durationSeconds; $offset++) {
+            $progress = $offset / $durationSeconds;
+            $interpolatedRate = $currentRate + (($targetRate - $currentRate) * $progress);
+            $points[] = [
+                'x' => $currentSecond + $offset,
+                'y' => $interpolatedRate / $timeUnitSeconds,
+            ];
+        }
+
+        $currentSecond += $durationSeconds;
+        $currentRate = $targetRate;
+    }
+
+    return $points;
+}
+
+function parseDurationSeconds(string $value): int
+{
+    $normalized = trim($value);
+    if ($normalized === '') {
+        return 0;
+    }
+
+    if (!preg_match('/^([0-9]+)(ms|s|m|h)$/', $normalized, $matches)) {
+        return 0;
+    }
+
+    $amount = (int) $matches[1];
+    $unit = $matches[2];
+
+    return match ($unit) {
+        'ms' => max(1, (int) round($amount / 1000)),
+        's' => $amount,
+        'm' => $amount * 60,
+        'h' => $amount * 3600,
+        default => 0,
+    };
 }
 
 function parseK6Metrics(string $k6MetricsFile): array
@@ -314,8 +439,13 @@ function parseK6Metrics(string $k6MetricsFile): array
     ksort($vusBuckets);
 
     $failureRateSeries = [];
+    $successfulResponsesSeries = [];
     foreach ($requestBuckets as $second => $requestCount) {
         $failedCount = $failedRequestBuckets[$second] ?? 0;
+        $successfulResponsesSeries[] = [
+            'x' => $second,
+            'y' => (float) max(0, $requestCount - $failedCount),
+        ];
         $failureRateSeries[] = [
             'x' => $second,
             'y' => $requestCount > 0 ? round(($failedCount / $requestCount) * 100, 4) : 0.0,
@@ -338,6 +468,7 @@ function parseK6Metrics(string $k6MetricsFile): array
 
     return [
         'requestsPerSecond' => pointsFromBucketCounts($requestBuckets),
+        'successfulResponsesPerSecond' => $successfulResponsesSeries,
         'failureRatePercent' => $failureRateSeries,
         'avgLatencyMs' => $avgLatencySeries,
         'p95LatencyMs' => $p95LatencySeries,
@@ -458,38 +589,44 @@ function renderHtmlReport(array $runs): string
     $chartDefinitions = [
         [
             'id' => 'requests-per-second',
-            'title' => 'Requests Per Second',
-            'series' => collectRunSeries($runs, 'requestsPerSecond', $palette),
+            'title' => 'Request Rate Per Second',
+            'series' => array_merge(
+                collectRunSeries($runs, 'requestsPerSecond', $palette, ' completed', false, [2, 4]),
+                collectRunSeries($runs, 'successfulResponsesPerSecond', $palette, ' successful'),
+            ),
+            'xAxisTargetSeries' => collectRunSeries($runs, 'targetRequestsPerSecond', $palette),
+            'styleLegend' => [
+                ['label' => 'successful', 'dash' => []],
+                ['label' => 'completed', 'dash' => [2, 4]],
+            ],
             'format' => 'integer',
         ],
         [
-            'id' => 'failure-rate',
-            'title' => 'Failure Rate (%)',
-            'series' => collectRunSeries($runs, 'failureRatePercent', $palette),
-            'format' => 'percent',
-        ],
-        [
-            'id' => 'avg-latency',
-            'title' => 'Average Latency (ms)',
-            'series' => collectRunSeries($runs, 'avgLatencyMs', $palette),
-            'format' => 'milliseconds-integer',
-        ],
-        [
-            'id' => 'p95-latency',
-            'title' => 'P95 Latency (ms)',
-            'series' => collectRunSeries($runs, 'p95LatencyMs', $palette),
+            'id' => 'latency',
+            'title' => 'Latency (ms)',
+            'series' => array_merge(
+                collectRunSeries($runs, 'avgLatencyMs', $palette, ' avg'),
+                collectRunSeries($runs, 'p95LatencyMs', $palette, ' p95', false, [8, 4]),
+            ),
+            'xAxisTargetSeries' => collectRunSeries($runs, 'targetRequestsPerSecond', $palette),
+            'styleLegend' => [
+                ['label' => 'avg', 'dash' => []],
+                ['label' => 'p95', 'dash' => [8, 4]],
+            ],
             'format' => 'milliseconds-integer',
         ],
         [
             'id' => 'dropped-iterations',
             'title' => 'Load Generator Dropped Iterations Per Second',
             'series' => collectRunSeries($runs, 'droppedPerSecond', $palette),
+            'xAxisTargetSeries' => collectRunSeries($runs, 'targetRequestsPerSecond', $palette),
             'format' => 'integer',
         ],
         [
             'id' => 'virtual-users',
             'title' => 'Virtual Users',
             'series' => collectRunSeries($runs, 'virtualUsers', $palette),
+            'xAxisTargetSeries' => collectRunSeries($runs, 'targetRequestsPerSecond', $palette),
             'format' => 'integer',
         ],
     ];
@@ -499,12 +636,14 @@ function renderHtmlReport(array $runs): string
             'id' => 'cpu-' . $serviceName,
             'title' => strtoupper($serviceName) . ' CPU (% of one core, 100% = 1 core)',
             'series' => collectDockerSeries($runs, $serviceName, 'cpuPercent', $palette),
+            'xAxisTargetSeries' => collectRunSeries($runs, 'targetRequestsPerSecond', $palette),
             'format' => 'percent-integer',
         ];
         $chartDefinitions[] = [
             'id' => 'memory-' . $serviceName,
             'title' => strtoupper($serviceName) . ' Memory (MiB)',
             'series' => collectDockerSeries($runs, $serviceName, 'memoryMiB', $palette),
+            'xAxisTargetSeries' => collectRunSeries($runs, 'targetRequestsPerSecond', $palette),
             'format' => 'integer',
         ];
     }
@@ -552,11 +691,50 @@ HTML;
     foreach ($chartDefinitions as $chart) {
         $chartId = h($chart['id']);
         $chartTitle = h($chart['title']);
+        $styleLegendHtml = '';
+        $styleLegendItems = $chart['styleLegend'] ?? [];
+        if (($chart['xAxisTargetSeries'] ?? []) !== []) {
+            $styleLegendItems[] = ['label' => 'Target', 'type' => 'target'];
+        }
+
+        if ($styleLegendItems !== []) {
+            $styleItems = '';
+            foreach ($styleLegendItems as $styleItem) {
+                if (($styleItem['type'] ?? '') === 'target') {
+                    $label = h((string) ($styleItem['label'] ?? ''));
+                    $styleItems .= <<<HTML
+<span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  {$label}
+</span>
+HTML;
+                    continue;
+                }
+
+                $dash = ($styleItem['dash'] ?? []) !== [] ? implode(' ', $styleItem['dash']) : '';
+                $label = h((string) ($styleItem['label'] ?? ''));
+                $styleItems .= <<<HTML
+<span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="{$dash}" stroke-linecap="round"></line>
+  </svg>
+  {$label}
+</span>
+HTML;
+            }
+
+            $styleLegendHtml = <<<HTML
+  <div class="style-legend">{$styleItems}</div>
+HTML;
+        }
         $chartSections .= <<<HTML
 <section class="panel chart-panel">
-  <h2>{$chartTitle}</h2>
+  <div class="chart-header">
+    <h2>{$chartTitle}</h2>
+{$styleLegendHtml}
+  </div>
   <div class="chart-wrap">
-    <canvas id="chart-{$chartId}" class="chart" width="1100" height="320"></canvas>
+    <canvas id="chart-{$chartId}" class="chart" width="1400" height="380"></canvas>
   </div>
   <div id="legend-{$chartId}" class="legend"></div>
 </section>
@@ -654,9 +832,19 @@ HTML;
     .chart-panel {
       overflow: hidden;
     }
+    .chart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+    .chart-header h2 {
+      margin-bottom: 0;
+    }
     .chart-wrap {
       width: 100%;
-      overflow-x: auto;
+      overflow-x: hidden;
     }
     .chart {
       width: 100%;
@@ -674,7 +862,20 @@ HTML;
       color: var(--muted);
       font-size: 0.92rem;
     }
+    .style-legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 12px 18px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
     .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .style-legend-item {
       display: inline-flex;
       align-items: center;
       gap: 8px;
@@ -682,8 +883,19 @@ HTML;
     .legend-swatch {
       width: 12px;
       height: 12px;
-      border-radius: 999px;
       display: inline-block;
+      border-radius: 999px;
+    }
+    .style-legend-swatch {
+      width: 24px;
+      height: 8px;
+      display: inline-block;
+    }
+    .style-legend-target {
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text);
     }
     .meta-grid {
       display: grid;
@@ -694,6 +906,8 @@ HTML;
       main { padding: 20px 14px 36px; }
       h1 { font-size: 1.8rem; }
       .panel { padding: 16px; }
+      .chart-header { align-items: flex-start; flex-direction: column; }
+      .style-legend { justify-content: flex-start; }
       .summary-table th, .summary-table td, .metadata-table th, .metadata-table td { padding: 8px 6px; }
     }
   </style>
@@ -737,6 +951,36 @@ HTML;
 
   <script>
     const reportData = {$reportJson};
+    const X_AXIS_TICK_DIVISIONS = 10;
+
+    function getGlobalXAxisDomain() {
+      const xValues = [];
+
+      reportData.charts.forEach((chart) => {
+        (chart.series || []).forEach((item) => {
+          (item.points || []).forEach((point) => {
+            xValues.push(point.x);
+          });
+        });
+
+        (chart.xAxisTargetSeries || []).forEach((item) => {
+          (item.points || []).forEach((point) => {
+            xValues.push(point.x);
+          });
+        });
+      });
+
+      if (xValues.length === 0) {
+        return { min: 0, max: 1 };
+      }
+
+      return {
+        min: Math.min(...xValues),
+        max: Math.max(...xValues),
+      };
+    }
+
+    const globalXAxisDomain = getGlobalXAxisDomain();
 
     function formatValue(value, format) {
       const fixed = (number, digits) => Number(number).toFixed(digits);
@@ -776,6 +1020,47 @@ HTML;
       return minutes + 'm ' + remainderSeconds + 's';
     }
 
+    function sampledPointValue(points, xValue) {
+      if (!points || points.length === 0) {
+        return null;
+      }
+
+      const target = Math.max(0, Math.round(xValue));
+      let currentValue = points[0].y;
+
+      for (let index = 0; index < points.length; index++) {
+        const point = points[index];
+        if (point.x > target) {
+          break;
+        }
+        currentValue = point.y;
+      }
+
+      return currentValue;
+    }
+
+    function formatTargetTickLabel(chart, xValue) {
+      const targetSeries = (chart.xAxisTargetSeries || []).filter((item) => item.points.length > 0);
+      if (targetSeries.length === 0) {
+        return '';
+      }
+
+      const values = targetSeries.map((item) => sampledPointValue(item.points, xValue));
+      if (values.some((value) => value === null)) {
+        return '';
+      }
+
+      const roundedValues = values.map((value) => Math.round(value));
+      const firstValue = roundedValues[0];
+      const sameAcrossRuns = roundedValues.every((value) => value === firstValue);
+
+      if (!sameAcrossRuns) {
+        return '';
+      }
+
+      return 'T ' + String(firstValue);
+    }
+
     function drawChart(canvasId, legendId, chart) {
       const canvas = document.getElementById(canvasId);
       const legend = document.getElementById(legendId);
@@ -799,14 +1084,13 @@ HTML;
       ctx.scale(dpr, dpr);
       ctx.clearRect(0, 0, cssWidth, cssHeight);
 
-      const margin = { top: 18, right: 24, bottom: 34, left: 64 };
+      const margin = { top: 18, right: 24, bottom: 52, left: 64 };
       const width = cssWidth - margin.left - margin.right;
       const height = cssHeight - margin.top - margin.bottom;
 
-      const xValues = series.flatMap((item) => item.points.map((point) => point.x));
       const yValues = series.flatMap((item) => item.points.map((point) => point.y));
-      const xMin = Math.min(...xValues);
-      const xMax = Math.max(...xValues);
+      const xMin = globalXAxisDomain.min;
+      const xMax = globalXAxisDomain.max;
       const rawYMax = Math.max(...yValues);
       const yMax = rawYMax > 0 ? rawYMax * 1.08 : 1;
 
@@ -830,15 +1114,21 @@ HTML;
 
       ctx.textBaseline = 'top';
       ctx.textAlign = 'center';
-      for (let i = 0; i <= 5; i++) {
-        const x = margin.left + (width / 5) * i;
+      ctx.font = '12px Menlo, Consolas, monospace';
+      for (let i = 0; i <= X_AXIS_TICK_DIVISIONS; i++) {
+        const x = margin.left + (width / X_AXIS_TICK_DIVISIONS) * i;
         ctx.beginPath();
         ctx.moveTo(x, margin.top);
         ctx.lineTo(x, margin.top + height);
         ctx.stroke();
 
-        const value = xMin + ((xMax - xMin) / 5) * i;
-        ctx.fillText(formatElapsedSeconds(value), x, margin.top + height + 12);
+        const value = xMin + ((xMax - xMin) / X_AXIS_TICK_DIVISIONS) * i;
+        ctx.fillText(formatElapsedSeconds(value), x, margin.top + height + 10);
+
+        const targetLabel = formatTargetTickLabel(chart, value);
+        if (targetLabel !== '') {
+          ctx.fillText(targetLabel, x, margin.top + height + 24);
+        }
       }
 
       ctx.strokeStyle = '#1f2933';
@@ -885,7 +1175,21 @@ HTML;
         }
       });
 
-      legend.innerHTML = series.map((item) => (
+      const runs = [];
+      const seenRuns = new Set();
+      series.forEach((item) => {
+        const key = (item.runLabel || item.label) + '|' + item.color;
+        if (seenRuns.has(key)) {
+          return;
+        }
+        seenRuns.add(key);
+        runs.push({
+          label: item.runLabel || item.label,
+          color: item.color,
+        });
+      });
+
+      legend.innerHTML = runs.map((item) => (
         '<span class="legend-item"><span class="legend-swatch" style="background:' + item.color + '"></span>' +
         item.label +
         '</span>'
@@ -925,6 +1229,7 @@ function collectRunSeries(
 
         $series[] = [
             'label' => $run['label'] . $labelSuffix,
+            'runLabel' => $run['label'],
             'color' => $palette[$index % count($palette)],
             'points' => $points,
             'showPoints' => $showPoints,
@@ -963,6 +1268,7 @@ function collectDockerSeries(array $runs, string $serviceName, string $metric, a
 
         $series[] = [
             'label' => $run['label'],
+            'runLabel' => $run['label'],
             'color' => $palette[$index % count($palette)],
             'points' => $points,
         ];

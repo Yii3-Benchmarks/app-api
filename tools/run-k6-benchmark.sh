@@ -14,16 +14,17 @@ OUTPUT_ROOT="${OUTPUT_ROOT:-$ROOT_DIR/runtime/benchmarks}"
 DOCKER_STATS_INTERVAL="${DOCKER_STATS_INTERVAL:-1}"
 DOCKER_STATS_SERVICES="${DOCKER_STATS_SERVICES:-app postgres valkey}"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:?COMPOSE_PROJECT_NAME is required}"
+K6_LOG_OUTPUT="${K6_LOG_OUTPUT:-none}"
 
 RATE="${RATE:-10000}"
 DURATION="${DURATION:-160s}"
-START_RATE="${START_RATE:-1000}"
+START_RATE="${START_RATE:-500}"
 TIME_UNIT="${TIME_UNIT:-1s}"
 PREALLOCATED_VUS="${PREALLOCATED_VUS:-auto}"
 MAX_VUS="${MAX_VUS:-auto}"
 AUTO_MAX_VUS_LIMIT="${AUTO_MAX_VUS_LIMIT:-500000}"
 if [[ -z "${STAGES:-}" ]]; then
-    STAGES='[{"target":5000,"duration":"15s"},{"target":15000,"duration":"15s"},{"target":25000,"duration":"15s"},{"target":35000,"duration":"15s"},{"target":45000,"duration":"15s"},{"target":55000,"duration":"15s"},{"target":65000,"duration":"15s"},{"target":80000,"duration":"15s"}]'
+    STAGES='[{"target":5000,"duration":"15s"},{"target":10000,"duration":"15s"},{"target":15000,"duration":"15s"},{"target":20000,"duration":"15s"},{"target":25000,"duration":"15s"},{"target":30000,"duration":"15s"},{"target":40000,"duration":"15s"},{"target":50000,"duration":"15s"}]'
 fi
 VUS_SIZING_MODE="manual"
 PEAK_RATE=""
@@ -57,13 +58,14 @@ autosize_vus() {
         $autoMaxVusLimit = max(1000, (int) ($argv[3] ?? 500000));
 
         if ($benchScript === "bench-ramp.js") {
-            $preallocated = max(1000, (int) ceil($peakRate / 5));
-            $maxVus = max($preallocated * 10, (int) ceil($peakRate * 4));
+            $preallocated = max(1000, (int) ceil($peakRate / 10));
+            $maxVus = max($preallocated * 4, (int) ceil($peakRate / 2));
         } else {
-            $preallocated = max(500, (int) ceil($peakRate / 10));
-            $maxVus = max($preallocated * 8, (int) ceil($peakRate * 2));
+            $preallocated = max(500, (int) ceil($peakRate / 20));
+            $maxVus = max($preallocated * 4, (int) ceil($peakRate));
         }
 
+        $preallocated = min($autoMaxVusLimit, $preallocated);
         $maxVus = min($autoMaxVusLimit, max($maxVus, $preallocated));
 
         echo $preallocated, " ", $maxVus;
@@ -116,6 +118,7 @@ print_config() {
     echo "  preallocated_vus: ${PREALLOCATED_VUS}"
     echo "  max_vus: ${MAX_VUS}"
     echo "  auto_max_vus_limit: ${AUTO_MAX_VUS_LIMIT}"
+    echo "  k6_log_output: ${K6_LOG_OUTPUT}"
 
     if [[ "${BENCH_SCRIPT}" == "bench-ramp.js" ]]; then
         echo "  start_rate: ${START_RATE}"
@@ -198,6 +201,7 @@ STAGES=${STAGES}
 DOCKER_STATS_INTERVAL=${DOCKER_STATS_INTERVAL}
 DOCKER_STATS_SERVICES=${DOCKER_STATS_SERVICES}
 COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME}
+K6_LOG_OUTPUT=${K6_LOG_OUTPUT}
 EOF
 }
 
@@ -250,6 +254,7 @@ docker_args=(
     -e "PREALLOCATED_VUS=${PREALLOCATED_VUS}"
     -e "MAX_VUS=${MAX_VUS}"
     -e "STAGES=${STAGES}"
+    -e "K6_LOG_OUTPUT=${K6_LOG_OUTPUT}"
     -v "${ROOT_DIR}/benchmark:/benchmark"
 )
 

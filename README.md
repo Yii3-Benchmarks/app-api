@@ -103,12 +103,13 @@ Both targets accept `BENCH_NAME="..."`, `MODE=steady|ramp` and `CAPTURE_METRICS=
 `FrankenPHP classic`. When `CAPTURE_METRICS=1`, the run stores time-series metrics in `runtime/benchmarks/`:
 `k6-timeseries.json` for compact request/latency/failure series, `summary.json` for the aggregate k6 summary,
 `docker-stats.csv` for container CPU and memory samples, and `metadata.env` for the exact run settings.
+Runtime k6 warnings are suppressed by default with `K6_LOG_OUTPUT=none` so a failing target does not flood the
+console; use `K6_LOG_OUTPUT=stderr` to restore k6 log output when debugging.
 
 By default, the benchmark runner auto-sizes `PREALLOCATED_VUS` and `MAX_VUS` from the configured request rate. For
 steady mode it uses `RATE`; for ramp mode it uses the highest target found in `STAGES`. You normally do not need to
 set VU counts manually, but both variables still work as explicit overrides. The default heuristic is intentionally
-aggressive and aims to avoid dropped iterations; `AUTO_MAX_VUS_LIMIT` may be used as a higher or lower automatic
-safety ceiling when needed.
+aggressive. `AUTO_MAX_VUS_LIMIT` may be used as a higher or lower automatic safety ceiling when needed.
 
 Examples:
 

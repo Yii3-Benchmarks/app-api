@@ -4,7 +4,7 @@ import { check } from 'k6';
 const BASE_URL = __ENV.BASE_URL;
 const TARGET_PATH = __ENV.TARGET_PATH || '/';
 const TARGET_NAME = __ENV.TARGET_NAME || TARGET_PATH;
-const START_RATE = Number(__ENV.START_RATE || 1000);
+const START_RATE = Number(__ENV.START_RATE || 500);
 const TIME_UNIT = __ENV.TIME_UNIT || '1s';
 const PREALLOCATED_VUS = Number(__ENV.PREALLOCATED_VUS || 200);
 const MAX_VUS = Number(__ENV.MAX_VUS || 2000);
@@ -12,13 +12,13 @@ const STAGES = JSON.parse(
     __ENV.STAGES ||
         JSON.stringify([
             { target: 5000, duration: '15s' },
+            { target: 10000, duration: '15s' },
             { target: 15000, duration: '15s' },
+            { target: 20000, duration: '15s' },
             { target: 25000, duration: '15s' },
-            { target: 35000, duration: '15s' },
-            { target: 45000, duration: '15s' },
-            { target: 55000, duration: '15s' },
-            { target: 65000, duration: '15s' },
-            { target: 80000, duration: '15s' },
+            { target: 30000, duration: '15s' },
+            { target: 40000, duration: '15s' },
+            { target: 50000, duration: '15s' },
         ]),
 );
 
