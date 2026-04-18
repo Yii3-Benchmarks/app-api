@@ -11,4 +11,5 @@ use Yiisoft\Router\Route;
 
 return [
     Route::get('/')->action(Api\IndexAction::class)->name('app/index'),
+    Route::get('/postgres/orders')->action(Api\PostgresOrdersAction::class)->name('app/postgres-orders'),
 ];
