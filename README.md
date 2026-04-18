@@ -109,7 +109,8 @@ console; use `K6_LOG_OUTPUT=stderr` to restore k6 log output when debugging.
 By default, the benchmark runner auto-sizes `PREALLOCATED_VUS` and `MAX_VUS` from the configured request rate. For
 steady mode it uses `RATE`; for ramp mode it uses the highest target found in `STAGES`. You normally do not need to
 set VU counts manually, but both variables still work as explicit overrides. The default heuristic is intentionally
-aggressive. `AUTO_MAX_VUS_LIMIT` may be used as a higher or lower automatic safety ceiling when needed.
+aggressive and now prefers lower dropped-iteration rates over conservative VU usage. `AUTO_MAX_VUS_LIMIT` may be used
+as a higher or lower automatic safety ceiling when needed.
 
 Examples:
 

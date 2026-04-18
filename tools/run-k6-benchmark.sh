@@ -24,7 +24,7 @@ PREALLOCATED_VUS="${PREALLOCATED_VUS:-auto}"
 MAX_VUS="${MAX_VUS:-auto}"
 AUTO_MAX_VUS_LIMIT="${AUTO_MAX_VUS_LIMIT:-500000}"
 if [[ -z "${STAGES:-}" ]]; then
-    STAGES='[{"target":5000,"duration":"15s"},{"target":10000,"duration":"15s"},{"target":15000,"duration":"15s"},{"target":20000,"duration":"15s"},{"target":25000,"duration":"15s"},{"target":30000,"duration":"15s"},{"target":40000,"duration":"15s"},{"target":50000,"duration":"15s"}]'
+    STAGES='[{"target":5000,"duration":"30s"},{"target":10000,"duration":"30s"},{"target":15000,"duration":"30s"},{"target":20000,"duration":"30s"},{"target":25000,"duration":"30s"},{"target":30000,"duration":"30s"},{"target":40000,"duration":"30s"},{"target":50000,"duration":"30s"}]'
 fi
 VUS_SIZING_MODE="manual"
 PEAK_RATE=""
@@ -58,11 +58,11 @@ autosize_vus() {
         $autoMaxVusLimit = max(1000, (int) ($argv[3] ?? 500000));
 
         if ($benchScript === "bench-ramp.js") {
-            $preallocated = max(1000, (int) ceil($peakRate / 10));
-            $maxVus = max($preallocated * 4, (int) ceil($peakRate / 2));
+            $preallocated = max(2000, (int) ceil($peakRate / 5));
+            $maxVus = max($preallocated * 8, (int) ceil($peakRate * 2));
         } else {
-            $preallocated = max(500, (int) ceil($peakRate / 20));
-            $maxVus = max($preallocated * 4, (int) ceil($peakRate));
+            $preallocated = max(1000, (int) ceil($peakRate / 10));
+            $maxVus = max($preallocated * 6, (int) ceil($peakRate * 2));
         }
 
         $preallocated = min($autoMaxVusLimit, $preallocated);
@@ -271,6 +271,11 @@ docker_args+=(
 echo "Running k6 benchmark..."
 docker "${docker_args[@]}"
 echo "k6 benchmark finished."
+
+if [[ "${CAPTURE_METRICS}" == "1" ]]; then
+    stop_stats_sampler
+    trap - EXIT
+fi
 
 if [[ "${CAPTURE_METRICS}" == "1" ]]; then
     compact_k6_metrics "${OUTPUT_DIR}"

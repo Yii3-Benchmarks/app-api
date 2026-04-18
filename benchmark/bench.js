@@ -1,4 +1,5 @@
 import http from 'k6/http';
+import { Counter } from 'k6/metrics';
 import { check } from 'k6';
 
 const BASE_URL = __ENV.BASE_URL;
@@ -8,6 +9,7 @@ const RATE = Number(__ENV.RATE || 10000);
 const DURATION = __ENV.DURATION || '160s';
 const PREALLOCATED_VUS = Number(__ENV.PREALLOCATED_VUS || 200);
 const MAX_VUS = Number(__ENV.MAX_VUS || 2000);
+const REQUESTS_ISSUED = new Counter('requests_issued');
 
 export const options = {
     scenarios: {
@@ -26,6 +28,7 @@ export const options = {
 };
 
 function runRequest(path) {
+    REQUESTS_ISSUED.add(1);
     const res = http.get(BASE_URL + path);
     check(res, {
         'status is 200': (r) => r.status === 200,

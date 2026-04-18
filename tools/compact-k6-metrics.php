@@ -26,6 +26,7 @@ if ($handle === false) {
 }
 
 $requestBuckets = [];
+$issuedRequestBuckets = [];
 $failedRequestBuckets = [];
 $droppedBuckets = [];
 $latencySums = [];
@@ -70,6 +71,11 @@ while (($line = fgets($handle)) !== false) {
         continue;
     }
 
+    if ($metric === 'requests_issued') {
+        $issuedRequestBuckets[$bucket] = ($issuedRequestBuckets[$bucket] ?? 0) + (int) ($data['value'] ?? 0);
+        continue;
+    }
+
     if ($metric === 'dropped_iterations') {
         $droppedBuckets[$bucket] = ($droppedBuckets[$bucket] ?? 0) + (int) ($data['value'] ?? 0);
         continue;
@@ -96,6 +102,7 @@ while (($line = fgets($handle)) !== false) {
 fclose($handle);
 
 ksort($requestBuckets);
+ksort($issuedRequestBuckets);
 ksort($droppedBuckets);
 ksort($latencySums);
 ksort($vusBuckets);
@@ -140,6 +147,7 @@ $payload = [
     'schema' => 'compact-k6-timeseries-v1',
     'series' => [
         'requestsPerSecond' => pointsFromBuckets($requestBuckets),
+        'issuedRequestsPerSecond' => pointsFromBuckets($issuedRequestBuckets),
         'successfulResponsesPerSecond' => $successfulResponsesSeries,
         'failureRatePercent' => $failureRateSeries,
         'avgLatencyMs' => $avgLatencySeries,
@@ -162,6 +170,9 @@ function detectTrackedMetric(string $line): ?string
     }
     if (str_contains($line, '"metric":"http_reqs"')) {
         return 'http_reqs';
+    }
+    if (str_contains($line, '"metric":"requests_issued"')) {
+        return 'requests_issued';
     }
     if (str_contains($line, '"metric":"dropped_iterations"')) {
         return 'dropped_iterations';

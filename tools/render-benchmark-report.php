@@ -2,9 +2,6 @@
 
 declare(strict_types=1);
 
-const LATENCY_BIN_SIZE_MS = 5.0;
-const LATENCY_MAX_MS = 1000.0;
-
 [$outputFile, $runDirectories] = parseArguments($argv);
 
 $runs = [];
@@ -28,7 +25,7 @@ echo $outputFile . PHP_EOL;
 
 function parseArguments(array $argv): array
 {
-    $outputFile = dirname(__DIR__) . '/runtime/benchmarks/report-' . gmdate('Ymd\THis\Z') . '.html';
+    $outputFile = dirname(__DIR__) . '/runtime/benchmarks/report.html';
     $inputPaths = [];
 
     for ($i = 1, $count = count($argv); $i < $count; $i++) {
@@ -111,10 +108,7 @@ function isRunDirectory(string $directory): bool
     return is_file($directory . '/metadata.env')
         && is_file($directory . '/summary.json')
         && is_file($directory . '/docker-stats.csv')
-        && (
-            is_file($directory . '/k6-timeseries.json')
-            || is_file($directory . '/k6-metrics.json')
-        );
+        && is_file($directory . '/k6-timeseries.json');
 }
 
 function loadRun(string $runDirectory): array
@@ -128,30 +122,34 @@ function loadRun(string $runDirectory): array
     $summaryFile = $runDirectory . '/summary.json';
     $dockerStatsFile = $runDirectory . '/docker-stats.csv';
     $k6TimeseriesFile = $runDirectory . '/k6-timeseries.json';
-    $k6MetricsFile = $runDirectory . '/k6-metrics.json';
 
-    foreach ([$metadataFile, $summaryFile, $dockerStatsFile] as $requiredFile) {
+    foreach ([$metadataFile, $summaryFile, $dockerStatsFile, $k6TimeseriesFile] as $requiredFile) {
         if (!is_file($requiredFile)) {
             fwrite(STDERR, "Required benchmark file not found: $requiredFile\n");
             exit(1);
         }
     }
 
-    if (!is_file($k6TimeseriesFile) && !is_file($k6MetricsFile)) {
-        fwrite(STDERR, "Required benchmark file not found: {$runDirectory}/k6-timeseries.json or k6-metrics.json\n");
-        exit(1);
-    }
-
     $metadata = parseMetadata($metadataFile);
     $summary = json_decode((string) file_get_contents($summaryFile), true, 512, JSON_THROW_ON_ERROR);
-    $k6Series = is_file($k6TimeseriesFile) ? parseCompactK6Timeseries($k6TimeseriesFile) : parseK6Metrics($k6MetricsFile);
+    $k6Series = parseCompactK6Timeseries($k6TimeseriesFile);
     $dockerSeries = parseDockerStats($dockerStatsFile);
-    $successfulResponsesPerSecond = $k6Series['successfulResponsesPerSecond']
-        ?? deriveSuccessfulResponsesSeries(
-            $k6Series['requestsPerSecond'] ?? [],
-            $k6Series['failureRatePercent'] ?? [],
-        );
+    $successfulResponsesPerSecond = $k6Series['successfulResponsesPerSecond'];
     $targetRequestsPerSecond = buildTargetRequestsPerSecondSeries($metadata);
+    $issuedRequestsPerSecond = $k6Series['issuedRequestsPerSecond'];
+    $erroredRequestsPerSecond = deriveErroredRequestsSeries(
+        $k6Series['requestsPerSecond'],
+        $successfulResponsesPerSecond,
+    );
+    $runSummary = summarizeRun($summary);
+    $runSummary['rpsCap'] = detectRpsCap(
+        $issuedRequestsPerSecond,
+        $successfulResponsesPerSecond,
+    );
+    $runSummary['errorsStart'] = detectErrorsStart(
+        $issuedRequestsPerSecond,
+        $erroredRequestsPerSecond,
+    );
 
     $label = buildRunLabel($runDirectory, $metadata);
 
@@ -159,16 +157,17 @@ function loadRun(string $runDirectory): array
         'directory' => $runDirectory,
         'label' => $label,
         'metadata' => $metadata,
-        'summary' => summarizeRun($summary),
+        'summary' => $runSummary,
         'series' => [
             'requestsPerSecond' => $k6Series['requestsPerSecond'],
+            'issuedRequestsPerSecond' => $issuedRequestsPerSecond,
             'successfulResponsesPerSecond' => $successfulResponsesPerSecond,
+            'erroredRequestsPerSecond' => $erroredRequestsPerSecond,
             'targetRequestsPerSecond' => $targetRequestsPerSecond,
-            'failureRatePercent' => $k6Series['failureRatePercent'],
             'avgLatencyMs' => $k6Series['avgLatencyMs'],
             'p95LatencyMs' => $k6Series['p95LatencyMs'],
             'droppedPerSecond' => $k6Series['droppedPerSecond'],
-            'virtualUsers' => $k6Series['virtualUsers'] ?? [],
+            'virtualUsers' => $k6Series['virtualUsers'],
         ],
         'docker' => $dockerSeries,
     ];
@@ -192,15 +191,151 @@ function summarizeRun(array $summary): array
     $metrics = $summary['metrics'] ?? [];
 
     return [
-        'httpRepsRate' => (float) ($metrics['http_reqs']['rate'] ?? 0.0),
-        'httpReqsCount' => (int) ($metrics['http_reqs']['count'] ?? 0),
         'httpReqFailedValue' => (float) ($metrics['http_req_failed']['value'] ?? 0.0),
         'latencyAvgMs' => (float) ($metrics['http_req_duration']['avg'] ?? 0.0),
         'latencyP95Ms' => (float) ($metrics['http_req_duration']['p(95)'] ?? 0.0),
         'latencyP99Ms' => (float) ($metrics['http_req_duration']['p(99)'] ?? 0.0),
-        'droppedIterationsCount' => (int) ($metrics['dropped_iterations']['count'] ?? 0),
-        'vusMax' => (int) ($metrics['vus_max']['value'] ?? $metrics['vus_max']['max'] ?? 0),
     ];
+}
+
+function detectRpsCap(array $issuedRequestsPerSecond, array $successfulResponsesPerSecond): array
+{
+    $issuedBySecond = indexSeriesBySecond($issuedRequestsPerSecond);
+    $successfulBySecond = indexSeriesBySecond($successfulResponsesPerSecond);
+
+    if ($issuedBySecond === [] || $successfulBySecond === []) {
+        return [
+            'reached' => false,
+        ];
+    }
+
+    $seconds = array_values(array_intersect(array_keys($issuedBySecond), array_keys($successfulBySecond)));
+    sort($seconds, SORT_NUMERIC);
+
+    $requiredConsecutiveSeconds = 3;
+    $candidate = null;
+    $streak = 0;
+
+    foreach ($seconds as $second) {
+        $issued = $issuedBySecond[$second];
+        $successful = $successfulBySecond[$second];
+
+        if ($issued <= 0.0) {
+            $candidate = null;
+            $streak = 0;
+            continue;
+        }
+
+        $difference = $issued - $successful;
+        $threshold = max(25.0, $issued * 0.02);
+        $isCapped = $difference > $threshold;
+
+        if (!$isCapped) {
+            $candidate = null;
+            $streak = 0;
+            continue;
+        }
+
+        if ($candidate === null) {
+            $candidate = [
+                'second' => $second,
+                'issuedRps' => $issued,
+                'successfulRps' => $successful,
+            ];
+        }
+
+        $streak++;
+
+        if ($streak >= $requiredConsecutiveSeconds) {
+            return [
+                'reached' => true,
+                'second' => $candidate['second'],
+                'issuedRps' => $candidate['issuedRps'],
+                'successfulRps' => $candidate['successfulRps'],
+            ];
+        }
+    }
+
+    return [
+        'reached' => false,
+    ];
+}
+
+function detectErrorsStart(array $issuedRequestsPerSecond, array $erroredRequestsPerSecond): array
+{
+    $issuedBySecond = indexSeriesBySecond($issuedRequestsPerSecond);
+    $erroredBySecond = indexSeriesBySecond($erroredRequestsPerSecond);
+
+    if ($issuedBySecond === [] || $erroredBySecond === []) {
+        return [
+            'reached' => false,
+        ];
+    }
+
+    $seconds = array_values(array_intersect(array_keys($issuedBySecond), array_keys($erroredBySecond)));
+    sort($seconds, SORT_NUMERIC);
+
+    $requiredConsecutiveSeconds = 3;
+    $candidate = null;
+    $streak = 0;
+
+    foreach ($seconds as $second) {
+        $issued = $issuedBySecond[$second];
+        $errored = $erroredBySecond[$second];
+
+        if ($issued <= 0.0) {
+            $candidate = null;
+            $streak = 0;
+            continue;
+        }
+
+        $threshold = max(5.0, $issued * 0.005);
+        $hasErrors = $errored > $threshold;
+
+        if (!$hasErrors) {
+            $candidate = null;
+            $streak = 0;
+            continue;
+        }
+
+        if ($candidate === null) {
+            $candidate = [
+                'second' => $second,
+                'issuedRps' => $issued,
+                'erroredRps' => $errored,
+            ];
+        }
+
+        $streak++;
+
+        if ($streak >= $requiredConsecutiveSeconds) {
+            return [
+                'reached' => true,
+                'second' => $candidate['second'],
+                'issuedRps' => $candidate['issuedRps'],
+                'erroredRps' => $candidate['erroredRps'],
+            ];
+        }
+    }
+
+    return [
+        'reached' => false,
+    ];
+}
+
+function indexSeriesBySecond(array $points): array
+{
+    $indexed = [];
+
+    foreach ($points as $point) {
+        if (!is_array($point) || !isset($point['x'])) {
+            continue;
+        }
+
+        $indexed[(int) $point['x']] = (float) ($point['y'] ?? 0.0);
+    }
+
+    return $indexed;
 }
 
 function buildRunLabel(string $runDirectory, array $metadata): string
@@ -222,40 +357,58 @@ function parseCompactK6Timeseries(string $file): array
         exit(1);
     }
 
-    return $payload['series'] ?? [];
+    $series = $payload['series'] ?? [];
+    $requiredSeries = [
+        'requestsPerSecond',
+        'issuedRequestsPerSecond',
+        'successfulResponsesPerSecond',
+        'avgLatencyMs',
+        'p95LatencyMs',
+        'droppedPerSecond',
+        'virtualUsers',
+    ];
+
+    foreach ($requiredSeries as $seriesName) {
+        if (!array_key_exists($seriesName, $series)) {
+            fwrite(STDERR, "Required k6 series missing in $file: $seriesName\n");
+            exit(1);
+        }
+    }
+
+    return $series;
 }
 
-function deriveSuccessfulResponsesSeries(array $requestsPerSecond, array $failureRatePercent): array
+function deriveErroredRequestsSeries(array $requestsPerSecond, array $successfulResponsesPerSecond): array
 {
     if ($requestsPerSecond === []) {
         return [];
     }
 
-    $failureRateBySecond = [];
-    foreach ($failureRatePercent as $point) {
+    $successfulBySecond = [];
+    foreach ($successfulResponsesPerSecond as $point) {
         if (!is_array($point) || !isset($point['x'])) {
             continue;
         }
 
-        $failureRateBySecond[(int) $point['x']] = (float) ($point['y'] ?? 0.0);
+        $successfulBySecond[(int) $point['x']] = (float) ($point['y'] ?? 0.0);
     }
 
-    $successfulResponses = [];
+    $erroredRequests = [];
     foreach ($requestsPerSecond as $point) {
         if (!is_array($point) || !isset($point['x'])) {
             continue;
         }
 
         $second = (int) $point['x'];
-        $requests = (float) ($point['y'] ?? 0.0);
-        $failureRate = $failureRateBySecond[$second] ?? 0.0;
-        $successfulResponses[] = [
+        $completed = (float) ($point['y'] ?? 0.0);
+        $successful = $successfulBySecond[$second] ?? 0.0;
+        $erroredRequests[] = [
             'x' => $second,
-            'y' => max(0.0, round($requests * (1.0 - ($failureRate / 100.0)), 4)),
+            'y' => max(0.0, round($completed - $successful, 4)),
         ];
     }
 
-    return $successfulResponses;
+    return $erroredRequests;
 }
 
 function buildTargetRequestsPerSecondSeries(array $metadata): array
@@ -342,188 +495,6 @@ function parseDurationSeconds(string $value): int
     };
 }
 
-function parseK6Metrics(string $k6MetricsFile): array
-{
-    $handle = fopen($k6MetricsFile, 'rb');
-    if ($handle === false) {
-        fwrite(STDERR, "Unable to open k6 metrics file: $k6MetricsFile\n");
-        exit(1);
-    }
-
-    $requestBuckets = [];
-    $failedRequestBuckets = [];
-    $droppedBuckets = [];
-    $latencyBuckets = [];
-    $vusBuckets = [];
-    $startTimestamp = null;
-
-    while (($line = fgets($handle)) !== false) {
-        if (
-            !str_contains($line, '"type":"Point"')
-            || (
-                !str_contains($line, '"metric":"http_reqs"')
-                && !str_contains($line, '"metric":"http_req_duration"')
-                && !str_contains($line, '"metric":"dropped_iterations"')
-                && !str_contains($line, '"metric":"vus"')
-            )
-        ) {
-            continue;
-        }
-
-        $payload = json_decode($line, true);
-        if (!is_array($payload) || ($payload['type'] ?? null) !== 'Point') {
-            continue;
-        }
-
-        $metric = $payload['metric'] ?? '';
-        $data = $payload['data'] ?? [];
-        $time = isset($data['time']) ? strtotime((string) $data['time']) : false;
-
-        if ($time === false) {
-            continue;
-        }
-
-        if ($startTimestamp === null) {
-            $startTimestamp = $time;
-        }
-
-        $bucket = max(0, (int) floor($time - $startTimestamp));
-
-        if ($metric === 'http_reqs') {
-            $requestBuckets[$bucket] = ($requestBuckets[$bucket] ?? 0) + (int) ($data['value'] ?? 0);
-            $expectedResponse = (string) ($data['tags']['expected_response'] ?? 'true');
-            if ($expectedResponse !== 'true') {
-                $failedRequestBuckets[$bucket] = ($failedRequestBuckets[$bucket] ?? 0) + 1;
-            }
-            continue;
-        }
-
-        if ($metric === 'dropped_iterations') {
-            $droppedBuckets[$bucket] = ($droppedBuckets[$bucket] ?? 0) + (int) ($data['value'] ?? 0);
-            continue;
-        }
-
-        if ($metric === 'vus') {
-            $vusBuckets[$bucket] = (float) ($data['value'] ?? 0.0);
-            continue;
-        }
-
-
-        if ($metric === 'http_req_duration') {
-            $value = (float) ($data['value'] ?? 0.0);
-            if (!isset($latencyBuckets[$bucket])) {
-                $latencyBuckets[$bucket] = [
-                    'sum' => 0.0,
-                    'count' => 0,
-                    'histogram' => [],
-                ];
-            }
-
-            $latencyBuckets[$bucket]['sum'] += $value;
-            $latencyBuckets[$bucket]['count']++;
-
-            $bin = (int) min(
-                floor($value / LATENCY_BIN_SIZE_MS),
-                floor(LATENCY_MAX_MS / LATENCY_BIN_SIZE_MS),
-            );
-            $latencyBuckets[$bucket]['histogram'][$bin] = ($latencyBuckets[$bucket]['histogram'][$bin] ?? 0) + 1;
-        }
-    }
-
-    fclose($handle);
-
-    ksort($requestBuckets);
-    ksort($failedRequestBuckets);
-    ksort($droppedBuckets);
-    ksort($latencyBuckets);
-    ksort($vusBuckets);
-
-    $failureRateSeries = [];
-    $successfulResponsesSeries = [];
-    foreach ($requestBuckets as $second => $requestCount) {
-        $failedCount = $failedRequestBuckets[$second] ?? 0;
-        $successfulResponsesSeries[] = [
-            'x' => $second,
-            'y' => (float) max(0, $requestCount - $failedCount),
-        ];
-        $failureRateSeries[] = [
-            'x' => $second,
-            'y' => $requestCount > 0 ? round(($failedCount / $requestCount) * 100, 4) : 0.0,
-        ];
-    }
-
-    $avgLatencySeries = [];
-    $p95LatencySeries = [];
-    foreach ($latencyBuckets as $second => $stats) {
-        $avgLatencySeries[] = [
-            'x' => $second,
-            'y' => $stats['count'] > 0 ? round($stats['sum'] / $stats['count'], 4) : 0.0,
-        ];
-
-        $p95LatencySeries[] = [
-            'x' => $second,
-            'y' => round(histogramPercentile($stats['histogram'], 0.95), 4),
-        ];
-    }
-
-    return [
-        'requestsPerSecond' => pointsFromBucketCounts($requestBuckets),
-        'successfulResponsesPerSecond' => $successfulResponsesSeries,
-        'failureRatePercent' => $failureRateSeries,
-        'avgLatencyMs' => $avgLatencySeries,
-        'p95LatencyMs' => $p95LatencySeries,
-        'droppedPerSecond' => pointsFromBucketCounts($droppedBuckets),
-        'virtualUsers' => pointsFromBucketGauges($vusBuckets),
-    ];
-}
-
-function histogramPercentile(array $histogram, float $percentile): float
-{
-    if ($histogram === []) {
-        return 0.0;
-    }
-
-    ksort($histogram);
-    $total = array_sum($histogram);
-    $target = max(1, (int) ceil($total * $percentile));
-    $seen = 0;
-
-    foreach ($histogram as $bin => $count) {
-        $seen += $count;
-        if ($seen >= $target) {
-            return ((int) $bin + 1) * LATENCY_BIN_SIZE_MS;
-        }
-    }
-
-    return ((int) array_key_last($histogram) + 1) * LATENCY_BIN_SIZE_MS;
-}
-
-function pointsFromBucketCounts(array $buckets): array
-{
-    $points = [];
-    foreach ($buckets as $second => $value) {
-        $points[] = [
-            'x' => (int) $second,
-            'y' => (float) $value,
-        ];
-    }
-
-    return $points;
-}
-
-function pointsFromBucketGauges(array $buckets): array
-{
-    $points = [];
-    foreach ($buckets as $second => $value) {
-        $points[] = [
-            'x' => (int) $second,
-            'y' => (float) $value,
-        ];
-    }
-
-    return $points;
-}
-
 function parseDockerStats(string $dockerStatsFile): array
 {
     $file = new SplFileObject($dockerStatsFile, 'rb');
@@ -591,13 +562,15 @@ function renderHtmlReport(array $runs): string
             'id' => 'requests-per-second',
             'title' => 'Request Rate Per Second',
             'series' => array_merge(
-                collectRunSeries($runs, 'requestsPerSecond', $palette, ' completed', false, [2, 4]),
+                collectRunSeries($runs, 'issuedRequestsPerSecond', $palette, ' issued', false, [2, 4]),
                 collectRunSeries($runs, 'successfulResponsesPerSecond', $palette, ' successful'),
+                collectRunSeries($runs, 'erroredRequestsPerSecond', $palette, ' errored', false, [8, 4]),
             ),
             'xAxisTargetSeries' => collectRunSeries($runs, 'targetRequestsPerSecond', $palette),
             'styleLegend' => [
                 ['label' => 'successful', 'dash' => []],
-                ['label' => 'completed', 'dash' => [2, 4]],
+                ['label' => 'issued', 'dash' => [2, 4]],
+                ['label' => 'errored', 'dash' => [8, 4]],
             ],
             'format' => 'integer',
         ],
@@ -659,13 +632,11 @@ function renderHtmlReport(array $runs): string
             . '<td>' . h($run['label']) . '</td>'
             . '<td>' . h($run['metadata']['TARGET_PATH'] ?? '') . '</td>'
             . '<td>' . h($run['metadata']['BENCH_SCRIPT'] ?? '') . '</td>'
-            . '<td>' . formatInteger((int) round($summary['httpRepsRate'])) . '</td>'
-            . '<td>' . formatInteger($summary['httpReqsCount']) . '</td>'
+            . '<td>' . h(formatRpsCap($summary['rpsCap'] ?? ['reached' => false])) . '</td>'
+            . '<td>' . h(formatErrorsStart($summary['errorsStart'] ?? ['reached' => false])) . '</td>'
             . '<td>' . formatPercent($summary['httpReqFailedValue'] * 100) . '</td>'
             . '<td>' . formatMilliseconds($summary['latencyAvgMs']) . '</td>'
             . '<td>' . formatMilliseconds($summary['latencyP95Ms']) . '</td>'
-            . '<td>' . formatInteger($summary['droppedIterationsCount']) . '</td>'
-            . '<td>' . formatInteger($summary['vusMax']) . '</td>'
             . '</tr>';
     }
 
@@ -693,8 +664,14 @@ HTML;
         $chartTitle = h($chart['title']);
         $styleLegendHtml = '';
         $styleLegendItems = $chart['styleLegend'] ?? [];
+        if (hasAnyRpsCap($runs)) {
+            $styleLegendItems[] = ['label' => 'RPS cap', 'type' => 'cap-marker'];
+        }
+        if (hasAnyErrorsStart($runs)) {
+            $styleLegendItems[] = ['label' => 'Errors start', 'type' => 'error-marker'];
+        }
         if (($chart['xAxisTargetSeries'] ?? []) !== []) {
-            $styleLegendItems[] = ['label' => 'Target', 'type' => 'target'];
+            $styleLegendItems[] = ['label' => 'Target RPS', 'type' => 'target'];
         }
 
         if ($styleLegendItems !== []) {
@@ -705,6 +682,33 @@ HTML;
                     $styleItems .= <<<HTML
 <span class="style-legend-item">
   <span class="style-legend-target">T</span>
+  {$label}
+</span>
+HTML;
+                    continue;
+                }
+
+                if (($styleItem['type'] ?? '') === 'cap-marker') {
+                    $label = h((string) ($styleItem['label'] ?? ''));
+                    $styleItems .= <<<HTML
+<span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  {$label}
+</span>
+HTML;
+                    continue;
+                }
+
+                if (($styleItem['type'] ?? '') === 'error-marker') {
+                    $label = h((string) ($styleItem['label'] ?? ''));
+                    $styleItems .= <<<HTML
+<span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
   {$label}
 </span>
 HTML;
@@ -927,13 +931,11 @@ HTML;
             <th>Run</th>
             <th>Path</th>
             <th>Script</th>
-            <th>RPS</th>
-            <th>Requests</th>
+            <th>RPS Cap</th>
+            <th>Errors Start</th>
             <th>Failure Rate</th>
             <th>Avg Latency</th>
             <th>P95 Latency</th>
-            <th>Dropped</th>
-            <th>Max VUs</th>
           </tr>
         </thead>
         <tbody>
@@ -1175,6 +1177,11 @@ HTML;
         }
       });
 
+      series.forEach((item) => {
+        drawMarker(ctx, toCanvasX, toCanvasY, item.points, item.capSecond, item.color, 'circle');
+        drawMarker(ctx, toCanvasX, toCanvasY, item.points, item.errorStartSecond, item.color, 'cross');
+      });
+
       const runs = [];
       const seenRuns = new Set();
       series.forEach((item) => {
@@ -1200,6 +1207,59 @@ HTML;
       reportData.charts.forEach((chart) => {
         drawChart('chart-' + chart.id, 'legend-' + chart.id, chart);
       });
+    }
+
+    function drawMarker(ctx, toCanvasX, toCanvasY, points, second, color, markerType) {
+      if (second === null || second === undefined) {
+        return;
+      }
+
+      const yValue = sampledPointValue(points, second);
+      if (yValue === null) {
+        return;
+      }
+
+      const x = toCanvasX(second);
+      const y = toCanvasY(yValue);
+
+      ctx.save();
+      ctx.setLineDash([]);
+      ctx.lineCap = 'round';
+
+      if (markerType === 'circle') {
+        ctx.strokeStyle = '#fffdf8';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+        return;
+      }
+
+      ctx.strokeStyle = '#fffdf8';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(x - 5, y - 5);
+      ctx.lineTo(x + 5, y + 5);
+      ctx.moveTo(x + 5, y - 5);
+      ctx.lineTo(x - 5, y + 5);
+      ctx.stroke();
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(x - 5, y - 5);
+      ctx.lineTo(x + 5, y + 5);
+      ctx.moveTo(x + 5, y - 5);
+      ctx.lineTo(x - 5, y + 5);
+      ctx.stroke();
+      ctx.restore();
     }
 
     window.addEventListener('resize', render);
@@ -1234,6 +1294,12 @@ function collectRunSeries(
             'points' => $points,
             'showPoints' => $showPoints,
             'dash' => $dash,
+            'capSecond' => (($run['summary']['rpsCap']['reached'] ?? false) === true)
+                ? (int) ($run['summary']['rpsCap']['second'] ?? 0)
+                : null,
+            'errorStartSecond' => (($run['summary']['errorsStart']['reached'] ?? false) === true)
+                ? (int) ($run['summary']['errorsStart']['second'] ?? 0)
+                : null,
         ];
     }
 
@@ -1271,10 +1337,38 @@ function collectDockerSeries(array $runs, string $serviceName, string $metric, a
             'runLabel' => $run['label'],
             'color' => $palette[$index % count($palette)],
             'points' => $points,
+            'capSecond' => (($run['summary']['rpsCap']['reached'] ?? false) === true)
+                ? (int) ($run['summary']['rpsCap']['second'] ?? 0)
+                : null,
+            'errorStartSecond' => (($run['summary']['errorsStart']['reached'] ?? false) === true)
+                ? (int) ($run['summary']['errorsStart']['second'] ?? 0)
+                : null,
         ];
     }
 
     return $series;
+}
+
+function hasAnyRpsCap(array $runs): bool
+{
+    foreach ($runs as $run) {
+        if (($run['summary']['rpsCap']['reached'] ?? false) === true) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function hasAnyErrorsStart(array $runs): bool
+{
+    foreach ($runs as $run) {
+        if (($run['summary']['errorsStart']['reached'] ?? false) === true) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 function formatNumber(float|int $value): string
@@ -1295,6 +1389,58 @@ function formatPercent(float $value): string
 function formatMilliseconds(float $value): string
 {
     return sprintf('%.2F ms', $value);
+}
+
+function formatRpsCap(array $rpsCap): string
+{
+    if (($rpsCap['reached'] ?? false) !== true) {
+        return 'Not reached';
+    }
+
+    $second = (int) ($rpsCap['second'] ?? 0);
+    $issuedRps = (int) round((float) ($rpsCap['issuedRps'] ?? 0.0));
+    $successfulRps = (int) round((float) ($rpsCap['successfulRps'] ?? 0.0));
+
+    return sprintf(
+        '%s @ %s issued / %s successful',
+        formatElapsedSecondsForSummary($second),
+        formatInteger($issuedRps),
+        formatInteger($successfulRps),
+    );
+}
+
+function formatErrorsStart(array $errorsStart): string
+{
+    if (($errorsStart['reached'] ?? false) !== true) {
+        return 'Not reached';
+    }
+
+    $second = (int) ($errorsStart['second'] ?? 0);
+    $erroredRps = (int) round((float) ($errorsStart['erroredRps'] ?? 0.0));
+
+    return sprintf(
+        '%s @ %s errored',
+        formatElapsedSecondsForSummary($second),
+        formatInteger($erroredRps),
+    );
+}
+
+function formatElapsedSecondsForSummary(int $totalSeconds): string
+{
+    $totalSeconds = max(0, $totalSeconds);
+    $hours = intdiv($totalSeconds, 3600);
+    $minutes = intdiv($totalSeconds % 3600, 60);
+    $seconds = $totalSeconds % 60;
+
+    if ($hours > 0) {
+        return sprintf('%dh %dm %ds', $hours, $minutes, $seconds);
+    }
+
+    if ($minutes > 0) {
+        return sprintf('%dm %ds', $minutes, $seconds);
+    }
+
+    return sprintf('%ds', $seconds);
 }
 
 function h(string $value): string
