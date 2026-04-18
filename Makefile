@@ -148,8 +148,25 @@ ifeq ($(PRIMARY_GOAL),bench)
 bench: ## Run k6 benchmark
 	docker run --rm -i --network=host \
 		-e BASE_URL=http://localhost:9991 \
+		-e TARGET_PATH=/ \
+		-e TARGET_NAME=home \
 		-v $(CURDIR)/benchmark:/benchmark \
 		grafana/k6 run /benchmark/bench.js
+endif
+
+ifeq ($(PRIMARY_GOAL),bench-db)
+bench-db: ## Run k6 benchmark for PostgreSQL endpoint only.
+	docker run --rm -i --network=host \
+		-e BASE_URL=http://localhost:9991 \
+		-e TARGET_PATH=/postgres/orders \
+		-e TARGET_NAME=postgres-orders \
+		-v $(CURDIR)/benchmark:/benchmark \
+		grafana/k6 run /benchmark/bench.js
+endif
+
+ifeq ($(PRIMARY_GOAL),generate-pgsql-dump)
+generate-pgsql-dump: ## Regenerate PostgreSQL benchmark dump.
+	php tools/generate-pgsql-dump.php
 endif
 
 #

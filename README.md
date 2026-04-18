@@ -93,6 +93,12 @@ make down
 
 The application is available at `https://localhost`.
 
+The benchmarkable PostgreSQL endpoint is available at `/postgres/orders`. It reads recent joined rows from seeded
+`orders` and `customers` tables through `yiisoft/db-pgsql` using a persistent PDO connection.
+
+Use `make bench` to benchmark `/` only, and `make bench-db` to benchmark `/postgres/orders` only. The latter gives an
+isolated RPS number for the database-backed endpoint.
+
 Other make commands are available in the `Makefile` and can be listed with:
 
 ```shell
@@ -147,6 +153,13 @@ For Docker:
 ```shell
 make codecept build
 make codecept run
+```
+
+The Docker environment also starts PostgreSQL and seeds realistic benchmark data from
+`docker/postgres/initdb.d/10-benchmark.sql`. To regenerate that dump:
+
+```shell
+make generate-pgsql-dump
 ```
 
 ## Static analysis

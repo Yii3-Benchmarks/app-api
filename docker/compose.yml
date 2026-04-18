@@ -6,3 +6,5 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  postgres_data:
+  valkey_data:
