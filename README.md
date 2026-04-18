@@ -99,6 +99,29 @@ The benchmarkable PostgreSQL endpoint is available at `/postgres/orders`. It rea
 Use `make bench` to benchmark `/` only, and `make bench-db` to benchmark `/postgres/orders` only. The latter gives an
 isolated RPS number for the database-backed endpoint.
 
+Both targets accept `BENCH_NAME="..."`, `MODE=steady|ramp` and `CAPTURE_METRICS=0|1`. The default benchmark name is
+`FrankenPHP classic`. When `CAPTURE_METRICS=1`, the run stores time-series metrics in `runtime/benchmarks/`:
+`k6-timeseries.json` for compact request/latency/failure series, `summary.json` for the aggregate k6 summary,
+`docker-stats.csv` for container CPU and memory samples, and `metadata.env` for the exact run settings.
+
+Examples:
+
+```shell
+make bench
+make bench-db RATE=8000 PREALLOCATED_VUS=400 MAX_VUS=4000
+make bench MODE=ramp
+make bench-db MODE=ramp CAPTURE_METRICS=1
+make bench-db BENCH_NAME="FrankenPHP worker" MODE=ramp CAPTURE_METRICS=1
+```
+
+To turn one or more captured runs into a self-contained HTML report with graphs for RPS, failure rate, latency, dropped
+iterations, CPU, and memory:
+
+```shell
+make bench-report runtime/benchmarks/<run-dir>
+make bench-report runtime/benchmarks/<run-dir-1> runtime/benchmarks/<run-dir-2>
+```
+
 Other make commands are available in the `Makefile` and can be listed with:
 
 ```shell

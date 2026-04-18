@@ -4,21 +4,30 @@ import { check } from 'k6';
 const BASE_URL = __ENV.BASE_URL;
 const TARGET_PATH = __ENV.TARGET_PATH || '/';
 const TARGET_NAME = __ENV.TARGET_NAME || TARGET_PATH;
-const RATE = Number(__ENV.RATE || 5000);
-const DURATION = __ENV.DURATION || '160s';
+const START_RATE = Number(__ENV.START_RATE || 1000);
+const TIME_UNIT = __ENV.TIME_UNIT || '1s';
 const PREALLOCATED_VUS = Number(__ENV.PREALLOCATED_VUS || 200);
 const MAX_VUS = Number(__ENV.MAX_VUS || 2000);
+const STAGES = JSON.parse(
+    __ENV.STAGES ||
+        JSON.stringify([
+            { target: 5000, duration: '30s' },
+            { target: 10000, duration: '30s' },
+            { target: 15000, duration: '30s' },
+            { target: 20000, duration: '30s' },
+        ]),
+);
 
 export const options = {
     scenarios: {
         target: {
-            executor: 'constant-arrival-rate',
+            executor: 'ramping-arrival-rate',
             exec: 'benchmarkTarget',
-            rate: RATE,
-            timeUnit: '1s',
-            duration: DURATION,
+            startRate: START_RATE,
+            timeUnit: TIME_UNIT,
             preAllocatedVUs: PREALLOCATED_VUS,
             maxVUs: MAX_VUS,
+            stages: STAGES,
             tags: { endpoint: TARGET_NAME },
         },
     },
