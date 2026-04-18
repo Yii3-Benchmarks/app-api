@@ -573,6 +573,7 @@ function renderHtmlReport(array $runs): string
                 ['label' => 'errored', 'dash' => [8, 4]],
             ],
             'format' => 'integer',
+            'smoothingWindow' => 5,
         ],
         [
             'id' => 'latency',
@@ -587,6 +588,7 @@ function renderHtmlReport(array $runs): string
                 ['label' => 'p95', 'dash' => [8, 4]],
             ],
             'format' => 'milliseconds-integer',
+            'smoothingWindow' => 5,
         ],
         [
             'id' => 'dropped-iterations',
@@ -611,6 +613,7 @@ function renderHtmlReport(array $runs): string
             'series' => collectDockerSeries($runs, $serviceName, 'cpuPercent', $palette),
             'xAxisTargetSeries' => collectRunSeries($runs, 'targetRequestsPerSecond', $palette),
             'format' => 'percent-integer',
+            'smoothingWindow' => 5,
         ];
         $chartDefinitions[] = [
             'id' => 'memory-' . $serviceName,
@@ -921,6 +924,7 @@ HTML;
     <section class="panel">
       <h1>Benchmark Report</h1>
       <p>Generated {$generatedAt}. This report combines k6 summary and time-series data with Docker CPU and memory samples.</p>
+      <p>Request rate, latency, and CPU charts use a 5s moving average over faint raw samples. RPS cap and Errors start still use raw data.</p>
     </section>
 
     <section class="panel">
@@ -1041,6 +1045,33 @@ HTML;
       return currentValue;
     }
 
+    function movingAverageSeries(points, windowSize) {
+      if (!points || points.length === 0 || windowSize <= 1) {
+        return points || [];
+      }
+
+      const result = [];
+      let sum = 0;
+      const values = [];
+
+      points.forEach((point, index) => {
+        const value = Number(point.y || 0);
+        values.push(value);
+        sum += value;
+
+        if (values.length > windowSize) {
+          sum -= values.shift();
+        }
+
+        result.push({
+          x: point.x,
+          y: sum / values.length,
+        });
+      });
+
+      return result;
+    }
+
     function formatTargetTickLabel(chart, xValue) {
       const targetSeries = (chart.xAxisTargetSeries || []).filter((item) => item.points.length > 0);
       if (targetSeries.length === 0) {
@@ -1076,6 +1107,12 @@ HTML;
         return;
       }
 
+      const smoothingWindow = Math.max(0, Math.round(Number(chart.smoothingWindow || 0)));
+      const displaySeries = series.map((item) => ({
+        ...item,
+        displayPoints: smoothingWindow > 1 ? movingAverageSeries(item.points, smoothingWindow) : item.points,
+      }));
+
       const dpr = window.devicePixelRatio || 1;
       const cssWidth = canvas.clientWidth || canvas.width;
       const cssHeight = canvas.clientHeight || canvas.height;
@@ -1090,7 +1127,7 @@ HTML;
       const width = cssWidth - margin.left - margin.right;
       const height = cssHeight - margin.top - margin.bottom;
 
-      const yValues = series.flatMap((item) => item.points.map((point) => point.y));
+      const yValues = displaySeries.flatMap((item) => item.displayPoints.map((point) => point.y));
       const xMin = globalXAxisDomain.min;
       const xMax = globalXAxisDomain.max;
       const rawYMax = Math.max(...yValues);
@@ -1144,30 +1181,16 @@ HTML;
       const toCanvasX = (x) => margin.left + ((x - xMin) / Math.max(1, xMax - xMin)) * width;
       const toCanvasY = (y) => margin.top + height - (y / yMax) * height;
 
-      series.forEach((item) => {
-        ctx.beginPath();
-        ctx.strokeStyle = item.color;
-        ctx.lineWidth = 2;
-        if (item.dash && item.dash.length > 0) {
-          ctx.setLineDash(item.dash);
-        } else {
-          ctx.setLineDash([]);
+      displaySeries.forEach((item) => {
+        if (smoothingWindow > 1) {
+          drawLine(ctx, toCanvasX, toCanvasY, item.points, item.color, item.dash, 1.2, 0.22);
         }
-        item.points.forEach((point, index) => {
-          const x = toCanvasX(point.x);
-          const y = toCanvasY(point.y);
-          if (index === 0) {
-            ctx.moveTo(x, y);
-          } else {
-            ctx.lineTo(x, y);
-          }
-        });
-        ctx.stroke();
-        ctx.setLineDash([]);
+
+        drawLine(ctx, toCanvasX, toCanvasY, item.displayPoints, item.color, item.dash, 2.2, 1);
 
         if (chart.showPoints || item.showPoints) {
           ctx.fillStyle = item.color;
-          item.points.forEach((point) => {
+          item.displayPoints.forEach((point) => {
             const x = toCanvasX(point.x);
             const y = toCanvasY(point.y);
             ctx.beginPath();
@@ -1177,9 +1200,9 @@ HTML;
         }
       });
 
-      series.forEach((item) => {
-        drawMarker(ctx, toCanvasX, toCanvasY, item.points, item.capSecond, item.color, 'circle');
-        drawMarker(ctx, toCanvasX, toCanvasY, item.points, item.errorStartSecond, item.color, 'cross');
+      displaySeries.forEach((item) => {
+        drawMarker(ctx, toCanvasX, toCanvasY, item.displayPoints, item.capSecond, item.color, 'circle');
+        drawMarker(ctx, toCanvasX, toCanvasY, item.displayPoints, item.errorStartSecond, item.color, 'cross');
       });
 
       const runs = [];
@@ -1207,6 +1230,32 @@ HTML;
       reportData.charts.forEach((chart) => {
         drawChart('chart-' + chart.id, 'legend-' + chart.id, chart);
       });
+    }
+
+    function drawLine(ctx, toCanvasX, toCanvasY, points, color, dash, lineWidth, alpha) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lineWidth;
+      ctx.globalAlpha = alpha;
+      if (dash && dash.length > 0) {
+        ctx.setLineDash(dash);
+      } else {
+        ctx.setLineDash([]);
+      }
+
+      points.forEach((point, index) => {
+        const x = toCanvasX(point.x);
+        const y = toCanvasY(point.y);
+        if (index === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+
+      ctx.stroke();
+      ctx.restore();
     }
 
     function drawMarker(ctx, toCanvasX, toCanvasY, points, second, color, markerType) {
