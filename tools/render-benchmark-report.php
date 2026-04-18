@@ -489,9 +489,8 @@ function renderHtmlReport(array $runs): string
         [
             'id' => 'virtual-users',
             'title' => 'Virtual Users',
-            'series' => collectRunSeries($runs, 'virtualUsers', $palette, '', true),
+            'series' => collectRunSeries($runs, 'virtualUsers', $palette),
             'format' => 'integer',
-            'showPoints' => true,
         ],
     ];
 
