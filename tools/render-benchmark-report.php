@@ -1484,20 +1484,52 @@ function hasAnyErrorsStart(array $runs): bool
 
 function determineLatencyChartMax(array $runs): float
 {
-    $maxSummaryP95 = 0.0;
+    $maxLatencyAtCap = 0.0;
 
     foreach ($runs as $run) {
-        $maxSummaryP95 = max(
-            $maxSummaryP95,
-            (float) ($run['summary']['latencyP95Ms'] ?? 0.0),
+        $capSecond = (($run['summary']['rpsCap']['reached'] ?? false) === true)
+            ? (int) ($run['summary']['rpsCap']['second'] ?? 0)
+            : null;
+
+        if ($capSecond === null) {
+            continue;
+        }
+
+        $avgLatencyAtCap = sampleSeriesAtSecond($run['series']['avgLatencyMs'] ?? [], $capSecond);
+        $p95LatencyAtCap = sampleSeriesAtSecond($run['series']['p95LatencyMs'] ?? [], $capSecond);
+
+        $maxLatencyAtCap = max(
+            $maxLatencyAtCap,
+            $avgLatencyAtCap ?? 0.0,
+            $p95LatencyAtCap ?? 0.0,
         );
     }
 
-    if ($maxSummaryP95 <= 0.0) {
+    if ($maxLatencyAtCap <= 0.0) {
         return 0.0;
     }
 
-    return $maxSummaryP95 * 2;
+    return $maxLatencyAtCap;
+}
+
+function sampleSeriesAtSecond(array $points, int $targetSecond): ?float
+{
+    $value = null;
+
+    foreach ($points as $point) {
+        if (!is_array($point) || !isset($point['x'])) {
+            continue;
+        }
+
+        $second = (int) $point['x'];
+        if ($second > $targetSecond) {
+            break;
+        }
+
+        $value = (float) ($point['y'] ?? 0.0);
+    }
+
+    return $value;
 }
 
 function formatNumber(float|int $value): string
