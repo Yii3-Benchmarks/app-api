@@ -15,6 +15,8 @@ DOCKER_STATS_INTERVAL="${DOCKER_STATS_INTERVAL:-1}"
 DOCKER_STATS_SERVICES="${DOCKER_STATS_SERVICES:-app postgres valkey}"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:?COMPOSE_PROJECT_NAME is required}"
 K6_LOG_OUTPUT="${K6_LOG_OUTPUT:-none}"
+PREFLIGHT_TIMEOUT="${PREFLIGHT_TIMEOUT:-10}"
+PREFLIGHT_MAX_BODY_BYTES="${PREFLIGHT_MAX_BODY_BYTES:-4096}"
 
 RATE="${RATE:-10000}"
 DURATION="${DURATION:-160s}"
@@ -130,6 +132,91 @@ print_config() {
     fi
 }
 
+print_file_excerpt() {
+    local file_path="${1}"
+    local max_bytes="${2}"
+
+    if [[ ! -s "${file_path}" ]]; then
+        return
+    fi
+
+    local file_size
+    file_size="$(wc -c < "${file_path}" | tr -d '[:space:]')"
+
+    sed 's/^/    /' < <(head -c "${max_bytes}" "${file_path}")
+
+    if (( file_size > max_bytes )); then
+        echo "    ... truncated (${file_size} bytes total)"
+    fi
+}
+
+preflight_check() {
+    local url
+    local headers_file
+    local body_file
+    local error_file
+    local status_code
+    local curl_exit=0
+
+    if ! command -v curl >/dev/null 2>&1; then
+        echo "curl is required for benchmark preflight checks." >&2
+        exit 1
+    fi
+
+    url="${BASE_URL%/}/${TARGET_PATH#/}"
+    headers_file="$(mktemp)"
+    body_file="$(mktemp)"
+    error_file="$(mktemp)"
+    trap 'rm -f "${headers_file}" "${body_file}" "${error_file}"' RETURN
+
+    echo "Running preflight check..."
+    status_code="$(curl \
+        --silent \
+        --show-error \
+        --location \
+        --max-time "${PREFLIGHT_TIMEOUT}" \
+        --dump-header "${headers_file}" \
+        --output "${body_file}" \
+        --write-out '%{http_code}' \
+        "${url}" 2>"${error_file}")" || curl_exit=$?
+
+    if (( curl_exit != 0 )); then
+        echo "Preflight check failed before benchmark start." >&2
+        echo "  url: ${url}" >&2
+        echo "  curl_exit: ${curl_exit}" >&2
+        if [[ -s "${error_file}" ]]; then
+            echo "  curl_error:" >&2
+            sed 's/^/    /' "${error_file}" >&2
+        fi
+        if [[ -s "${headers_file}" ]]; then
+            echo "  response_headers:" >&2
+            sed 's/^/    /' "${headers_file}" >&2
+        fi
+        if [[ -s "${body_file}" ]]; then
+            echo "  response_body:" >&2
+            print_file_excerpt "${body_file}" "${PREFLIGHT_MAX_BODY_BYTES}" >&2
+        fi
+        exit 1
+    fi
+
+    if [[ "${status_code}" != "200" ]]; then
+        echo "Preflight check failed before benchmark start." >&2
+        echo "  url: ${url}" >&2
+        echo "  status: ${status_code}" >&2
+        if [[ -s "${headers_file}" ]]; then
+            echo "  response_headers:" >&2
+            sed 's/^/    /' "${headers_file}" >&2
+        fi
+        if [[ -s "${body_file}" ]]; then
+            echo "  response_body:" >&2
+            print_file_excerpt "${body_file}" "${PREFLIGHT_MAX_BODY_BYTES}" >&2
+        fi
+        exit 1
+    fi
+
+    echo "Preflight check passed: ${status_code}"
+}
+
 sanitize_name() {
     local value="${1}"
     value="${value//\//-}"
@@ -221,6 +308,7 @@ compact_k6_metrics() {
 }
 
 print_config
+preflight_check
 
 OUTPUT_DIR=""
 SAMPLER_PID=""
