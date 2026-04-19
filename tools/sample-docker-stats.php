@@ -77,30 +77,69 @@ while (true) {
     }
 
     $lines = preg_split('/\R/', trim($stdout));
+    $aggregates = [];
+
     foreach ($lines as $line) {
         if ($line === '') {
             continue;
         }
 
         [$containerId, $containerName, $cpuPercent, $memUsage, $memPercent, $netIo, $blockIo, $pids] = explode('|', $line, 8);
+        $service = $targetMap[$containerId] ?? $containerName;
         [$memoryUsageBytes, $memoryLimitBytes] = parsePair($memUsage);
         [$netInputBytes, $netOutputBytes] = parsePair($netIo);
         [$blockInputBytes, $blockOutputBytes] = parsePair($blockIo);
 
+        if (!isset($aggregates[$service])) {
+            $aggregates[$service] = [
+                'timestamp' => $timestamp,
+                'service' => $service,
+                'container_ids' => [],
+                'container_names' => [],
+                'cpu_percent' => 0.0,
+                'memory_usage_bytes' => 0,
+                'memory_limit_bytes' => 0,
+                'net_input_bytes' => 0,
+                'net_output_bytes' => 0,
+                'block_input_bytes' => 0,
+                'block_output_bytes' => 0,
+                'pids' => 0,
+            ];
+        }
+
+        $aggregates[$service]['container_ids'][] = $containerId;
+        $aggregates[$service]['container_names'][] = $containerName;
+        $aggregates[$service]['cpu_percent'] += parsePercent($cpuPercent);
+        $aggregates[$service]['memory_usage_bytes'] += $memoryUsageBytes;
+        $aggregates[$service]['memory_limit_bytes'] += $memoryLimitBytes;
+        $aggregates[$service]['net_input_bytes'] += $netInputBytes;
+        $aggregates[$service]['net_output_bytes'] += $netOutputBytes;
+        $aggregates[$service]['block_input_bytes'] += $blockInputBytes;
+        $aggregates[$service]['block_output_bytes'] += $blockOutputBytes;
+        $aggregates[$service]['pids'] += (int) trim($pids);
+    }
+
+    foreach ($aggregates as $aggregate) {
+        $memoryLimitBytes = (int) $aggregate['memory_limit_bytes'];
+        $memoryUsageBytes = (int) $aggregate['memory_usage_bytes'];
+        $memoryPercent = $memoryLimitBytes > 0
+            ? round(($memoryUsageBytes / $memoryLimitBytes) * 100, 2)
+            : 0.0;
+
         fputcsv($handle, [
-            $timestamp,
-            $targetMap[$containerId] ?? $containerName,
-            $containerId,
-            $containerName,
-            parsePercent($cpuPercent),
+            $aggregate['timestamp'],
+            $aggregate['service'],
+            implode('|', $aggregate['container_ids']),
+            implode('|', $aggregate['container_names']),
+            round($aggregate['cpu_percent'], 2),
             $memoryUsageBytes,
             $memoryLimitBytes,
-            parsePercent($memPercent),
-            $netInputBytes,
-            $netOutputBytes,
-            $blockInputBytes,
-            $blockOutputBytes,
-            trim($pids),
+            $memoryPercent,
+            $aggregate['net_input_bytes'],
+            $aggregate['net_output_bytes'],
+            $aggregate['block_input_bytes'],
+            $aggregate['block_output_bytes'],
+            $aggregate['pids'],
         ]);
     }
 
