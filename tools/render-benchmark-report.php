@@ -288,7 +288,7 @@ function detectLatencySurgeCap(
     array $p95LatencyBySecond,
 ): array
 {
-    if ($successfulBySecond === [] || $avgLatencyBySecond === [] || $p95LatencyBySecond === []) {
+    if ($successfulBySecond === [] || $avgLatencyBySecond === []) {
         return [
             'reached' => false,
         ];
@@ -297,46 +297,61 @@ function detectLatencySurgeCap(
     $seconds = array_values(array_intersect(
         array_keys($successfulBySecond),
         array_keys($avgLatencyBySecond),
-        array_keys($p95LatencyBySecond),
     ));
     sort($seconds, SORT_NUMERIC);
 
-    $baselineWindow = 12;
-    $currentWindow = 3;
-    $minimumWarmupSeconds = 30;
+    $baselineAvgLatency = baselineMedianLatency($avgLatencyBySecond, 5, 14);
+    $baselineP95Latency = baselineMedianLatency($p95LatencyBySecond, 5, 14);
+    if ($baselineAvgLatency === null) {
+        return [
+            'reached' => false,
+        ];
+    }
+
+    $confirmationWindow = 4;
+    $currentWindow = 2;
+    $minimumWarmupSeconds = 12;
 
     foreach ($seconds as $second) {
-        if ($second < ($baselineWindow + $currentWindow - 1) || $second < $minimumWarmupSeconds) {
+        if ($second < $minimumWarmupSeconds) {
             continue;
         }
 
-        $baselineStart = $second - $baselineWindow - $currentWindow + 1;
-        $baselineEnd = $second - $currentWindow;
-        $currentStart = $second - $currentWindow + 1;
-        $currentEnd = $second;
+        $currentStart = $second;
+        $currentEnd = $second + $currentWindow - 1;
+        $confirmationEnd = $second + $confirmationWindow - 1;
+        $previousStart = $second - $currentWindow;
+        $previousEnd = $second - 1;
 
-        $baselineAvgLatency = averageIndexedRange($avgLatencyBySecond, $baselineStart, $baselineEnd);
-        $baselineP95Latency = averageIndexedRange($p95LatencyBySecond, $baselineStart, $baselineEnd);
         $currentAvgLatency = averageIndexedRange($avgLatencyBySecond, $currentStart, $currentEnd);
+        $sustainedAvgLatency = averageIndexedRange($avgLatencyBySecond, $currentStart, $confirmationEnd);
+        $previousAvgLatency = averageIndexedRange($avgLatencyBySecond, $previousStart, $previousEnd);
         $currentP95Latency = averageIndexedRange($p95LatencyBySecond, $currentStart, $currentEnd);
 
         if (
-            $baselineAvgLatency === null
-            || $baselineP95Latency === null
-            || $currentAvgLatency === null
-            || $currentP95Latency === null
+            $currentAvgLatency === null
+            || $sustainedAvgLatency === null
+            || $previousAvgLatency === null
         ) {
             continue;
         }
 
-        $p95RaisedQuickly = $currentP95Latency >= max(50.0, $baselineP95Latency + 40.0, $baselineP95Latency * 3.0);
-        $avgRaisedQuickly = $currentAvgLatency >= max(10.0, $baselineAvgLatency + 10.0, $baselineAvgLatency * 2.0);
+        $avgRaisedQuickly = $currentAvgLatency >= max(20.0, $baselineAvgLatency + 12.0, $baselineAvgLatency * 4.0);
+        $avgRaisedSteeply = ($currentAvgLatency - $previousAvgLatency) >= max(8.0, $baselineAvgLatency * 1.5);
+        $avgRaisedSustainably = $sustainedAvgLatency >= max(15.0, $baselineAvgLatency + 10.0, $baselineAvgLatency * 3.0);
 
-        if (!$p95RaisedQuickly || !$avgRaisedQuickly) {
+        if (!$avgRaisedQuickly || !$avgRaisedSteeply || !$avgRaisedSustainably) {
             continue;
         }
 
-        $candidateSecond = $currentStart;
+        if ($baselineP95Latency !== null && $currentP95Latency !== null) {
+            $p95RaisedQuickly = $currentP95Latency >= max(30.0, $baselineP95Latency + 15.0, $baselineP95Latency * 2.5);
+            if (!$p95RaisedQuickly) {
+                continue;
+            }
+        }
+
+        $candidateSecond = $second;
         $issuedRps = $issuedBySecond[$candidateSecond] ?? $successfulBySecond[$candidateSecond];
         $successfulRps = $successfulBySecond[$candidateSecond] ?? 0.0;
 
@@ -372,6 +387,61 @@ function averageIndexedRange(array $valuesBySecond, int $startSecond, int $endSe
     }
 
     return $sum / $count;
+}
+
+function medianIndexedRange(array $valuesBySecond, int $startSecond, int $endSecond): ?float
+{
+    $values = [];
+
+    for ($second = $startSecond; $second <= $endSecond; $second++) {
+        if (!array_key_exists($second, $valuesBySecond)) {
+            return null;
+        }
+
+        $values[] = (float) $valuesBySecond[$second];
+    }
+
+    if ($values === []) {
+        return null;
+    }
+
+    sort($values, SORT_NUMERIC);
+    $count = count($values);
+    $middle = intdiv($count, 2);
+
+    if (($count % 2) === 1) {
+        return $values[$middle];
+    }
+
+    return ($values[$middle - 1] + $values[$middle]) / 2;
+}
+
+function baselineMedianLatency(array $valuesBySecond, int $preferredStartSecond, int $preferredEndSecond): ?float
+{
+    $preferredMedian = medianIndexedRange($valuesBySecond, $preferredStartSecond, $preferredEndSecond);
+    if ($preferredMedian !== null) {
+        return $preferredMedian;
+    }
+
+    if ($valuesBySecond === []) {
+        return null;
+    }
+
+    ksort($valuesBySecond, SORT_NUMERIC);
+    $values = array_slice(array_values($valuesBySecond), 0, 10);
+    if ($values === []) {
+        return null;
+    }
+
+    sort($values, SORT_NUMERIC);
+    $count = count($values);
+    $middle = intdiv($count, 2);
+
+    if (($count % 2) === 1) {
+        return (float) $values[$middle];
+    }
+
+    return ((float) $values[$middle - 1] + (float) $values[$middle]) / 2;
 }
 
 function indexSeriesBySecond(array $points): array
