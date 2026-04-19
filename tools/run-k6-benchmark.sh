@@ -12,7 +12,8 @@ BENCH_SCRIPT="${BENCH_SCRIPT:-bench.js}"
 CAPTURE_METRICS="${CAPTURE_METRICS:-0}"
 OUTPUT_ROOT="${OUTPUT_ROOT:-$ROOT_DIR/runtime/benchmarks}"
 DOCKER_STATS_INTERVAL="${DOCKER_STATS_INTERVAL:-1}"
-DOCKER_STATS_SERVICES="${DOCKER_STATS_SERVICES:-app postgres valkey}"
+DOCKER_STATS_APP_SERVICES="${DOCKER_STATS_APP_SERVICES:-app}"
+DOCKER_STATS_SERVICES="${DOCKER_STATS_SERVICES:-postgres valkey}"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:?COMPOSE_PROJECT_NAME is required}"
 K6_LOG_OUTPUT="${K6_LOG_OUTPUT:-none}"
 PREFLIGHT_TIMEOUT="${PREFLIGHT_TIMEOUT:-10}"
@@ -121,6 +122,8 @@ print_config() {
     echo "  max_vus: ${MAX_VUS}"
     echo "  auto_max_vus_limit: ${AUTO_MAX_VUS_LIMIT}"
     echo "  k6_log_output: ${K6_LOG_OUTPUT}"
+    echo "  docker_stats_app_services: ${DOCKER_STATS_APP_SERVICES}"
+    echo "  docker_stats_services: ${DOCKER_STATS_SERVICES}"
 
     if [[ "${BENCH_SCRIPT}" == "bench-ramp.js" ]]; then
         echo "  start_rate: ${START_RATE}"
@@ -226,19 +229,47 @@ sanitize_name() {
 
 resolve_container_targets() {
     local service
+    local alias
     local container_id
     local resolved=()
+    local -A emitted=()
 
-    for service in ${DOCKER_STATS_SERVICES}; do
-        container_id="$(docker ps -q \
-            --filter "label=com.docker.compose.project=${COMPOSE_PROJECT_NAME}" \
-            --filter "label=com.docker.compose.service=${service}" | head -n 1)"
-        if [[ -n "${container_id}" ]]; then
-            resolved+=("${service}=${container_id}")
-        fi
+    resolve_service_targets() {
+        local alias="${1}"
+        local service="${2}"
+
+        while IFS= read -r container_id; do
+            if [[ -z "${container_id}" ]]; then
+                continue
+            fi
+
+            if [[ -n "${emitted["${alias}=${container_id}"]:-}" ]]; then
+                continue
+            fi
+
+            emitted["${alias}=${container_id}"]=1
+            resolved+=("${alias}=${container_id}")
+        done < <(
+            docker ps -q \
+                --filter "label=com.docker.compose.project=${COMPOSE_PROJECT_NAME}" \
+                --filter "label=com.docker.compose.service=${service}"
+        )
+    }
+
+    for service in ${DOCKER_STATS_APP_SERVICES}; do
+        resolve_service_targets "app" "${service}"
     done
 
-    printf '%s\n' "${resolved[@]}"
+    for service in ${DOCKER_STATS_SERVICES}; do
+        alias="${service}"
+        resolve_service_targets "${alias}" "${service}"
+    done
+
+    for container_id in "${resolved[@]}"; do
+        if [[ -n "${container_id}" ]]; then
+            printf '%s\n' "${container_id}"
+        fi
+    done
 }
 
 start_stats_sampler() {
@@ -286,6 +317,7 @@ PEAK_RATE=${PEAK_RATE}
 AUTO_MAX_VUS_LIMIT=${AUTO_MAX_VUS_LIMIT}
 STAGES=${STAGES}
 DOCKER_STATS_INTERVAL=${DOCKER_STATS_INTERVAL}
+DOCKER_STATS_APP_SERVICES=${DOCKER_STATS_APP_SERVICES}
 DOCKER_STATS_SERVICES=${DOCKER_STATS_SERVICES}
 COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME}
 K6_LOG_OUTPUT=${K6_LOG_OUTPUT}
