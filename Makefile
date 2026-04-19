@@ -22,7 +22,7 @@ DOCKER_COMPOSE_DEV := docker compose -f docker/compose.yml -f docker/dev/compose
 DOCKER_COMPOSE_TEST := docker compose -f docker/compose.yml -f docker/test/compose.yml
 MODE ?= ramp
 CAPTURE_METRICS ?= 1
-BENCH_NAME ?= FrankenPHP classic
+BENCH_NAME ?= RoadRunner
 ifeq ($(MODE),ramp)
 BENCH_SCRIPT := bench-ramp.js
 else
