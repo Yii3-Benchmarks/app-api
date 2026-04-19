@@ -612,6 +612,7 @@ function renderHtmlReport(array $runs): string
         '#6a4c93',
         '#ef476f',
     ];
+    $latencyChartMax = determineLatencyChartMax($runs);
 
     $chartDefinitions = [
         [
@@ -645,6 +646,7 @@ function renderHtmlReport(array $runs): string
             ],
             'format' => 'milliseconds-integer',
             'smoothingWindow' => 5,
+            'yMax' => $latencyChartMax,
         ],
         [
             'id' => 'dropped-iterations',
@@ -685,10 +687,12 @@ function renderHtmlReport(array $runs): string
     ];
 
     $summaryRows = '';
-    foreach ($runs as $run) {
+    foreach ($runs as $index => $run) {
         $summary = $run['summary'];
+        $runColor = $palette[$index % count($palette)];
+        $runLabel = h($run['label']);
         $summaryRows .= '<tr>'
-            . '<td>' . h($run['label']) . '</td>'
+            . '<td><span class="summary-run"><span class="legend-swatch" style="background:' . h($runColor) . '"></span>' . $runLabel . '</span></td>'
             . '<td>' . h($run['metadata']['TARGET_PATH'] ?? '') . '</td>'
             . '<td>' . h($run['metadata']['BENCH_SCRIPT'] ?? '') . '</td>'
             . '<td>' . h(formatRpsCap($summary['rpsCap'] ?? ['reached' => false])) . '</td>'
@@ -932,6 +936,11 @@ HTML;
       font-size: 0.92rem;
     }
     .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .summary-run {
       display: inline-flex;
       align-items: center;
       gap: 8px;
@@ -1183,7 +1192,8 @@ HTML;
       const xMin = globalXAxisDomain.min;
       const xMax = globalXAxisDomain.max;
       const rawYMax = Math.max(...yValues);
-      const yMax = rawYMax > 0 ? rawYMax * 1.08 : 1;
+      const configuredYMax = Number(chart.yMax || 0);
+      const yMax = configuredYMax > 0 ? configuredYMax : (rawYMax > 0 ? rawYMax * 1.08 : 1);
 
       ctx.strokeStyle = 'rgba(31, 41, 51, 0.14)';
       ctx.lineWidth = 1;
@@ -1470,6 +1480,24 @@ function hasAnyErrorsStart(array $runs): bool
     }
 
     return false;
+}
+
+function determineLatencyChartMax(array $runs): float
+{
+    $maxSummaryP95 = 0.0;
+
+    foreach ($runs as $run) {
+        $maxSummaryP95 = max(
+            $maxSummaryP95,
+            (float) ($run['summary']['latencyP95Ms'] ?? 0.0),
+        );
+    }
+
+    if ($maxSummaryP95 <= 0.0) {
+        return 0.0;
+    }
+
+    return $maxSummaryP95 * 2;
 }
 
 function formatNumber(float|int $value): string
