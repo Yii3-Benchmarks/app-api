@@ -144,6 +144,8 @@ function loadRun(string $runDirectory): array
     $rpsCap = detectRpsCap(
         $issuedRequestsPerSecond,
         $successfulResponsesPerSecond,
+        $k6Series['avgLatencyMs'],
+        $k6Series['p95LatencyMs'],
     );
     $runSummary = summarizeRun(
         $summary,
@@ -254,67 +256,137 @@ function averageSeriesValue(array $points): float
     return $count > 0 ? ($sum / $count) : 0.0;
 }
 
-function detectRpsCap(array $issuedRequestsPerSecond, array $successfulResponsesPerSecond): array
+function detectRpsCap(
+    array $issuedRequestsPerSecond,
+    array $successfulResponsesPerSecond,
+    array $avgLatencyMsSeries = [],
+    array $p95LatencyMsSeries = [],
+): array
 {
-    $issuedBySecond = indexSeriesBySecond($issuedRequestsPerSecond);
-    $successfulBySecond = indexSeriesBySecond($successfulResponsesPerSecond);
+    $latencyCap = detectLatencySurgeCap(
+        indexSeriesBySecond($issuedRequestsPerSecond),
+        indexSeriesBySecond($successfulResponsesPerSecond),
+        indexSeriesBySecond($avgLatencyMsSeries),
+        indexSeriesBySecond($p95LatencyMsSeries),
+    );
 
-    if ($issuedBySecond === [] || $successfulBySecond === []) {
-        return [
-            'reached' => false,
-        ];
-    }
+    if (($latencyCap['reached'] ?? false) === true) {
+        $latencyCap['basis'] = 'issued';
 
-    $seconds = array_values(array_intersect(array_keys($issuedBySecond), array_keys($successfulBySecond)));
-    sort($seconds, SORT_NUMERIC);
-
-    $requiredConsecutiveSeconds = 3;
-    $candidate = null;
-    $streak = 0;
-
-    foreach ($seconds as $second) {
-        $issued = $issuedBySecond[$second];
-        $successful = $successfulBySecond[$second];
-
-        if ($issued <= 0.0) {
-            $candidate = null;
-            $streak = 0;
-            continue;
-        }
-
-        $difference = $issued - $successful;
-        $threshold = max(25.0, $issued * 0.02);
-        $isCapped = $difference > $threshold;
-
-        if (!$isCapped) {
-            $candidate = null;
-            $streak = 0;
-            continue;
-        }
-
-        if ($candidate === null) {
-            $candidate = [
-                'second' => $second,
-                'issuedRps' => $issued,
-                'successfulRps' => $successful,
-            ];
-        }
-
-        $streak++;
-
-        if ($streak >= $requiredConsecutiveSeconds) {
-            return [
-                'reached' => true,
-                'second' => $candidate['second'],
-                'issuedRps' => $candidate['issuedRps'],
-                'successfulRps' => $candidate['successfulRps'],
-            ];
-        }
+        return $latencyCap;
     }
 
     return [
         'reached' => false,
     ];
+}
+
+function detectLatencySurgeCap(
+    array $issuedBySecond,
+    array $successfulBySecond,
+    array $avgLatencyBySecond,
+    array $p95LatencyBySecond,
+): array
+{
+    if ($successfulBySecond === [] || $avgLatencyBySecond === [] || $p95LatencyBySecond === []) {
+        return [
+            'reached' => false,
+        ];
+    }
+
+    $seconds = array_values(array_intersect(
+        array_keys($successfulBySecond),
+        array_keys($avgLatencyBySecond),
+        array_keys($p95LatencyBySecond),
+    ));
+    sort($seconds, SORT_NUMERIC);
+
+    $baselineWindow = 12;
+    $currentWindow = 3;
+    $minimumWarmupSeconds = 30;
+
+    foreach ($seconds as $second) {
+        if ($second < ($baselineWindow + $currentWindow - 1) || $second < $minimumWarmupSeconds) {
+            continue;
+        }
+
+        $baselineStart = $second - $baselineWindow - $currentWindow + 1;
+        $baselineEnd = $second - $currentWindow;
+        $currentStart = $second - $currentWindow + 1;
+        $currentEnd = $second;
+
+        $baselineAvgLatency = averageIndexedRange($avgLatencyBySecond, $baselineStart, $baselineEnd);
+        $baselineP95Latency = averageIndexedRange($p95LatencyBySecond, $baselineStart, $baselineEnd);
+        $currentAvgLatency = averageIndexedRange($avgLatencyBySecond, $currentStart, $currentEnd);
+        $currentP95Latency = averageIndexedRange($p95LatencyBySecond, $currentStart, $currentEnd);
+
+        if (
+            $baselineAvgLatency === null
+            || $baselineP95Latency === null
+            || $currentAvgLatency === null
+            || $currentP95Latency === null
+        ) {
+            continue;
+        }
+
+        $p95RaisedQuickly = $currentP95Latency >= max(50.0, $baselineP95Latency + 40.0, $baselineP95Latency * 3.0);
+        $avgRaisedQuickly = $currentAvgLatency >= max(10.0, $baselineAvgLatency + 10.0, $baselineAvgLatency * 2.0);
+
+        if (!$p95RaisedQuickly || !$avgRaisedQuickly) {
+            continue;
+        }
+
+        $candidateSecond = $currentStart;
+        $issuedRps = $issuedBySecond[$candidateSecond] ?? $successfulBySecond[$candidateSecond];
+        $successfulRps = $successfulBySecond[$candidateSecond] ?? 0.0;
+
+        return [
+            'reached' => true,
+            'second' => $candidateSecond,
+            'baselineRps' => $issuedRps,
+            'successfulRps' => $successfulRps,
+        ];
+    }
+
+    return [
+        'reached' => false,
+    ];
+}
+
+function averageIndexedRange(array $valuesBySecond, int $startSecond, int $endSecond): ?float
+{
+    $sum = 0.0;
+    $count = 0;
+
+    for ($second = $startSecond; $second <= $endSecond; $second++) {
+        if (!array_key_exists($second, $valuesBySecond)) {
+            return null;
+        }
+
+        $sum += (float) $valuesBySecond[$second];
+        $count++;
+    }
+
+    if ($count === 0) {
+        return null;
+    }
+
+    return $sum / $count;
+}
+
+function indexSeriesBySecond(array $points): array
+{
+    $indexed = [];
+
+    foreach ($points as $point) {
+        if (!is_array($point) || !isset($point['x'])) {
+            continue;
+        }
+
+        $indexed[(int) $point['x']] = (float) ($point['y'] ?? 0.0);
+    }
+
+    return $indexed;
 }
 
 function detectErrorsStart(array $issuedRequestsPerSecond, array $erroredRequestsPerSecond): array
@@ -377,21 +449,6 @@ function detectErrorsStart(array $issuedRequestsPerSecond, array $erroredRequest
     return [
         'reached' => false,
     ];
-}
-
-function indexSeriesBySecond(array $points): array
-{
-    $indexed = [];
-
-    foreach ($points as $point) {
-        if (!is_array($point) || !isset($point['x'])) {
-            continue;
-        }
-
-        $indexed[(int) $point['x']] = (float) ($point['y'] ?? 0.0);
-    }
-
-    return $indexed;
 }
 
 function buildRunLabel(string $runDirectory, array $metadata): string
@@ -620,7 +677,7 @@ function renderHtmlReport(array $runs): string
             'title' => 'Request Rate Per Second',
             'series' => array_merge(
                 collectRunSeries($runs, 'issuedRequestsPerSecond', $palette, ' issued', false, [2, 4]),
-                collectRunSeries($runs, 'successfulResponsesPerSecond', $palette, ' successful'),
+                withStartMarkers(collectRunSeries($runs, 'successfulResponsesPerSecond', $palette, ' successful')),
                 collectRunSeries($runs, 'erroredRequestsPerSecond', $palette, ' errored', false, [8, 4]),
             ),
             'xAxisTargetSeries' => collectRunSeries($runs, 'targetRequestsPerSecond', $palette),
@@ -1242,6 +1299,7 @@ HTML;
 
       const toCanvasX = (x) => margin.left + ((x - xMin) / Math.max(1, xMax - xMin)) * width;
       const toCanvasY = (y) => margin.top + height - (y / yMax) * height;
+      const startMarkerSeries = displaySeries.filter((item) => item.startMarker);
 
       displaySeries.forEach((item) => {
         if (smoothingWindow > 1) {
@@ -1265,6 +1323,18 @@ HTML;
       displaySeries.forEach((item) => {
         drawMarker(ctx, toCanvasX, toCanvasY, item.displayPoints, item.capSecond, item.color, 'circle');
         drawMarker(ctx, toCanvasX, toCanvasY, item.displayPoints, item.errorStartSecond, item.color, 'cross');
+      });
+
+      startMarkerSeries.forEach((item, markerIndex) => {
+        drawStartMarker(
+          ctx,
+          toCanvasX,
+          toCanvasY,
+          item.displayPoints,
+          item.color,
+          markerIndex,
+          startMarkerSeries.length,
+        );
       });
 
       const runs = [];
@@ -1373,6 +1443,31 @@ HTML;
       ctx.restore();
     }
 
+    function drawStartMarker(ctx, toCanvasX, toCanvasY, points, color, markerIndex, markerCount) {
+      if (!points || points.length === 0) {
+        return;
+      }
+
+      const firstPoint = points[0];
+      const baseX = toCanvasX(firstPoint.x);
+      const y = toCanvasY(firstPoint.y);
+      const offset = ((markerIndex - ((markerCount - 1) / 2)) * 5);
+      const x = baseX + offset;
+
+      ctx.save();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#fffdf8';
+      ctx.beginPath();
+      ctx.arc(x, y, 4.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(x, y, 3.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
     window.addEventListener('resize', render);
     render();
   </script>
@@ -1402,6 +1497,7 @@ function collectRunSeries(
             'label' => $run['label'] . $labelSuffix,
             'runLabel' => $run['label'],
             'color' => $palette[$index % count($palette)],
+            'runIndex' => $index,
             'points' => $points,
             'showPoints' => $showPoints,
             'dash' => $dash,
@@ -1413,6 +1509,16 @@ function collectRunSeries(
                 : null,
         ];
     }
+
+    return $series;
+}
+
+function withStartMarkers(array $series): array
+{
+    foreach ($series as &$item) {
+        $item['startMarker'] = true;
+    }
+    unset($item);
 
     return $series;
 }
@@ -1559,7 +1665,7 @@ function formatRpsCap(array $rpsCap): string
     }
 
     $second = (int) ($rpsCap['second'] ?? 0);
-    $issuedRps = (int) round((float) ($rpsCap['issuedRps'] ?? 0.0));
+    $issuedRps = (int) round((float) ($rpsCap['baselineRps'] ?? $rpsCap['issuedRps'] ?? 0.0));
     $successfulRps = (int) round((float) ($rpsCap['successfulRps'] ?? 0.0));
 
     return sprintf(
