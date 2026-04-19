@@ -28,6 +28,7 @@ BENCH_SCRIPT := bench-ramp.js
 else
 BENCH_SCRIPT := bench.js
 endif
+DOCKER_STATS_APP_SERVICES := "php nginx"
 
 #
 # Development
@@ -160,6 +161,7 @@ bench: ## Run home benchmark. Options: BENCH_NAME="..." MODE=steady|ramp CAPTURE
 	BENCH_NAME="$(BENCH_NAME)" \
 	BENCH_SCRIPT=$(BENCH_SCRIPT) \
 	CAPTURE_METRICS=$(CAPTURE_METRICS) \
+	DOCKER_STATS_APP_SERVICES=$(DOCKER_STATS_APP_SERVICES) \
 	./tools/run-k6-benchmark.sh
 endif
 
@@ -171,6 +173,7 @@ bench-db: ## Run PostgreSQL benchmark. Options: BENCH_NAME="..." MODE=steady|ram
 	BENCH_NAME="$(BENCH_NAME) DB" \
 	BENCH_SCRIPT=$(BENCH_SCRIPT) \
 	CAPTURE_METRICS=$(CAPTURE_METRICS) \
+	DOCKER_STATS_APP_SERVICES=$(DOCKER_STATS_APP_SERVICES) \
 	./tools/run-k6-benchmark.sh
 endif
 
