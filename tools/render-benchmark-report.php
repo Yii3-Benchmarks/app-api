@@ -141,11 +141,17 @@ function loadRun(string $runDirectory): array
         $k6Series['requestsPerSecond'],
         $successfulResponsesPerSecond,
     );
-    $runSummary = summarizeRun($summary);
-    $runSummary['rpsCap'] = detectRpsCap(
+    $rpsCap = detectRpsCap(
         $issuedRequestsPerSecond,
         $successfulResponsesPerSecond,
     );
+    $runSummary = summarizeRun(
+        $summary,
+        $k6Series['avgLatencyMs'],
+        $k6Series['p95LatencyMs'],
+        $rpsCap,
+    );
+    $runSummary['rpsCap'] = $rpsCap;
     $runSummary['errorsStart'] = detectErrorsStart(
         $issuedRequestsPerSecond,
         $erroredRequestsPerSecond,
@@ -186,16 +192,66 @@ function parseMetadata(string $metadataFile): array
     return $metadata;
 }
 
-function summarizeRun(array $summary): array
+function summarizeRun(
+    array $summary,
+    array $avgLatencyMsSeries,
+    array $p95LatencyMsSeries,
+    array $rpsCap,
+): array
 {
-    $metrics = $summary['metrics'] ?? [];
+    $capSecond = (($rpsCap['reached'] ?? false) === true)
+        ? (int) ($rpsCap['second'] ?? 0)
+        : null;
 
     return [
-        'httpReqFailedValue' => (float) ($metrics['http_req_failed']['value'] ?? 0.0),
-        'latencyAvgMs' => (float) ($metrics['http_req_duration']['avg'] ?? 0.0),
-        'latencyP95Ms' => (float) ($metrics['http_req_duration']['p(95)'] ?? 0.0),
-        'latencyP99Ms' => (float) ($metrics['http_req_duration']['p(99)'] ?? 0.0),
+        'latencyAvgMs' => averageSeriesUntilSecond($avgLatencyMsSeries, $capSecond),
+        'latencyP95Ms' => averageSeriesUntilSecond($p95LatencyMsSeries, $capSecond),
     ];
+}
+
+function averageSeriesUntilSecond(array $points, ?int $untilSecondExclusive): float
+{
+    $filteredPoints = [];
+
+    foreach ($points as $point) {
+        if (!is_array($point) || !isset($point['x'])) {
+            continue;
+        }
+
+        $second = (int) $point['x'];
+        if ($untilSecondExclusive !== null && $second >= $untilSecondExclusive) {
+            continue;
+        }
+
+        $filteredPoints[] = $point;
+    }
+
+    if ($filteredPoints === [] && $untilSecondExclusive !== null) {
+        $filteredPoints = $points;
+    }
+
+    return averageSeriesValue($filteredPoints);
+}
+
+function averageSeriesValue(array $points): float
+{
+    if ($points === []) {
+        return 0.0;
+    }
+
+    $sum = 0.0;
+    $count = 0;
+
+    foreach ($points as $point) {
+        if (!is_array($point)) {
+            continue;
+        }
+
+        $sum += (float) ($point['y'] ?? 0.0);
+        $count++;
+    }
+
+    return $count > 0 ? ($sum / $count) : 0.0;
 }
 
 function detectRpsCap(array $issuedRequestsPerSecond, array $successfulResponsesPerSecond): array
@@ -636,8 +692,6 @@ function renderHtmlReport(array $runs): string
             . '<td>' . h($run['metadata']['TARGET_PATH'] ?? '') . '</td>'
             . '<td>' . h($run['metadata']['BENCH_SCRIPT'] ?? '') . '</td>'
             . '<td>' . h(formatRpsCap($summary['rpsCap'] ?? ['reached' => false])) . '</td>'
-            . '<td>' . h(formatErrorsStart($summary['errorsStart'] ?? ['reached' => false])) . '</td>'
-            . '<td>' . formatPercent($summary['httpReqFailedValue'] * 100) . '</td>'
             . '<td>' . formatMilliseconds($summary['latencyAvgMs']) . '</td>'
             . '<td>' . formatMilliseconds($summary['latencyP95Ms']) . '</td>'
             . '</tr>';
@@ -936,8 +990,6 @@ HTML;
             <th>Path</th>
             <th>Script</th>
             <th>RPS Cap</th>
-            <th>Errors Start</th>
-            <th>Failure Rate</th>
             <th>Avg Latency</th>
             <th>P95 Latency</th>
           </tr>
