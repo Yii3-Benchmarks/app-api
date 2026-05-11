@@ -1,9 +1,10 @@
 FROM composer/composer:2-bin AS composer
 
-FROM dunglas/frankenphp:1-php8.5-bookworm AS base
+FROM ghcr.io/freeunitorg/freeunit:latest-php8.5 AS base
 
 RUN apt update && apt -y install \
-    unzip
+    unzip \
+    curl
 
 RUN install-php-extensions \
     opcache \
@@ -37,17 +38,16 @@ ARG GROUP_NAME=appuser
 
 COPY --from=composer /composer /usr/bin/composer
 
-# Based on https://frankenphp.dev/docs/docker/#running-as-a-non-root-user
 RUN \
-	groupadd --gid ${GROUP_ID} ${GROUP_NAME}; \
+        groupadd --gid ${GROUP_ID} ${GROUP_NAME}; \
     useradd --gid ${GROUP_ID} --uid ${USER_ID} ${GROUP_NAME}; \
-	# Add additional capability to bind to port 80 and 443
-	setcap CAP_NET_BIND_SERVICE=+eip /usr/local/bin/frankenphp; \
-	# Give write access to /data/caddy and /config/caddy
-	chown -R ${USER_NAME}:${GROUP_NAME} /data/caddy && chown -R ${USER_NAME}:${GROUP_NAME} /config/caddy
+        # Give write access to /var/run for Unit control socket
+        mkdir -p /var/run && chown -R ${USER_NAME}:${GROUP_NAME} /var/run; \
+        # Give write access to runtime directory
+        mkdir -p /app/runtime && chown -R ${USER_NAME}:${GROUP_NAME} /app/runtime
 USER ${USER_NAME}
 
-COPY docker/dev/Caddyfile /etc/frankenphp/Caddyfile
+COPY docker/dev/unit-config.json /var/lib/unit/config.json
 
 #
 # Production
@@ -62,6 +62,6 @@ RUN --mount=type=cache,target=/tmp/cache \
 
 FROM base AS prod
 ENV APP_ENV=prod
-COPY docker/Caddyfile /etc/frankenphp/Caddyfile
+COPY docker/unit-config.json /var/lib/unit/config.json
 COPY --from=prod-builder --chown=www-data:www-data /app /app
 USER www-data
