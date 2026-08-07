@@ -99,18 +99,14 @@ The benchmarkable PostgreSQL endpoint is available at `/postgres/orders`. It rea
 Use `make bench` to benchmark `/` only, and `make bench-db` to benchmark `/postgres/orders` only. The latter gives an
 isolated RPS number for the database-backed endpoint.
 
-Both targets accept `BENCH_NAME="..."`, `MODE=steady|ramp` and `CAPTURE_METRICS=0|1`. The default benchmark name is
-`FrankenPHP classic`. When `CAPTURE_METRICS=1`, the run stores time-series metrics in `runtime/benchmarks/`:
-`k6-timeseries.json` for compact request/latency/failure series, `summary.json` for the aggregate k6 summary,
-`docker-stats.csv` for container CPU and memory samples, and `metadata.env` for the exact run settings.
-Runtime k6 warnings are suppressed by default with `K6_LOG_OUTPUT=none` so a failing target does not flood the
-console; use `K6_LOG_OUTPUT=stderr` to restore k6 log output when debugging.
+Both targets use [wrkx](https://github.com/devhands-io/wrkx) and accept `BENCH_NAME="..."`, `MODE=steady|ramp`,
+`CAPTURE_METRICS=0|1`, `THREADS`, and `CONNECTIONS`. The runner builds a pinned wrkx revision in Docker, so no host
+installation is needed. When `CAPTURE_METRICS=1`, it stores `wrkx-timeseries.json`, `summary.json`,
+`docker-stats.csv`, the raw `wrkx-*.log` output, and `metadata.env` under `runtime/benchmarks/`.
 
-By default, the benchmark runner auto-sizes `PREALLOCATED_VUS` and `MAX_VUS` from the configured request rate. For
-steady mode it uses `RATE`; for ramp mode it uses the highest target found in `STAGES`. You normally do not need to
-set VU counts manually, but both variables still work as explicit overrides. The default heuristic is intentionally
-aggressive and now prefers lower dropped-iteration rates over conservative VU usage. `AUTO_MAX_VUS_LIMIT` may be used
-as a higher or lower automatic safety ceiling when needed.
+Steady mode runs one constant-throughput test at `RATE` for `DURATION`. Since wrkx has no continuously ramping rate
+mode, ramp mode runs each entry in `STAGES` as a separate constant-throughput stage. wrkx needs a calibration period,
+so stage durations shorter than 20 seconds are not recommended. Report points represent whole-stage aggregates.
 
 Examples:
 
@@ -120,11 +116,11 @@ make bench-db RATE=8000
 make bench MODE=ramp
 make bench-db MODE=ramp CAPTURE_METRICS=1
 make bench-db BENCH_NAME="FrankenPHP worker" MODE=ramp CAPTURE_METRICS=1
-make bench PREALLOCATED_VUS=500 MAX_VUS=3000
+make bench MODE=steady RATE=8000 DURATION=60s THREADS=8 CONNECTIONS=256
 ```
 
-To turn one or more captured runs into a self-contained HTML report with graphs for RPS, failure rate, latency, dropped
-iterations, CPU, and memory:
+To turn one or more captured runs into a self-contained HTML report with graphs for RPS, failures, latency, target
+shortfall, connections, CPU, and memory:
 
 ```shell
 make bench-report

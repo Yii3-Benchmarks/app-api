@@ -23,12 +23,6 @@ DOCKER_COMPOSE_TEST := docker compose -f docker/compose.yml -f docker/test/compo
 MODE ?= ramp
 CAPTURE_METRICS ?= 1
 BENCH_NAME ?= FrankenPHP classic
-ifeq ($(MODE),ramp)
-BENCH_SCRIPT := bench-ramp.js
-else
-BENCH_SCRIPT := bench.js
-endif
-
 #
 # Development
 #
@@ -153,25 +147,25 @@ endif
 #
 
 ifeq ($(PRIMARY_GOAL),bench)
-bench: ## Run home benchmark. Options: BENCH_NAME="..." MODE=steady|ramp CAPTURE_METRICS=1 RATE=... STAGES=... PREALLOCATED_VUS=... MAX_VUS=... DOCKER_STATS_APP_SERVICES="app" DOCKER_STATS_SERVICES="postgres valkey" K6_LOG_OUTPUT=none|stderr
+bench: ## Run home benchmark with wrkx. Options: BENCH_NAME="..." MODE=steady|ramp CAPTURE_METRICS=1 RATE=... STAGES=... THREADS=... CONNECTIONS=...
 	BASE_URL=http://localhost:9991 \
 	TARGET_PATH=/ \
 	TARGET_NAME=home \
 	BENCH_NAME="$(BENCH_NAME)" \
-	BENCH_SCRIPT=$(BENCH_SCRIPT) \
+	MODE=$(MODE) \
 	CAPTURE_METRICS=$(CAPTURE_METRICS) \
-	./tools/run-k6-benchmark.sh
+	./tools/run-wrkx-benchmark.sh
 endif
 
 ifeq ($(PRIMARY_GOAL),bench-db)
-bench-db: ## Run PostgreSQL benchmark. Options: BENCH_NAME="..." MODE=steady|ramp CAPTURE_METRICS=1 RATE=... STAGES=... PREALLOCATED_VUS=... MAX_VUS=... DOCKER_STATS_APP_SERVICES="app" DOCKER_STATS_SERVICES="postgres valkey" K6_LOG_OUTPUT=none|stderr
+bench-db: ## Run PostgreSQL benchmark with wrkx. Options: BENCH_NAME="..." MODE=steady|ramp CAPTURE_METRICS=1 RATE=... STAGES=... THREADS=... CONNECTIONS=...
 	BASE_URL=http://localhost:9991 \
 	TARGET_PATH=/postgres/orders \
 	TARGET_NAME=postgres-orders \
 	BENCH_NAME="$(BENCH_NAME) DB" \
-	BENCH_SCRIPT=$(BENCH_SCRIPT) \
+	MODE=$(MODE) \
 	CAPTURE_METRICS=$(CAPTURE_METRICS) \
-	./tools/run-k6-benchmark.sh
+	./tools/run-wrkx-benchmark.sh
 endif
 
 ifeq ($(PRIMARY_GOAL),generate-pgsql-dump)

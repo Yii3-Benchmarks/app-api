@@ -108,7 +108,7 @@ function isRunDirectory(string $directory): bool
     return is_file($directory . '/metadata.env')
         && is_file($directory . '/summary.json')
         && is_file($directory . '/docker-stats.csv')
-        && is_file($directory . '/k6-timeseries.json');
+        && is_file($directory . '/wrkx-timeseries.json');
 }
 
 function loadRun(string $runDirectory): array
@@ -121,9 +121,9 @@ function loadRun(string $runDirectory): array
     $metadataFile = $runDirectory . '/metadata.env';
     $summaryFile = $runDirectory . '/summary.json';
     $dockerStatsFile = $runDirectory . '/docker-stats.csv';
-    $k6TimeseriesFile = $runDirectory . '/k6-timeseries.json';
+    $wrkxTimeseriesFile = $runDirectory . '/wrkx-timeseries.json';
 
-    foreach ([$metadataFile, $summaryFile, $dockerStatsFile, $k6TimeseriesFile] as $requiredFile) {
+    foreach ([$metadataFile, $summaryFile, $dockerStatsFile, $wrkxTimeseriesFile] as $requiredFile) {
         if (!is_file($requiredFile)) {
             fwrite(STDERR, "Required benchmark file not found: $requiredFile\n");
             exit(1);
@@ -132,25 +132,25 @@ function loadRun(string $runDirectory): array
 
     $metadata = parseMetadata($metadataFile);
     $summary = json_decode((string) file_get_contents($summaryFile), true, 512, JSON_THROW_ON_ERROR);
-    $k6Series = parseCompactK6Timeseries($k6TimeseriesFile);
+    $wrkxSeries = parseCompactWrkxTimeseries($wrkxTimeseriesFile);
     $dockerSeries = parseDockerStats($dockerStatsFile);
-    $successfulResponsesPerSecond = $k6Series['successfulResponsesPerSecond'];
+    $successfulResponsesPerSecond = $wrkxSeries['successfulResponsesPerSecond'];
     $targetRequestsPerSecond = buildTargetRequestsPerSecondSeries($metadata);
-    $issuedRequestsPerSecond = $k6Series['issuedRequestsPerSecond'];
+    $issuedRequestsPerSecond = $wrkxSeries['issuedRequestsPerSecond'];
     $erroredRequestsPerSecond = deriveErroredRequestsSeries(
-        $k6Series['requestsPerSecond'],
+        $wrkxSeries['requestsPerSecond'],
         $successfulResponsesPerSecond,
     );
     $rpsCap = detectRpsCap(
         $issuedRequestsPerSecond,
         $successfulResponsesPerSecond,
-        $k6Series['avgLatencyMs'],
-        $k6Series['p95LatencyMs'],
+        $wrkxSeries['avgLatencyMs'],
+        $wrkxSeries['p95LatencyMs'],
     );
     $runSummary = summarizeRun(
         $summary,
-        $k6Series['avgLatencyMs'],
-        $k6Series['p95LatencyMs'],
+        $wrkxSeries['avgLatencyMs'],
+        $wrkxSeries['p95LatencyMs'],
         $rpsCap,
     );
     $runSummary['rpsCap'] = $rpsCap;
@@ -167,15 +167,15 @@ function loadRun(string $runDirectory): array
         'metadata' => $metadata,
         'summary' => $runSummary,
         'series' => [
-            'requestsPerSecond' => $k6Series['requestsPerSecond'],
+            'requestsPerSecond' => $wrkxSeries['requestsPerSecond'],
             'issuedRequestsPerSecond' => $issuedRequestsPerSecond,
             'successfulResponsesPerSecond' => $successfulResponsesPerSecond,
             'erroredRequestsPerSecond' => $erroredRequestsPerSecond,
             'targetRequestsPerSecond' => $targetRequestsPerSecond,
-            'avgLatencyMs' => $k6Series['avgLatencyMs'],
-            'p95LatencyMs' => $k6Series['p95LatencyMs'],
-            'droppedPerSecond' => $k6Series['droppedPerSecond'],
-            'virtualUsers' => $k6Series['virtualUsers'],
+            'avgLatencyMs' => $wrkxSeries['avgLatencyMs'],
+            'p95LatencyMs' => $wrkxSeries['p95LatencyMs'],
+            'droppedPerSecond' => $wrkxSeries['droppedPerSecond'],
+            'connections' => $wrkxSeries['connections'],
         ],
         'docker' => $dockerSeries,
     ];
@@ -531,12 +531,12 @@ function buildRunLabel(string $runDirectory, array $metadata): string
     return basename($runDirectory);
 }
 
-function parseCompactK6Timeseries(string $file): array
+function parseCompactWrkxTimeseries(string $file): array
 {
     $payload = json_decode((string) file_get_contents($file), true, 512, JSON_THROW_ON_ERROR);
 
-    if (($payload['schema'] ?? '') !== 'compact-k6-timeseries-v1') {
-        fwrite(STDERR, "Unsupported compact k6 timeseries schema: $file\n");
+    if (($payload['schema'] ?? '') !== 'compact-wrkx-timeseries-v1') {
+        fwrite(STDERR, "Unsupported compact wrkx timeseries schema: $file\n");
         exit(1);
     }
 
@@ -548,12 +548,12 @@ function parseCompactK6Timeseries(string $file): array
         'avgLatencyMs',
         'p95LatencyMs',
         'droppedPerSecond',
-        'virtualUsers',
+        'connections',
     ];
 
     foreach ($requiredSeries as $seriesName) {
         if (!array_key_exists($seriesName, $series)) {
-            fwrite(STDERR, "Required k6 series missing in $file: $seriesName\n");
+            fwrite(STDERR, "Required wrkx series missing in $file: $seriesName\n");
             exit(1);
         }
     }
@@ -596,12 +596,11 @@ function deriveErroredRequestsSeries(array $requestsPerSecond, array $successful
 
 function buildTargetRequestsPerSecondSeries(array $metadata): array
 {
-    $benchScript = (string) ($metadata['BENCH_SCRIPT'] ?? '');
+    $mode = (string) ($metadata['MODE'] ?? 'steady');
     $timeUnitSeconds = max(1, parseDurationSeconds((string) ($metadata['TIME_UNIT'] ?? '1s')));
 
-    if ($benchScript === 'bench-ramp.js') {
+    if ($mode === 'ramp') {
         return buildRampTargetRequestsPerSecondSeries(
-            (int) ($metadata['START_RATE'] ?? 0),
             (string) ($metadata['STAGES'] ?? '[]'),
             $timeUnitSeconds,
         );
@@ -617,18 +616,14 @@ function buildTargetRequestsPerSecondSeries(array $metadata): array
     ];
 }
 
-function buildRampTargetRequestsPerSecondSeries(int $startRate, string $stagesJson, int $timeUnitSeconds): array
+function buildRampTargetRequestsPerSecondSeries(string $stagesJson, int $timeUnitSeconds): array
 {
     $stages = json_decode($stagesJson, true);
     if (!is_array($stages)) {
         return [];
     }
 
-    $points = [
-        ['x' => 0, 'y' => (float) ($startRate / $timeUnitSeconds)],
-    ];
-
-    $currentRate = (float) $startRate;
+    $points = [];
     $currentSecond = 0;
 
     foreach ($stages as $stage) {
@@ -636,20 +631,10 @@ function buildRampTargetRequestsPerSecondSeries(int $startRate, string $stagesJs
             continue;
         }
 
-        $targetRate = (float) ($stage['target'] ?? $currentRate);
+        $targetRate = (float) ($stage['target'] ?? 0);
         $durationSeconds = max(1, parseDurationSeconds((string) ($stage['duration'] ?? '0s')));
-
-        for ($offset = 1; $offset <= $durationSeconds; $offset++) {
-            $progress = $offset / $durationSeconds;
-            $interpolatedRate = $currentRate + (($targetRate - $currentRate) * $progress);
-            $points[] = [
-                'x' => $currentSecond + $offset,
-                'y' => $interpolatedRate / $timeUnitSeconds,
-            ];
-        }
-
+        $points[] = ['x' => $currentSecond, 'y' => $targetRate / $timeUnitSeconds];
         $currentSecond += $durationSeconds;
-        $currentRate = $targetRate;
     }
 
     return $points;
@@ -777,15 +762,15 @@ function renderHtmlReport(array $runs): string
         ],
         [
             'id' => 'dropped-iterations',
-            'title' => 'Load Generator Dropped Iterations Per Second',
+            'title' => 'Target Rate Shortfall Per Second',
             'series' => collectRunSeries($runs, 'droppedPerSecond', $palette),
             'xAxisTargetSeries' => collectRunSeries($runs, 'targetRequestsPerSecond', $palette),
             'format' => 'integer',
         ],
         [
-            'id' => 'virtual-users',
-            'title' => 'Virtual Users',
-            'series' => collectRunSeries($runs, 'virtualUsers', $palette),
+            'id' => 'connections',
+            'title' => 'Connections',
+            'series' => collectRunSeries($runs, 'connections', $palette),
             'xAxisTargetSeries' => collectRunSeries($runs, 'targetRequestsPerSecond', $palette),
             'format' => 'integer',
         ],
@@ -821,7 +806,7 @@ function renderHtmlReport(array $runs): string
         $summaryRows .= '<tr>'
             . '<td><span class="summary-run"><span class="legend-swatch" style="background:' . h($runColor) . '"></span>' . $runLabel . '</span></td>'
             . '<td>' . h($run['metadata']['TARGET_PATH'] ?? '') . '</td>'
-            . '<td>' . h($run['metadata']['BENCH_SCRIPT'] ?? '') . '</td>'
+            . '<td>' . h($run['metadata']['MODE'] ?? '') . '</td>'
             . '<td>' . h(formatRpsCap($summary['rpsCap'] ?? ['reached' => false])) . '</td>'
             . '<td>' . formatMilliseconds($summary['latencyAvgMs']) . '</td>'
             . '<td>' . formatMilliseconds($summary['latencyP95Ms']) . '</td>'
@@ -1113,7 +1098,7 @@ HTML;
   <main class="grid">
     <section class="panel">
       <h1>Benchmark Report</h1>
-      <p>Generated {$generatedAt}. This report combines k6 summary and time-series data with Docker CPU and memory samples.</p>
+      <p>Generated {$generatedAt}. This report combines wrkx stage summaries with Docker CPU and memory samples.</p>
       <p>Request rate, latency, and CPU charts use a 5s moving average over faint raw samples. RPS cap and Errors start still use raw data.</p>
     </section>
 
@@ -1124,7 +1109,7 @@ HTML;
           <tr>
             <th>Run</th>
             <th>Path</th>
-            <th>Script</th>
+            <th>Mode</th>
             <th>RPS Cap</th>
             <th>Avg Latency</th>
             <th>P95 Latency</th>

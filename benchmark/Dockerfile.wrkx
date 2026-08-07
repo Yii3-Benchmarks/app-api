@@ -1,0 +1,20 @@
+FROM ubuntu:24.04 AS build
+
+ARG WRKX_REF=bec57539360771bedc2fc63a48e3746f1b7a9975
+
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        build-essential ca-certificates git libssl-dev zlib1g-dev \
+    && git clone https://github.com/devhands-io/wrkx.git /src/wrkx \
+    && git -C /src/wrkx checkout "${WRKX_REF}" \
+    && make -C /src/wrkx -j"$(nproc)"
+
+FROM ubuntu:24.04
+
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates libssl3 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /src/wrkx/wrk /usr/local/bin/wrkx
+
+ENTRYPOINT ["wrkx"]
