@@ -10,7 +10,7 @@ BENCHMARK_COMPOSE := docker compose \
 
 .DEFAULT_GOAL := help
 
-.PHONY: help runtime-up runtime-down bench bench-db bench-all bench-report test psalm composer-update generate-pgsql-dump
+.PHONY: help runtime-up runtime-down bench bench-db bench-all bench-report test composer-update generate-pgsql-dump
 
 help: ## List available commands.
 	@awk 'BEGIN { printf "Usage: make <target> [VARIABLE=value]\n\n" } \
@@ -41,9 +41,6 @@ bench-report: ## Regenerate a report; use INPUT="path [path ...]" and optionally
 
 test: ## Run the unit test suite using installed Composer dependencies.
 	./vendor/bin/codecept run Unit --no-interaction
-
-psalm: ## Run static analysis using installed Composer dependencies.
-	./vendor/bin/psalm
 
 composer-update: ## Update Composer dependencies, ignoring the host-only missing pdo_pgsql extension.
 	composer update --ignore-platform-req=ext-pdo_pgsql

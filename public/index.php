@@ -21,9 +21,6 @@ if (Environment::appC3()) {
     }
 }
 
-/**
- * @psalm-var string $_SERVER['REQUEST_URI']
- */
 // PHP built-in server routing.
 if (PHP_SAPI === 'cli-server') {
     // Serve static files as is.

@@ -193,7 +193,6 @@ Run the automated checks relevant to your change:
 
 ```shell
 make test
-make psalm
 docker compose -f docker/benchmarks.compose.yml --profile roadrunner config --quiet
 bash -n tools/run-benchmark-suite.sh tools/run-wrkx-benchmark.sh
 ```

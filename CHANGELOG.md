@@ -25,7 +25,6 @@
 - Enh #260, #265: Update composer dependencies and refactor to replace use of deprecated classes (@vjik)
 - Enh #266: Add grouping to `make` help output (@Xakki, @samdark)
 - Bug #256: Fix incorrect .env files used in Docker Compose for production (@aa-chernyh)
-- Bug #260: Fix psalm cache directory in configuration file (@vjik)
 
 ## 1.1.0 December 22, 2025
 
