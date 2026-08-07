@@ -21,7 +21,39 @@ THREADS="${THREADS:-$(nproc)}"
 CONNECTIONS="${CONNECTIONS:-256}"
 WRKX_IMAGE="${WRKX_IMAGE:-yii3-benchmarks-wrkx}"
 WRKX_REF="${WRKX_REF:-bec57539360771bedc2fc63a48e3746f1b7a9975}"
-STAGES="${STAGES:-[{\"target\":5000,\"duration\":\"30s\"},{\"target\":10000,\"duration\":\"30s\"},{\"target\":15000,\"duration\":\"30s\"},{\"target\":20000,\"duration\":\"30s\"},{\"target\":25000,\"duration\":\"30s\"},{\"target\":30000,\"duration\":\"30s\"},{\"target\":40000,\"duration\":\"30s\"},{\"target\":50000,\"duration\":\"30s\"}]}"
+if [[ -z "${STAGES:-}" ]]; then
+    STAGES='[{"target":5000,"duration":"30s"},{"target":10000,"duration":"30s"},{"target":15000,"duration":"30s"},{"target":20000,"duration":"30s"},{"target":25000,"duration":"30s"},{"target":30000,"duration":"30s"},{"target":40000,"duration":"30s"},{"target":50000,"duration":"30s"}]'
+fi
+
+STAGE_LINES=""
+if [[ "$MODE" == ramp ]]; then
+    STAGE_LINES="$(php -r '
+        try {
+            $stages = json_decode($argv[1], true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException $exception) {
+            fwrite(STDERR, "Invalid STAGES JSON: {$exception->getMessage()}\n");
+            exit(1);
+        }
+
+        if (!is_array($stages) || $stages === []) {
+            fwrite(STDERR, "STAGES must be a non-empty JSON array.\n");
+            exit(1);
+        }
+
+        foreach ($stages as $index => $stage) {
+            $rate = $stage["target"] ?? null;
+            $duration = $stage["duration"] ?? null;
+            if (!is_int($rate) || $rate < 1 || !is_string($duration) || !preg_match("/^[0-9]+(ms|s|m|h)$/", $duration)) {
+                fwrite(STDERR, "Invalid STAGES entry at index $index: target must be a positive integer and duration must include ms, s, m, or h.\n");
+                exit(1);
+            }
+            echo $rate, "\t", $duration, "\t", $index, "\n";
+        }
+    ' "$STAGES")"
+elif [[ "$MODE" != steady ]]; then
+    echo "MODE must be either ramp or steady." >&2
+    exit 1
+fi
 
 duration_seconds() {
     php -r '$v=$argv[1]; preg_match("/^([0-9]+)(ms|s|m|h)$/",$v,$m) || exit(1); echo match($m[2]){"ms"=>max(1,(int)round($m[1]/1000)),"s"=>(int)$m[1],"m"=>(int)$m[1]*60,"h"=>(int)$m[1]*3600};' "$1"
@@ -93,9 +125,9 @@ run_stage() {
 }
 
 if [[ "$MODE" == ramp ]]; then
-    while IFS=$'\t' read -r rate duration index; do run_stage "$rate" "$duration" "$index"; done < <(
-        php -r '$s=json_decode($argv[1],true,512,JSON_THROW_ON_ERROR); foreach($s as $i=>$v){echo (int)$v["target"],"\t",$v["duration"],"\t",$i,"\n";}' "$STAGES"
-    )
+    while IFS=$'\t' read -r rate duration index; do
+        run_stage "$rate" "$duration" "$index"
+    done <<< "$STAGE_LINES"
 else
     run_stage "$RATE" "$DURATION" 0
 fi
