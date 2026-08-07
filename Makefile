@@ -1,204 +1,52 @@
-CLI_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
-$(eval $(sort $(subst :,\:,$(CLI_ARGS))):;@:)
-
-PRIMARY_GOAL := $(firstword $(MAKECMDGOALS))
-ifeq ($(PRIMARY_GOAL),)
-    PRIMARY_GOAL := help
-endif
-
-include docker/.env
-
-# Current user ID and group ID except MacOS where it conflicts with Docker abilities
-ifeq ($(shell uname), Darwin)
-    export UID=1000
-    export GID=1000
-else
-    export UID=$(shell id -u)
-    export GID=$(shell id -g)
-endif
-
-export COMPOSE_PROJECT_NAME=${STACK_NAME}
-DOCKER_COMPOSE_DEV := docker compose -f docker/compose.yml -f docker/dev/compose.yml
-DOCKER_COMPOSE_TEST := docker compose -f docker/compose.yml -f docker/test/compose.yml
-MODE ?= ramp
-CAPTURE_METRICS ?= 1
-BENCH_NAME ?= FrankenPHP classic
 RUNTIME ?= frankenphp-classic
 RUNTIMES ?= frankenphp-classic frankenphp-worker roadrunner php-fpm freeunit
-BENCHMARK_COMPOSE := docker compose -p yii3-benchmarks-$(RUNTIME) -f docker/benchmarks.compose.yml --profile $(RUNTIME)
-#
-# Development
-#
+TARGETS ?= home postgres-orders
+MODE ?= ramp
 
-ifeq ($(PRIMARY_GOAL),build)
-build: ## Build docker images.
-	$(DOCKER_COMPOSE_DEV) build $(CLI_ARGS)
-endif
+BENCHMARK_COMPOSE := docker compose \
+	-p yii3-benchmarks-$(RUNTIME) \
+	-f docker/benchmarks.compose.yml \
+	--profile $(RUNTIME)
 
-ifeq ($(PRIMARY_GOAL),up)
-up: ## Up the dev environment.
-	$(DOCKER_COMPOSE_DEV) up -d --remove-orphans
-endif
+.DEFAULT_GOAL := help
 
-ifeq ($(PRIMARY_GOAL),down)
-down: ## Down the dev environment.
-	$(DOCKER_COMPOSE_DEV) down --remove-orphans
-endif
+.PHONY: help runtime-up runtime-down bench bench-db bench-all bench-report test psalm composer-update generate-pgsql-dump
 
-ifeq ($(PRIMARY_GOAL),stop)
-stop: ## Stop the dev environment.
-	$(DOCKER_COMPOSE_DEV) stop
-endif
-
-ifeq ($(PRIMARY_GOAL),clear)
-clear: ## Remove development docker containers and volumes.
-	$(DOCKER_COMPOSE_DEV) down --volumes --remove-orphans
-endif
-
-ifeq ($(PRIMARY_GOAL),shell)
-shell: ## Get into container shell.
-	$(DOCKER_COMPOSE_DEV) exec app /bin/bash
-endif
-
-#
-# Tools
-#
-
-ifeq ($(PRIMARY_GOAL),yii)
-yii: ## Execute Yii command.
-	$(DOCKER_COMPOSE_DEV) run --rm app ./yii $(CLI_ARGS)
-.PHONY: yii
-endif
-
-ifeq ($(PRIMARY_GOAL),composer)
-composer: ## Run Composer.
-	$(DOCKER_COMPOSE_DEV) run --rm app composer $(CLI_ARGS)
-endif
-
-ifeq ($(PRIMARY_GOAL),rector)
-rector: ## Run Rector.
-	$(DOCKER_COMPOSE_DEV) run --rm app ./vendor/bin/rector $(CLI_ARGS)
-endif
-
-ifeq ($(PRIMARY_GOAL),cs-fix)
-cs-fix: ## Run PHP CS Fixer.
-	$(DOCKER_COMPOSE_DEV) run --rm app ./vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.php --diff
-endif
-
-#
-# Tests and analysis
-#
-
-ifeq ($(PRIMARY_GOAL),test)
-test: ## Run tests.
-	$(DOCKER_COMPOSE_TEST) run --rm app ./vendor/bin/codecept run $(CLI_ARGS)
-endif
-
-ifeq ($(PRIMARY_GOAL),test-coverage)
-test-coverage: ## Run tests with coverage.
-	$(DOCKER_COMPOSE_TEST) run --rm app ./vendor/bin/codecept run --coverage --coverage-html --disable-coverage-php
-endif
-
-ifeq ($(PRIMARY_GOAL),codecept)
-codecept: ## Run Codeception.
-	$(DOCKER_COMPOSE_TEST) run --rm app ./vendor/bin/codecept $(CLI_ARGS)
-endif
-
-ifeq ($(PRIMARY_GOAL),psalm)
-psalm: ## Run Psalm.
-	$(DOCKER_COMPOSE_DEV) run --rm app ./vendor/bin/psalm $(CLI_ARGS)
-endif
-
-ifeq ($(PRIMARY_GOAL),composer-dependency-analyser)
-composer-dependency-analyser: ## Run Composer Dependency Analyser.
-	$(DOCKER_COMPOSE_DEV) run --rm app ./vendor/bin/composer-dependency-analyser --config=composer-dependency-analyser.php $(CLI_ARGS)
-endif
-
-#
-# Production
-#
-
-ifeq ($(PRIMARY_GOAL),prod-build)
-prod-build: ## Build an image.
-	docker build --file docker/Dockerfile --target prod --pull -t ${IMAGE}:${IMAGE_TAG} .
-endif
-
-ifeq ($(PRIMARY_GOAL),prod-push)
-prod-push: ## Push image to repository.
-	docker push ${IMAGE}:${IMAGE_TAG}
-endif
-
-ifeq ($(PRIMARY_GOAL),prod-deploy)
-prod-deploy: ## Deploy to production.
-	@set -euo pipefail; \
-	docker -H ${PROD_SSH} stack deploy --prune --detach=false --with-registry-auth -c docker/compose.yml -c docker/prod/compose.yml ${STACK_NAME} 2>&1 | tee deploy.log; \
-	if grep -qiE 'rollback:|update rolled back|service update paused' deploy.log; then \
-		FAILED_TASK_ID=$$(grep -oiE 'task[[:space:]]+[a-z0-9]+' deploy.log | head -n 1 | awk '{print $$2}'); \
-		if [ -n "$${FAILED_TASK_ID}" ]; then \
-			echo "Docker Swarm update failed. Failed task ID: $${FAILED_TASK_ID}"; \
-			echo "--- docker service logs ($${FAILED_TASK_ID}) ---"; \
-			docker -H ${PROD_SSH} service logs --timestamps --tail 500 "$${FAILED_TASK_ID}" || true; \
-		else \
-			echo 'Docker Swarm update failed. Failed task ID: not found in deploy output.'; \
-		fi; \
-		exit 1; \
-	fi
-endif
-
-#
-# Benchmarks
-#
-
-ifeq ($(PRIMARY_GOAL),runtime-up)
-runtime-up: ## Build and start one runtime. Option: RUNTIME=frankenphp-classic|frankenphp-worker|roadrunner|php-fpm|freeunit
-	$(BENCHMARK_COMPOSE) up -d --build --wait
-endif
-
-ifeq ($(PRIMARY_GOAL),runtime-down)
-runtime-down: ## Stop the selected runtime and its isolated data services.
-	$(BENCHMARK_COMPOSE) down --volumes --remove-orphans
-endif
-
-ifeq ($(PRIMARY_GOAL),bench-all)
-bench-all: ## Benchmark all runtimes and targets, then create one report. Options: RUNTIMES="..." MODE=steady|ramp
-	RUNTIMES="$(RUNTIMES)" MODE="$(MODE)" ./tools/run-benchmark-suite.sh
-endif
-
-ifeq ($(PRIMARY_GOAL),bench)
-bench: ## Run home benchmark with wrkx. Options: BENCH_NAME="..." MODE=steady|ramp CAPTURE_METRICS=1 RATE=... STAGES=... THREADS=... CONNECTIONS=...
-	RUNTIMES="$(RUNTIME)" TARGETS=home MODE="$(MODE)" ./tools/run-benchmark-suite.sh
-endif
-
-ifeq ($(PRIMARY_GOAL),bench-db)
-bench-db: ## Run PostgreSQL benchmark with wrkx. Options: BENCH_NAME="..." MODE=steady|ramp CAPTURE_METRICS=1 RATE=... STAGES=... THREADS=... CONNECTIONS=...
-	RUNTIMES="$(RUNTIME)" TARGETS=postgres-orders MODE="$(MODE)" ./tools/run-benchmark-suite.sh
-endif
-
-ifeq ($(PRIMARY_GOAL),generate-pgsql-dump)
-generate-pgsql-dump: ## Regenerate PostgreSQL benchmark dump.
-	php tools/generate-pgsql-dump.php
-endif
-
-ifeq ($(PRIMARY_GOAL),bench-report)
-bench-report: ## Generate an HTML benchmark report. Default input: runtime/benchmarks
-	@./tools/render-benchmark-report.sh $(CLI_ARGS)
-endif
-
-#
-# Other
-#
-
-ifeq ($(PRIMARY_GOAL),help)
-help: ## This help.
-	@awk 'BEGIN { printf "\nUsage:\n  make \033[36m<target>\033[0m\n" } \
-	/^#$$/ { blank = 1; next } \
-	blank && /^# [a-zA-Z]/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 3); blank = 0; next } \
-	/^[a-zA-Z_-]+:([^=]|$$)/ { \
+help: ## List available commands.
+	@awk 'BEGIN { printf "Usage: make <target> [VARIABLE=value]\n\n" } \
+	/^[a-zA-Z_-]+:.*##/ { \
 		split($$0, parts, "##"); \
 		target = parts[1]; sub(/:.*/, "", target); \
-		desc = parts[2]; \
-		gsub(/^[[:space:]]+|[[:space:]]+$$/, "", desc); \
-		printf "  \033[36m%-25s\033[0m %s\n", target, desc; \
-		blank = 0; \
+		description = parts[2]; sub(/^[[:space:]]+/, "", description); \
+		printf "  \033[36m%-22s\033[0m %s\n", target, description; \
 	}' $(MAKEFILE_LIST)
-endif
+
+runtime-up: ## Build and start RUNTIME for manual inspection on port 9991.
+	$(BENCHMARK_COMPOSE) up -d --build --wait
+
+runtime-down: ## Stop RUNTIME and remove its isolated database/cache volumes.
+	$(BENCHMARK_COMPOSE) down --volumes --remove-orphans
+
+bench: ## Benchmark / on one RUNTIME.
+	RUNTIMES="$(RUNTIME)" TARGETS=home MODE="$(MODE)" ./tools/run-benchmark-suite.sh
+
+bench-db: ## Benchmark /postgres/orders on one RUNTIME.
+	RUNTIMES="$(RUNTIME)" TARGETS=postgres-orders MODE="$(MODE)" ./tools/run-benchmark-suite.sh
+
+bench-all: ## Benchmark TARGETS on all selected RUNTIMES and generate one report.
+	RUNTIMES="$(RUNTIMES)" TARGETS="$(TARGETS)" MODE="$(MODE)" ./tools/run-benchmark-suite.sh
+
+bench-report: ## Regenerate a report; use INPUT="path [path ...]" and optionally OUTPUT=path.
+	./tools/render-benchmark-report.sh $(if $(OUTPUT),--output "$(OUTPUT)") $(INPUT)
+
+test: ## Run the unit test suite using installed Composer dependencies.
+	./vendor/bin/codecept run Unit --no-interaction
+
+psalm: ## Run static analysis using installed Composer dependencies.
+	./vendor/bin/psalm
+
+composer-update: ## Update Composer dependencies, ignoring the host-only missing pdo_pgsql extension.
+	composer update --ignore-platform-req=ext-pdo_pgsql
+
+generate-pgsql-dump: ## Regenerate the seeded PostgreSQL benchmark data.
+	php tools/generate-pgsql-dump.php

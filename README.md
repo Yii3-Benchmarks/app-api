@@ -150,13 +150,13 @@ connections, CPU, and memory. It is self-contained and can be opened directly in
 Regenerate a report from existing results:
 
 ```shell
-make bench-report runtime/benchmarks/<suite-directory>
+make bench-report INPUT=runtime/benchmarks/<suite-directory>
 ```
 
 Combine explicitly selected runs:
 
 ```shell
-make bench-report runtime/benchmarks/<run-1> runtime/benchmarks/<run-2>
+make bench-report INPUT="runtime/benchmarks/<run-1> runtime/benchmarks/<run-2>"
 ```
 
 Raw wrkx output and exact run settings are retained next to the compact data. Include them when reporting unexpected
@@ -186,7 +186,7 @@ The remaining application-template Docker files support development and tests. T
 Install or update project dependencies through the development container when needed:
 
 ```shell
-make composer update
+make composer-update
 ```
 
 Run the automated checks relevant to your change:
