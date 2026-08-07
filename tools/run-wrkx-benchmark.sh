@@ -85,7 +85,34 @@ start_sampler() {
 
 URL="${BASE_URL%/}/${TARGET_PATH#/}"
 echo "Preflight: $URL"
-[[ "$(curl --silent --show-error --location --max-time "$PREFLIGHT_TIMEOUT" --output /dev/null --write-out '%{http_code}' "$URL")" == 200 ]] || { echo "Preflight failed" >&2; exit 1; }
+PREFLIGHT_BODY="$(mktemp)"
+PREFLIGHT_ERROR="$(mktemp)"
+PREFLIGHT_STATUS=""
+PREFLIGHT_EXIT=0
+PREFLIGHT_STATUS="$(curl \
+    --silent \
+    --show-error \
+    --location \
+    --max-time "$PREFLIGHT_TIMEOUT" \
+    --output "$PREFLIGHT_BODY" \
+    --write-out '%{http_code}' \
+    "$URL" 2>"$PREFLIGHT_ERROR")" || PREFLIGHT_EXIT=$?
+
+if ((PREFLIGHT_EXIT != 0)) || [[ "$PREFLIGHT_STATUS" != 200 ]]; then
+    echo "Preflight failed: status=${PREFLIGHT_STATUS:-none} curl_exit=${PREFLIGHT_EXIT}" >&2
+    if [[ -s "$PREFLIGHT_ERROR" ]]; then
+        echo "curl error:" >&2
+        sed 's/^/  /' "$PREFLIGHT_ERROR" >&2
+    fi
+    if [[ -s "$PREFLIGHT_BODY" ]]; then
+        echo "response body (first 4096 bytes):" >&2
+        head -c 4096 "$PREFLIGHT_BODY" | sed 's/^/  /' >&2
+        echo >&2
+    fi
+    rm -f "$PREFLIGHT_BODY" "$PREFLIGHT_ERROR"
+    exit 1
+fi
+rm -f "$PREFLIGHT_BODY" "$PREFLIGHT_ERROR"
 
 echo "Building wrkx ${WRKX_REF}..."
 docker build --build-arg "WRKX_REF=${WRKX_REF}" -t "$WRKX_IMAGE" -f "$ROOT_DIR/benchmark/Dockerfile.wrkx" "$ROOT_DIR/benchmark"

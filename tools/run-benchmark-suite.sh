@@ -8,6 +8,36 @@ RUNTIMES="${RUNTIMES:-frankenphp-classic frankenphp-worker roadrunner php-fpm fr
 TARGETS="${TARGETS:-home postgres-orders}"
 OUTPUT_ROOT="${OUTPUT_ROOT:-$ROOT_DIR/runtime/benchmarks/$(date -u +%Y%m%dT%H%M%SZ)-suite}"
 
+dependencies_are_ready() {
+    php -r '
+        $autoload = $argv[1] . "/vendor/autoload.php";
+        if (!is_file($autoload)) {
+            exit(1);
+        }
+        require $autoload;
+        exit(class_exists("Yiisoft\\Db\\Cache\\SchemaCache") ? 0 : 1);
+    ' "$ROOT_DIR" 2>/dev/null
+}
+
+ensure_dependencies() {
+    if dependencies_are_ready; then
+        return
+    fi
+
+    echo "Composer dependencies are missing or incomplete; installing them in Docker..."
+    docker run --rm \
+        --user "$(id -u):$(id -g)" \
+        --volume "$ROOT_DIR:/app" \
+        --workdir /app \
+        composer:2 \
+        install --no-interaction --ignore-platform-req=ext-pdo_pgsql
+
+    if ! dependencies_are_ready; then
+        echo "Composer dependency installation completed, but required Yii DB classes are still unavailable." >&2
+        exit 1
+    fi
+}
+
 runtime_label() {
     case "$1" in
         frankenphp-classic) echo "FrankenPHP classic" ;;
@@ -31,6 +61,7 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "$OUTPUT_ROOT"
+ensure_dependencies
 
 for runtime in $RUNTIMES; do
     ACTIVE_RUNTIME="$runtime"
