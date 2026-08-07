@@ -99,6 +99,10 @@ The benchmarkable PostgreSQL endpoint is available at `/postgres/orders`. It rea
 Use `make bench` to benchmark `/` only, and `make bench-db` to benchmark `/postgres/orders` only. The latter gives an
 isolated RPS number for the database-backed endpoint.
 
+All supported application servers are maintained together on `master` as isolated Docker Compose profiles:
+`frankenphp-classic`, `frankenphp-worker`, `roadrunner`, `php-fpm`, and `freeunit`. Start one runtime for inspection
+with `make runtime-up RUNTIME=roadrunner`, and stop it with `make runtime-down RUNTIME=roadrunner`.
+
 Both targets use [wrkx](https://github.com/devhands-io/wrkx) and accept `BENCH_NAME="..."`, `MODE=steady|ramp`,
 `CAPTURE_METRICS=0|1`, `THREADS`, and `CONNECTIONS`. The runner builds a pinned wrkx revision in Docker, so no host
 installation is needed. When `CAPTURE_METRICS=1`, it stores `wrkx-timeseries.json`, `summary.json`,
@@ -117,7 +121,15 @@ make bench MODE=ramp
 make bench-db MODE=ramp CAPTURE_METRICS=1
 make bench-db BENCH_NAME="FrankenPHP worker" MODE=ramp CAPTURE_METRICS=1
 make bench MODE=steady RATE=8000 DURATION=60s THREADS=8 CONNECTIONS=256
+make bench RUNTIME=roadrunner MODE=steady RATE=8000 DURATION=60s
+make bench-all
+make bench-all MODE=steady RUNTIMES="frankenphp-worker roadrunner freeunit"
 ```
+
+`make bench-all` is the batch entry point. It builds each selected runtime, starts it with isolated PostgreSQL and
+Valkey services, benchmarks both `/` and `/postgres/orders`, tears the stack down, then writes one combined report.
+Set `RUNTIMES` and `TARGETS` to run a subset. Results are grouped in a timestamped suite directory under
+`runtime/benchmarks/`.
 
 To turn one or more captured runs into a self-contained HTML report with graphs for RPS, failures, latency, target
 shortfall, connections, CPU, and memory:

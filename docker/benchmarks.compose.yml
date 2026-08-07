@@ -1,0 +1,73 @@
+services:
+  frankenphp-classic:
+    profiles: [frankenphp-classic]
+    build:
+      context: ..
+      dockerfile: docker/runtimes/Dockerfile
+      target: frankenphp-classic
+    ports: ["9991:80"]
+    volumes: ["../:/app"]
+    env_file: [dev/.env]
+    depends_on: {postgres: {condition: service_healthy}, valkey: {condition: service_healthy}}
+
+  frankenphp-worker:
+    profiles: [frankenphp-worker]
+    build:
+      context: ..
+      dockerfile: docker/runtimes/Dockerfile
+      target: frankenphp-worker
+    ports: ["9991:80"]
+    volumes: ["../:/app"]
+    env_file: [dev/.env]
+    depends_on: {postgres: {condition: service_healthy}, valkey: {condition: service_healthy}}
+
+  roadrunner:
+    profiles: [roadrunner]
+    build:
+      context: ..
+      dockerfile: docker/runtimes/Dockerfile
+      target: roadrunner
+    ports: ["9991:8080"]
+    volumes: ["../:/app"]
+    env_file: [dev/.env]
+    depends_on: {postgres: {condition: service_healthy}, valkey: {condition: service_healthy}}
+
+  php:
+    profiles: [php-fpm]
+    build:
+      context: ..
+      dockerfile: docker/runtimes/Dockerfile
+      target: php-fpm
+    volumes: ["../:/app"]
+    env_file: [dev/.env]
+    depends_on: {postgres: {condition: service_healthy}, valkey: {condition: service_healthy}}
+
+  nginx:
+    profiles: [php-fpm]
+    image: nginx:alpine
+    ports: ["9991:80"]
+    volumes: ["../:/app", "./runtimes/nginx.conf:/etc/nginx/conf.d/default.conf:ro"]
+    depends_on: [php]
+
+  freeunit:
+    profiles: [freeunit]
+    build:
+      context: ..
+      dockerfile: docker/runtimes/Dockerfile
+      target: freeunit
+    ports: ["9991:80"]
+    volumes: ["../:/app"]
+    env_file: [dev/.env]
+    depends_on: {postgres: {condition: service_healthy}, valkey: {condition: service_healthy}}
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    command: ["valkey-server", "--save", "", "--appendonly", "no"]
+    healthcheck: {test: ["CMD", "valkey-cli", "ping"], interval: 2s, timeout: 2s, retries: 30}
+
+  postgres:
+    image: postgres:16-alpine
+    command: -c max_connections=200
+    environment: {POSTGRES_DB: benchmark, POSTGRES_USER: benchmark, POSTGRES_PASSWORD: benchmark}
+    healthcheck: {test: ["CMD-SHELL", "pg_isready -U benchmark -d benchmark"], interval: 2s, timeout: 2s, retries: 30}
+    volumes: ["./postgres/initdb.d:/docker-entrypoint-initdb.d:ro"]

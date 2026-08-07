@@ -23,6 +23,9 @@ DOCKER_COMPOSE_TEST := docker compose -f docker/compose.yml -f docker/test/compo
 MODE ?= ramp
 CAPTURE_METRICS ?= 1
 BENCH_NAME ?= FrankenPHP classic
+RUNTIME ?= frankenphp-classic
+RUNTIMES ?= frankenphp-classic frankenphp-worker roadrunner php-fpm freeunit
+BENCHMARK_COMPOSE := docker compose -p yii3-benchmarks-$(RUNTIME) -f docker/benchmarks.compose.yml --profile $(RUNTIME)
 #
 # Development
 #
@@ -146,26 +149,29 @@ endif
 # Benchmarks
 #
 
+ifeq ($(PRIMARY_GOAL),runtime-up)
+runtime-up: ## Build and start one runtime. Option: RUNTIME=frankenphp-classic|frankenphp-worker|roadrunner|php-fpm|freeunit
+	$(BENCHMARK_COMPOSE) up -d --build --wait
+endif
+
+ifeq ($(PRIMARY_GOAL),runtime-down)
+runtime-down: ## Stop the selected runtime and its isolated data services.
+	$(BENCHMARK_COMPOSE) down --volumes --remove-orphans
+endif
+
+ifeq ($(PRIMARY_GOAL),bench-all)
+bench-all: ## Benchmark all runtimes and targets, then create one report. Options: RUNTIMES="..." MODE=steady|ramp
+	RUNTIMES="$(RUNTIMES)" MODE="$(MODE)" ./tools/run-benchmark-suite.sh
+endif
+
 ifeq ($(PRIMARY_GOAL),bench)
 bench: ## Run home benchmark with wrkx. Options: BENCH_NAME="..." MODE=steady|ramp CAPTURE_METRICS=1 RATE=... STAGES=... THREADS=... CONNECTIONS=...
-	BASE_URL=http://localhost:9991 \
-	TARGET_PATH=/ \
-	TARGET_NAME=home \
-	BENCH_NAME="$(BENCH_NAME)" \
-	MODE=$(MODE) \
-	CAPTURE_METRICS=$(CAPTURE_METRICS) \
-	./tools/run-wrkx-benchmark.sh
+	RUNTIMES="$(RUNTIME)" TARGETS=home MODE="$(MODE)" ./tools/run-benchmark-suite.sh
 endif
 
 ifeq ($(PRIMARY_GOAL),bench-db)
 bench-db: ## Run PostgreSQL benchmark with wrkx. Options: BENCH_NAME="..." MODE=steady|ramp CAPTURE_METRICS=1 RATE=... STAGES=... THREADS=... CONNECTIONS=...
-	BASE_URL=http://localhost:9991 \
-	TARGET_PATH=/postgres/orders \
-	TARGET_NAME=postgres-orders \
-	BENCH_NAME="$(BENCH_NAME) DB" \
-	MODE=$(MODE) \
-	CAPTURE_METRICS=$(CAPTURE_METRICS) \
-	./tools/run-wrkx-benchmark.sh
+	RUNTIMES="$(RUNTIME)" TARGETS=postgres-orders MODE="$(MODE)" ./tools/run-benchmark-suite.sh
 endif
 
 ifeq ($(PRIMARY_GOAL),generate-pgsql-dump)

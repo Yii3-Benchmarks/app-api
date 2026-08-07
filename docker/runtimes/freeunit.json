@@ -1,0 +1,16 @@
+{
+    "listeners": {"*:80": {"pass": "routes"}},
+    "routes": [
+        {"match": {"uri": ["!/assets/*", "*.php", "*.php/*"]}, "action": {"pass": "applications/yii/direct"}},
+        {"action": {"share": "/app/public$uri", "fallback": {"pass": "applications/yii/index"}}}
+    ],
+    "applications": {
+        "yii": {
+            "type": "php",
+            "targets": {
+                "direct": {"root": "/app/public/"},
+                "index": {"root": "/app/public/", "script": "index.php"}
+            }
+        }
+    }
+}

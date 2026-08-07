@@ -1,0 +1,10 @@
+{
+    auto_https off
+    skip_install_trust
+}
+
+:80 {
+    encode zstd br gzip
+    root * /app/public
+    php_server
+}
