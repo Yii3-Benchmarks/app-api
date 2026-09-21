@@ -554,7 +554,12 @@ function buildRunLabel(string $runDirectory, array $metadata): string
 {
     $benchmarkName = trim((string) ($metadata['BENCH_NAME'] ?? ''));
     if ($benchmarkName !== '') {
-        return $benchmarkName;
+        // Preserve labels for results recorded before the worker mode was named explicitly.
+        return match ($benchmarkName) {
+            'Rapira' => 'Rapira worker',
+            'Rapira DB' => 'Rapira worker DB',
+            default => $benchmarkName,
+        };
     }
 
     return basename($runDirectory);
@@ -666,6 +671,10 @@ function buildRampTargetRequestsPerSecondSeries(string $stagesJson, int $timeUni
         $currentSecond += $durationSeconds;
     }
 
+    if ($points !== []) {
+        $points[] = ['x' => $currentSecond, 'y' => $points[array_key_last($points)]['y']];
+    }
+
     return $points;
 }
 
@@ -728,7 +737,7 @@ function parseDockerStats(string $dockerStatsFile): array
         $service = (string) ($record['service'] ?? 'unknown');
         $service = match ($service) {
             'frankenphp-classic', 'frankenphp-worker', 'roadrunner',
-            'php', 'nginx', 'freeunit', 'rapira' => 'app',
+            'php', 'nginx', 'freeunit', 'rapira', 'rapira-classic', 'rapira-dispatcher' => 'app',
             default => $service,
         };
         $second = max(0, (int) floor($timestamp - $firstTimestamp));
@@ -774,10 +783,10 @@ function renderHtmlReport(array $runs): string
     ];
     $allRuns = $runs;
     $groups = [
-        'worker-home' => ['Worker no DB', false, ['FrankenPHP worker', 'RoadRunner', 'Rapira']],
-        'worker-db' => ['Worker DB', true, ['FrankenPHP worker', 'RoadRunner', 'Rapira']],
-        'non-worker-home' => ['Non-worker no DB', false, ['FrankenPHP classic', 'PHP-FPM + Nginx']],
-        'non-worker-db' => ['Non-worker DB', true, ['FrankenPHP classic', 'PHP-FPM + Nginx']],
+        'worker-home' => ['Worker no DB', false, ['FrankenPHP worker', 'RoadRunner', 'Rapira worker', 'Rapira dispatcher']],
+        'worker-db' => ['Worker DB', true, ['FrankenPHP worker', 'RoadRunner', 'Rapira worker', 'Rapira dispatcher']],
+        'non-worker-home' => ['Non-worker no DB', false, ['FrankenPHP classic', 'PHP-FPM + Nginx', 'Rapira classic', 'FreeUnit']],
+        'non-worker-db' => ['Non-worker DB', true, ['FrankenPHP classic', 'PHP-FPM + Nginx', 'Rapira classic', 'FreeUnit']],
     ];
     $chartDefinitions = [];
     $included = [];
@@ -806,15 +815,29 @@ function renderHtmlReport(array $runs): string
     ];
 
     $summaryRows = ['home' => '', 'db' => ''];
-    foreach ($runs as $index => $run) {
+    $summaryRuns = $runs;
+    uasort($summaryRuns, static function (array $left, array $right): int {
+        $leftCap = $left['summary']['rpsCap'] ?? [];
+        $rightCap = $right['summary']['rpsCap'] ?? [];
+        $leftReached = (bool) ($leftCap['reached'] ?? false);
+        $rightReached = (bool) ($rightCap['reached'] ?? false);
+        return ($rightReached <=> $leftReached)
+            ?: ($leftReached ? $rightCap['successfulRps'] <=> $leftCap['successfulRps'] : 0);
+    });
+    foreach ($summaryRuns as $index => $run) {
         $summary = $run['summary'];
+        $capReached = $summary['rpsCap']['reached'] ?? false;
+        $successfulRps = $capReached ? (float) $summary['rpsCap']['successfulRps'] : null;
+        $targetRps = $capReached
+            ? (float) ($summary['rpsCap']['baselineRps'] ?? $summary['rpsCap']['issuedRps'] ?? 0.0)
+            : null;
         $runColor = $palette[$index % count($palette)];
         $runLabel = h($run['label']);
         $summaryRows[isDatabaseRun($run) ? 'db' : 'home'] .= '<tr>'
             . '<td><span class="summary-run"><span class="legend-swatch" style="background:' . h($runColor) . '"></span>' . $runLabel . '</span></td>'
             . '<td>' . h($run['metadata']['TARGET_PATH'] ?? '') . '</td>'
-            . '<td>' . h($run['metadata']['MODE'] ?? '') . '</td>'
-            . '<td data-sort-value="' . (($summary['rpsCap']['reached'] ?? false) ? (string) $summary['rpsCap']['successfulRps'] : '') . '">' . h(formatRpsCap($summary['rpsCap'] ?? ['reached' => false])) . '</td>'
+            . '<td data-sort-value="' . ($successfulRps ?? '') . '">' . ($successfulRps === null ? 'Not reached' : formatInteger((int) round($successfulRps))) . '</td>'
+            . '<td data-sort-value="' . ($targetRps ?? '') . '">' . ($targetRps === null ? 'Not reached' : formatInteger((int) round($targetRps))) . '</td>'
             . '<td data-sort-value="' . $summary['latencyAvgMs'] . '">' . formatMilliseconds($summary['latencyAvgMs']) . '</td>'
             . '<td data-sort-value="' . $summary['latencyP95Ms'] . '">' . formatMilliseconds($summary['latencyP95Ms']) . '</td>'
             . '</tr>';
@@ -831,8 +854,8 @@ function renderHtmlReport(array $runs): string
           <tr>
             <th scope="col" aria-sort="none" data-sort-type="text"><button type="button">Run</button></th>
             <th scope="col" aria-sort="none" data-sort-type="text"><button type="button">Path</button></th>
-            <th scope="col" aria-sort="none" data-sort-type="text"><button type="button">Mode</button></th>
-            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">RPS Cap</button></th>
+            <th scope="col" aria-sort="descending" data-sort-type="number"><button type="button">Successful RPS</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Target RPS</button></th>
             <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Avg Latency</button></th>
             <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">P95 Latency</button></th>
           </tr>
@@ -846,7 +869,9 @@ HTML;
     }
 
     $metadataBlocks = '';
-    foreach ($runs as $run) {
+    $metadataRuns = $runs;
+    usort($metadataRuns, static fn(array $left, array $right): int => strcasecmp($left['label'], $right['label']));
+    foreach ($metadataRuns as $run) {
         $items = '';
         foreach ($run['metadata'] as $key => $value) {
             $items .= '<tr><th>' . h($key) . '</th><td>' . h($value) . '</td></tr>';
@@ -1143,9 +1168,10 @@ HTML;
     .meta-grid {
       display: grid;
       gap: 20px;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     @media (max-width: 720px) {
+      .meta-grid { grid-template-columns: 1fr; }
       main { padding: 20px 14px 36px; }
       h1 { font-size: 1.8rem; }
       .panel { padding: 16px; }
@@ -1220,10 +1246,10 @@ HTML;
         return Math.round(value) + '%';
       }
       if (format === 'milliseconds-integer') {
-        return Math.round(value) + ' ms';
+        return String(Math.round(value));
       }
       if (format === 'milliseconds') {
-        return fixed(value, 2) + ' ms';
+        return fixed(value, 2);
       }
       return trimZeros(fixed(value, 2));
     }
@@ -1291,7 +1317,10 @@ HTML;
     }
 
     function formatTargetTickLabel(chart, xValue) {
-      const targetSeries = (chart.xAxisTargetSeries || []).filter((item) => item.points.length > 0);
+      // Finished runs must not keep contributing their last target to later stages.
+      const targetSeries = (chart.xAxisTargetSeries || []).filter((item) =>
+        item.points.length > 1 && xValue >= item.points[0].x && xValue < item.points[item.points.length - 1].x
+      );
       if (targetSeries.length === 0) {
         return '';
       }
@@ -1345,7 +1374,9 @@ HTML;
       const width = cssWidth - margin.left - margin.right;
       const height = cssHeight - margin.top - margin.bottom;
 
-      const yValues = displaySeries.flatMap((item) => item.displayPoints.map((point) => point.y));
+      const yValues = displaySeries
+        .filter((item) => item.affectsYAxis !== false)
+        .flatMap((item) => item.displayPoints.map((point) => point.y));
       const xMin = globalXAxisDomain.min;
       const xMax = globalXAxisDomain.max;
       const rawYMax = Math.max(...yValues);
@@ -1373,14 +1404,19 @@ HTML;
       ctx.textBaseline = 'top';
       ctx.textAlign = 'center';
       ctx.font = '12px Menlo, Consolas, monospace';
-      for (let i = 0; i <= X_AXIS_TICK_DIVISIONS; i++) {
-        const x = margin.left + (width / X_AXIS_TICK_DIVISIONS) * i;
+      const stageTicks = [...new Set((chart.xAxisTargetSeries || [])
+        .flatMap((item) => item.points.slice(0, -1).map((point) => point.x)))].sort((a, b) => a - b);
+      const ticks = stageTicks.length > 1 ? stageTicks : Array.from(
+        { length: X_AXIS_TICK_DIVISIONS + 1 },
+        (_, i) => xMin + ((xMax - xMin) / X_AXIS_TICK_DIVISIONS) * i
+      );
+      for (const value of ticks) {
+        const x = margin.left + ((value - xMin) / Math.max(1, xMax - xMin)) * width;
         ctx.beginPath();
         ctx.moveTo(x, margin.top);
         ctx.lineTo(x, margin.top + height);
         ctx.stroke();
 
-        const value = xMin + ((xMax - xMin) / X_AXIS_TICK_DIVISIONS) * i;
         ctx.fillText(formatElapsedSeconds(value), x, margin.top + height + 10);
 
         const targetLabel = formatTargetTickLabel(chart, value);
@@ -1406,6 +1442,12 @@ HTML;
       const opacity = (item) => highlightedRun && !isHighlighted(item) ? 0.12 : 1;
       // Draw the highlighted run last so overlapping lines cannot hide it.
       const orderedSeries = [...displaySeries].sort((a, b) => Number(isHighlighted(a)) - Number(isHighlighted(b)));
+
+      // Keep issued rates above the response-based scale inside the plot area.
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(margin.left, margin.top, width, height);
+      ctx.clip();
 
       orderedSeries.forEach((item) => {
         if (smoothingWindow > 1) {
@@ -1452,6 +1494,8 @@ HTML;
         ctx.restore();
       });
 
+      ctx.restore();
+
       const runs = [];
       const seenRuns = new Set();
       series.forEach((item) => {
@@ -1474,6 +1518,7 @@ HTML;
           drawChart(canvasId, legendId, chart);
         };
 
+        runs.sort((a, b) => a.label.localeCompare(b.label, 'en', { sensitivity: 'base' }));
         runs.forEach((item) => {
           const button = document.createElement('button');
           button.type = 'button';
@@ -1690,23 +1735,13 @@ function buildChartDefinitions(array $runs, array $palette): array
             'smoothingWindow' => 0,
             'yMax' => $latencyChartMax,
         ],
-        [
-            'id' => 'dropped-iterations',
-            'title' => 'Target Rate Shortfall Per Second',
-            'series' => collectRunSeries($runs, 'droppedPerSecond', $palette),
-            'xAxisTargetSeries' => collectRunSeries($runs, 'targetRequestsPerSecond', $palette),
-            'format' => 'integer',
-        ],
-        [
-            'id' => 'connections',
-            'title' => 'Connections',
-            'series' => collectRunSeries($runs, 'connections', $palette),
-            'xAxisTargetSeries' => collectRunSeries($runs, 'targetRequestsPerSecond', $palette),
-            'format' => 'integer',
-        ],
     ];
 
     foreach (collectDockerServices($runs) as $serviceName) {
+        if (in_array($serviceName, ['postgres', 'valkey'], true)) {
+            continue;
+        }
+
         $chartDefinitions[] = [
             'id' => 'cpu-' . $serviceName,
             'title' => strtoupper($serviceName) . ' CPU (% of one core, 100% = 1 core)',
@@ -1755,6 +1790,7 @@ function collectRunSeries(
             'runLabel' => $run['label'],
             'color' => $palette[$index % count($palette)],
             'runIndex' => $index,
+            'affectsYAxis' => $metric !== 'issuedRequestsPerSecond',
             'points' => $points,
             'showPoints' => $showPoints,
             'dash' => $dash,
@@ -1913,24 +1949,6 @@ function formatPercent(float $value): string
 function formatMilliseconds(float $value): string
 {
     return sprintf('%.2F ms', $value);
-}
-
-function formatRpsCap(array $rpsCap): string
-{
-    if (($rpsCap['reached'] ?? false) !== true) {
-        return 'Not reached';
-    }
-
-    $second = (int) ($rpsCap['second'] ?? 0);
-    $issuedRps = (int) round((float) ($rpsCap['baselineRps'] ?? $rpsCap['issuedRps'] ?? 0.0));
-    $successfulRps = (int) round((float) ($rpsCap['successfulRps'] ?? 0.0));
-
-    return sprintf(
-        '%s @ %s ' . (($rpsCap['basis'] ?? '') === 'target' ? 'target' : 'issued') . ' / %s successful',
-        formatElapsedSecondsForSummary($second),
-        formatInteger($issuedRps),
-        formatInteger($successfulRps),
-    );
 }
 
 function formatErrorsStart(array $errorsStart): string

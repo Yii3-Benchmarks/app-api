@@ -16,8 +16,10 @@ made on the same machine with the same settings and minimal background activity.
 | `frankenphp-worker` | FrankenPHP | A persistent Yii worker |
 | `roadrunner` | RoadRunner | A persistent Yii worker managed by RoadRunner |
 | `php-fpm` | PHP-FPM + Nginx | Traditional FastCGI processes behind Nginx |
-| `freeunit` | FreeUnit | PHP application hosted by FreeUnit |
-| `rapira` | Rapira | A persistent Yii worker using [yii-runner-rapira](https://github.com/yiisoft/yii-runner-rapira) |
+| `freeunit` | FreeUnit | PHP application hosted by FreeUnit; grouped with non-worker runtimes |
+| `rapira` | Rapira worker | A persistent Yii worker using [yii-runner-rapira](https://github.com/yiisoft/yii-runner-rapira) |
+| `rapira-classic` | Rapira classic | A fresh Yii application per request; grouped with non-worker runtimes |
+| `rapira-dispatcher` | Rapira dispatcher | A persistent Yii application using Rapira exchanges; grouped with worker runtimes |
 
 Every runtime is an isolated Docker Compose profile defined in `docker/benchmarks.compose.yml`. Each run receives its
 own PostgreSQL and Valkey containers and uses the same source tree mounted at `/app`. The PostgreSQL database is seeded
@@ -90,13 +92,16 @@ Benchmark its PostgreSQL endpoint:
 make bench-db RUNTIME=php-fpm MODE=steady RATE=4000 DURATION=60s
 ```
 
-Benchmark Rapira on both endpoints:
+Benchmark all Rapira modes on both endpoints:
 
 ```shell
-make bench-all RUNTIMES=rapira
+make bench-all RUNTIMES="rapira rapira-classic rapira-dispatcher"
 ```
 
-Rapira uses the pinned `0.8.1-php8.5` server image in worker mode. Its Yii runner and PHP contract currently
+All Rapira modes use the pinned `0.8.1-php8.5` server image and the same `worker-rapira.php` entry point.
+The Yii runner detects the configured mode: classic handles one request per application bootstrap, while worker
+and dispatcher keep the application in memory. `rapira` continues to select worker mode.
+Its Yii runner and PHP contract currently
 require development packages; Composer records their exact revisions in the local lock file.
 
 Run a subset of runtimes through both endpoints:
@@ -131,7 +136,7 @@ The default mode is `ramp`. Configuration is passed as Make variables or environ
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `RUNTIME` | `frankenphp-classic` | Runtime used by `make bench` and `make bench-db` |
-| `RUNTIMES` | all six runtimes | Space-separated runtimes used by `make bench-all` |
+| `RUNTIMES` | all eight runtimes | Space-separated runtimes used by `make bench-all` |
 | `TARGETS` | `home postgres-orders` | Space-separated endpoint keys for the suite script |
 | `MODE` | `ramp` | `steady` for one rate or `ramp` for sequential rate stages |
 | `RATE` | `10000` | Requests per second in steady mode |
@@ -154,10 +159,10 @@ than 20 seconds are not recommended.
 
 ## Reports
 
-The generated HTML report compares issued and successful RPS, errors, target-rate shortfall, average and p95 latency,
-connections, CPU, and memory. Charts are grouped into worker/non-worker and DB/non-DB comparisons.
-DB and non-DB summary tables can be sorted by clicking a column heading; RPS cap sorts by successful throughput,
-with unreached caps last. Stage-based runs mark the first stage more than 5% below target as the cap; this can
+The generated HTML report compares issued and successful RPS, errors, average and p95 latency,
+application CPU, and application memory. Charts are grouped into worker/non-worker and DB/non-DB comparisons.
+DB and non-DB summary tables show Successful RPS and Target RPS at the cap in separate sortable columns,
+sorted by Successful RPS descending by default, with unreached caps last. Stage-based runs mark the first stage more than 5% below target as the cap; this can
 reflect server or load-generator saturation. The default ramp extends to 200k RPS to test beyond the old 50k ceiling.
 It is self-contained and can be opened directly in a browser or attached to an issue.
 
@@ -190,7 +195,7 @@ tools/compile-wrkx-results.php  wrkx output normalization
 tools/render-benchmark-report.* HTML report generator
 worker-frankenphp.php           FrankenPHP persistent worker entry point
 worker-roadrunner.php           RoadRunner persistent worker entry point
-worker-rapira.php               Rapira persistent worker entry point
+worker-rapira.php               Rapira entry point for all three modes
 ```
 
 The remaining application-template Docker files support development and tests. The benchmark matrix specifically uses

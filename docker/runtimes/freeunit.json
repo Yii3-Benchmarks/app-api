@@ -7,6 +7,7 @@
     "applications": {
         "yii": {
             "type": "php",
+            "processes": 20,
             "targets": {
                 "direct": {"root": "/app/public/"},
                 "index": {"root": "/app/public/", "script": "index.php"}

@@ -58,6 +58,11 @@ services:
     ports: ["9991:80"]
     volumes: ["../:/app"]
     env_file: [dev/.env]
+    healthcheck:
+      test: ["CMD-SHELL", "test \"$$(cat /proc/1/comm)\" = unitd && curl --fail --silent http://localhost/ > /dev/null"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
     depends_on: {postgres: {condition: service_healthy}, valkey: {condition: service_healthy}}
 
   rapira:
@@ -66,6 +71,30 @@ services:
       context: ..
       dockerfile: docker/runtimes/Dockerfile
       target: rapira
+    ports: ["9991:8080"]
+    volumes: ["../:/app"]
+    env_file: [dev/.env]
+    depends_on: {postgres: {condition: service_healthy}, valkey: {condition: service_healthy}}
+
+  rapira-classic:
+    profiles: [rapira-classic]
+    build:
+      context: ..
+      dockerfile: docker/runtimes/Dockerfile
+      target: rapira
+    command: ["rapira", "serve", "--config", "docker/runtimes/rapira-classic.toml"]
+    ports: ["9991:8080"]
+    volumes: ["../:/app"]
+    env_file: [dev/.env]
+    depends_on: {postgres: {condition: service_healthy}, valkey: {condition: service_healthy}}
+
+  rapira-dispatcher:
+    profiles: [rapira-dispatcher]
+    build:
+      context: ..
+      dockerfile: docker/runtimes/Dockerfile
+      target: rapira
+    command: ["rapira", "serve", "--config", "docker/runtimes/rapira-dispatcher.toml"]
     ports: ["9991:8080"]
     volumes: ["../:/app"]
     env_file: [dev/.env]

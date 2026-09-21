@@ -50,6 +50,7 @@ COPY docker/runtimes/php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
 WORKDIR /app
 
 FROM ghcr.io/freeunitorg/freeunit:latest-php8.5 AS freeunit
+COPY --from=php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/install-php-extensions
 RUN set -eux; \
     for source in /etc/apt/sources.list /etc/apt/sources.list.d/debian.sources; do \
         if [ -f "$source" ]; then \
@@ -59,7 +60,7 @@ RUN set -eux; \
     printf 'Acquire::Retries "5";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' > /etc/apt/apt.conf.d/80-retries; \
     install-php-extensions intl pdo_pgsql
 COPY --from=composer /composer /usr/bin/composer
-COPY docker/runtimes/freeunit.json /var/lib/unit/config.json
+COPY docker/runtimes/freeunit.json /docker-entrypoint.d/config.json
 WORKDIR /app
 
 FROM php:8.5-cli-trixie AS rapira
