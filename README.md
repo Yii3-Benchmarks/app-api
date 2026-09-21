@@ -96,7 +96,7 @@ Benchmark Rapira on both endpoints:
 make bench-all RUNTIMES=rapira
 ```
 
-Rapira uses the pinned `0.8.0-php8.5` server image in worker mode. Its Yii runner and PHP contract currently
+Rapira uses the pinned `0.8.1-php8.5` server image in worker mode. Its Yii runner and PHP contract currently
 require development packages; Composer records their exact revisions in the local lock file.
 
 Run a subset of runtimes through both endpoints:
