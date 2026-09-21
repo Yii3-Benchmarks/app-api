@@ -1,5 +1,5 @@
 RUNTIME ?= frankenphp-classic
-RUNTIMES ?= frankenphp-classic frankenphp-worker roadrunner php-fpm freeunit
+RUNTIMES ?= frankenphp-classic frankenphp-worker roadrunner php-fpm freeunit rapira
 TARGETS ?= home postgres-orders
 MODE ?= ramp
 

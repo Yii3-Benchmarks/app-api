@@ -697,17 +697,32 @@ function parseDockerStats(string $dockerStatsFile): array
         }
 
         $service = (string) ($record['service'] ?? 'unknown');
+        $service = match ($service) {
+            'frankenphp-classic', 'frankenphp-worker', 'roadrunner',
+            'php', 'nginx', 'freeunit', 'rapira' => 'app',
+            default => $service,
+        };
         $second = max(0, (int) floor($timestamp - $firstTimestamp));
 
-        $services[$service]['cpuPercent'][] = [
-            'x' => $second,
-            'y' => (float) ($record['cpu_percent'] ?? 0.0),
-        ];
-        $services[$service]['memoryMiB'][] = [
-            'x' => $second,
-            'y' => round(((float) ($record['memory_usage_bytes'] ?? 0.0)) / 1024 / 1024, 4),
-        ];
+        // A stack such as PHP-FPM + Nginx has multiple samples per timestamp.
+        $services[$service]['cpuPercent'][$second] = ($services[$service]['cpuPercent'][$second] ?? 0.0)
+            + (float) ($record['cpu_percent'] ?? 0.0);
+        $services[$service]['memoryMiB'][$second] = ($services[$service]['memoryMiB'][$second] ?? 0.0)
+            + (float) ($record['memory_usage_bytes'] ?? 0.0) / 1024 / 1024;
     }
+
+    foreach ($services as &$metrics) {
+        foreach ($metrics as &$samples) {
+            ksort($samples, SORT_NUMERIC);
+            $points = [];
+            foreach ($samples as $second => $value) {
+                $points[] = ['x' => $second, 'y' => round($value, 4)];
+            }
+            $samples = $points;
+        }
+        unset($samples);
+    }
+    unset($metrics);
 
     return $services;
 }
@@ -715,14 +730,18 @@ function parseDockerStats(string $dockerStatsFile): array
 function renderHtmlReport(array $runs): string
 {
     $palette = [
-        '#d1495b',
-        '#00798c',
-        '#edae49',
-        '#30638e',
-        '#66a182',
-        '#9c6644',
-        '#6a4c93',
-        '#ef476f',
+        '#e6194b', // Red.
+        '#4363d8', // Blue.
+        '#008000', // Green.
+        '#f58200', // Orange.
+        '#911eb4', // Purple.
+        '#009eae', // Cyan.
+        '#000000', // Black.
+        '#b59b00', // Mustard.
+        '#f032e6', // Magenta.
+        '#9a6324', // Brown.
+        '#73a800', // Lime.
+        '#70899f', // Slate.
     ];
     $latencyChartMax = determineLatencyChartMax($runs);
 
@@ -1052,6 +1071,26 @@ HTML;
       align-items: center;
       gap: 8px;
     }
+    button.legend-item {
+      font: inherit;
+      color: inherit;
+      background: transparent;
+      border: 0;
+      border-radius: 4px;
+      padding: 4px;
+      cursor: pointer;
+    }
+    .legend-item.is-dimmed {
+      opacity: 0.3;
+    }
+    .legend-item.is-highlighted {
+      color: var(--text);
+      box-shadow: 0 0 0 2px currentColor;
+    }
+    .legend-item:focus-visible {
+      outline: 2px solid var(--text);
+      outline-offset: 3px;
+    }
     .summary-run {
       display: inline-flex;
       align-items: center;
@@ -1100,6 +1139,7 @@ HTML;
       <h1>Benchmark Report</h1>
       <p>Generated {$generatedAt}. This report combines wrkx stage summaries with Docker CPU and memory samples.</p>
       <p>Request rate, latency, and CPU charts use a 5s moving average over faint raw samples. RPS cap and Errors start still use raw data.</p>
+      <p>Hover over a chart legend label or focus it with Tab to highlight that run.</p>
     </section>
 
     <section class="panel">
@@ -1356,13 +1396,21 @@ HTML;
       const toCanvasY = (y) => margin.top + height - (y / yMax) * height;
       const startMarkerSeries = displaySeries.filter((item) => item.startMarker);
 
-      displaySeries.forEach((item) => {
+      const highlightedRun = legend.dataset.highlightedRun || null;
+      const isHighlighted = (item) => (item.runLabel || item.label) === highlightedRun;
+      const opacity = (item) => highlightedRun && !isHighlighted(item) ? 0.12 : 1;
+      // Draw the highlighted run last so overlapping lines cannot hide it.
+      const orderedSeries = [...displaySeries].sort((a, b) => Number(isHighlighted(a)) - Number(isHighlighted(b)));
+
+      orderedSeries.forEach((item) => {
         if (smoothingWindow > 1) {
-          drawLine(ctx, toCanvasX, toCanvasY, item.points, item.color, item.dash, 1.2, 0.22);
+          drawLine(ctx, toCanvasX, toCanvasY, item.points, item.color, item.dash, 1.2, 0.22 * opacity(item));
         }
 
-        drawLine(ctx, toCanvasX, toCanvasY, item.displayPoints, item.color, item.dash, 2.2, 1);
+        drawLine(ctx, toCanvasX, toCanvasY, item.displayPoints, item.color, item.dash, isHighlighted(item) ? 4 : 2.2, opacity(item));
 
+        ctx.save();
+        ctx.globalAlpha = opacity(item);
         if (chart.showPoints || item.showPoints) {
           ctx.fillStyle = item.color;
           item.displayPoints.forEach((point) => {
@@ -1373,14 +1421,20 @@ HTML;
             ctx.fill();
           });
         }
+        ctx.restore();
       });
 
-      displaySeries.forEach((item) => {
+      orderedSeries.forEach((item) => {
+        ctx.save();
+        ctx.globalAlpha = opacity(item);
         drawMarker(ctx, toCanvasX, toCanvasY, item.displayPoints, item.capSecond, item.color, 'circle');
         drawMarker(ctx, toCanvasX, toCanvasY, item.displayPoints, item.errorStartSecond, item.color, 'cross');
+        ctx.restore();
       });
 
       startMarkerSeries.forEach((item, markerIndex) => {
+        ctx.save();
+        ctx.globalAlpha = opacity(item);
         drawStartMarker(
           ctx,
           toCanvasX,
@@ -1390,6 +1444,7 @@ HTML;
           markerIndex,
           startMarkerSeries.length,
         );
+        ctx.restore();
       });
 
       const runs = [];
@@ -1406,11 +1461,48 @@ HTML;
         });
       });
 
-      legend.innerHTML = runs.map((item) => (
-        '<span class="legend-item"><span class="legend-swatch" style="background:' + item.color + '"></span>' +
-        item.label +
-        '</span>'
-      )).join('');
+      if (legend.childElementCount === 0) {
+        let hoveredRun = null;
+        let focusedRun = null;
+        const updateHighlight = () => {
+          legend.dataset.highlightedRun = hoveredRun || focusedRun || '';
+          drawChart(canvasId, legendId, chart);
+        };
+
+        runs.forEach((item) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'legend-item';
+          button.dataset.runLabel = item.label;
+          const swatch = document.createElement('span');
+          swatch.className = 'legend-swatch';
+          swatch.style.background = item.color;
+          swatch.setAttribute('aria-hidden', 'true');
+          button.append(swatch, document.createTextNode(item.label));
+          button.addEventListener('mouseenter', () => {
+            hoveredRun = item.label;
+            updateHighlight();
+          });
+          button.addEventListener('mouseleave', () => {
+            hoveredRun = null;
+            updateHighlight();
+          });
+          button.addEventListener('focus', () => {
+            focusedRun = item.label;
+            updateHighlight();
+          });
+          button.addEventListener('blur', () => {
+            focusedRun = null;
+            updateHighlight();
+          });
+          legend.append(button);
+        });
+      }
+
+      legend.querySelectorAll('.legend-item').forEach((button) => {
+        button.classList.toggle('is-highlighted', button.dataset.runLabel === highlightedRun);
+        button.classList.toggle('is-dimmed', highlightedRun !== null && button.dataset.runLabel !== highlightedRun);
+      });
     }
 
     function render() {

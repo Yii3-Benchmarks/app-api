@@ -60,6 +60,17 @@ services:
     env_file: [dev/.env]
     depends_on: {postgres: {condition: service_healthy}, valkey: {condition: service_healthy}}
 
+  rapira:
+    profiles: [rapira]
+    build:
+      context: ..
+      dockerfile: docker/runtimes/Dockerfile
+      target: rapira
+    ports: ["9991:8080"]
+    volumes: ["../:/app"]
+    env_file: [dev/.env]
+    depends_on: {postgres: {condition: service_healthy}, valkey: {condition: service_healthy}}
+
   valkey:
     image: valkey/valkey:8-alpine
     command: ["valkey-server", "--save", "", "--appendonly", "no"]

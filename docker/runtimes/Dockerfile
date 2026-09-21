@@ -61,3 +61,11 @@ RUN set -eux; \
 COPY --from=composer /composer /usr/bin/composer
 COPY docker/runtimes/freeunit.json /var/lib/unit/config.json
 WORKDIR /app
+
+FROM php:8.5-cli-trixie AS rapira
+COPY --from=ghcr.io/rapira-rs/rapira:0.8.0-php8.5 / /
+COPY --from=php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/install-php-extensions
+RUN install-php-extensions mbstring intl pdo_pgsql
+COPY --from=composer /composer /usr/bin/composer
+WORKDIR /app
+CMD ["rapira", "serve", "--config", "docker/runtimes/rapira.toml"]

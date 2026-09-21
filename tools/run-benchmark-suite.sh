@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_FILE="$ROOT_DIR/docker/benchmarks.compose.yml"
-RUNTIMES="${RUNTIMES:-frankenphp-classic frankenphp-worker roadrunner php-fpm freeunit}"
+RUNTIMES="${RUNTIMES:-frankenphp-classic frankenphp-worker roadrunner php-fpm freeunit rapira}"
 TARGETS="${TARGETS:-home postgres-orders}"
 OUTPUT_ROOT="${OUTPUT_ROOT:-$ROOT_DIR/runtime/benchmarks/$(date -u +%Y%m%dT%H%M%SZ)-suite}"
 
@@ -15,7 +15,8 @@ dependencies_are_ready() {
             exit(1);
         }
         require $autoload;
-        exit(class_exists("Yiisoft\\Db\\Cache\\SchemaCache") ? 0 : 1);
+        exit(class_exists("Yiisoft\\Db\\Cache\\SchemaCache")
+            && class_exists("Yiisoft\\Yii\\Runner\\Rapira\\RapiraApplicationRunner") ? 0 : 1);
     ' "$ROOT_DIR" 2>/dev/null
 }
 
@@ -33,7 +34,7 @@ ensure_dependencies() {
         install --no-interaction --ignore-platform-req=ext-pdo_pgsql
 
     if ! dependencies_are_ready; then
-        echo "Composer dependency installation completed, but required Yii DB classes are still unavailable." >&2
+        echo "Composer dependency installation completed, but required Yii benchmark classes are still unavailable." >&2
         exit 1
     fi
 }
@@ -45,6 +46,7 @@ runtime_label() {
         roadrunner) echo "RoadRunner" ;;
         php-fpm) echo "PHP-FPM + Nginx" ;;
         freeunit) echo "FreeUnit" ;;
+        rapira) echo "Rapira" ;;
         *) echo "$1" ;;
     esac
 }

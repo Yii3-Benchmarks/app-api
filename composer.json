@@ -39,6 +39,7 @@
         "psr/http-server-handler": "^1.0.2",
         "psr/http-server-middleware": "^1.0.2",
         "psr/log": "^3.0.2",
+        "rapira/contract": "@dev",
         "symfony/console": "^7.4.6 || ^8.0.8",
         "yiisoft/aliases": "^3.1.1",
         "yiisoft/cache": "^3.2",
@@ -64,8 +65,9 @@
         "yiisoft/yii-console": "^2.4.2",
         "yiisoft/yii-http": "^1.1.1",
         "yiisoft/yii-runner-console": "^2.2.1",
-        "yiisoft/yii-runner-http": "^3.2.1",
         "yiisoft/yii-runner-frankenphp": "^1.0",
+        "yiisoft/yii-runner-http": "^3.2.1",
+        "yiisoft/yii-runner-rapira": "@dev",
         "yiisoft/yii-runner-roadrunner": "^3.2.0"
     },
     "require-dev": {

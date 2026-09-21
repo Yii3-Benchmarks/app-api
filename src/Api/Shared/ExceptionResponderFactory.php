@@ -21,7 +21,7 @@ final readonly class ExceptionResponderFactory
     ) {}
 
     public function create(): ExceptionResponder
-    {
+    {        
         return new ExceptionResponder(
             [
                 InputValidationException::class => $this->inputValidationException(...),

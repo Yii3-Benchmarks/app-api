@@ -17,6 +17,7 @@ made on the same machine with the same settings and minimal background activity.
 | `roadrunner` | RoadRunner | A persistent Yii worker managed by RoadRunner |
 | `php-fpm` | PHP-FPM + Nginx | Traditional FastCGI processes behind Nginx |
 | `freeunit` | FreeUnit | PHP application hosted by FreeUnit |
+| `rapira` | Rapira | A persistent Yii worker using [yii-runner-rapira](https://github.com/yiisoft/yii-runner-rapira) |
 
 Every runtime is an isolated Docker Compose profile defined in `docker/benchmarks.compose.yml`. Each run receives its
 own PostgreSQL and Valkey containers and uses the same source tree mounted at `/app`. The PostgreSQL database is seeded
@@ -89,6 +90,15 @@ Benchmark its PostgreSQL endpoint:
 make bench-db RUNTIME=php-fpm MODE=steady RATE=4000 DURATION=60s
 ```
 
+Benchmark Rapira on both endpoints:
+
+```shell
+make bench-all RUNTIMES=rapira
+```
+
+Rapira uses the pinned `0.8.0-php8.5` server image in worker mode. Its Yii runner and PHP contract currently
+require development packages; Composer records their exact revisions in the local lock file.
+
 Run a subset of runtimes through both endpoints:
 
 ```shell
@@ -121,7 +131,7 @@ The default mode is `ramp`. Configuration is passed as Make variables or environ
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `RUNTIME` | `frankenphp-classic` | Runtime used by `make bench` and `make bench-db` |
-| `RUNTIMES` | all five runtimes | Space-separated runtimes used by `make bench-all` |
+| `RUNTIMES` | all six runtimes | Space-separated runtimes used by `make bench-all` |
 | `TARGETS` | `home postgres-orders` | Space-separated endpoint keys for the suite script |
 | `MODE` | `ramp` | `steady` for one rate or `ramp` for sequential rate stages |
 | `RATE` | `10000` | Requests per second in steady mode |
@@ -176,6 +186,7 @@ tools/compile-wrkx-results.php  wrkx output normalization
 tools/render-benchmark-report.* HTML report generator
 worker-frankenphp.php           FrankenPHP persistent worker entry point
 worker-roadrunner.php           RoadRunner persistent worker entry point
+worker-rapira.php               Rapira persistent worker entry point
 ```
 
 The remaining application-template Docker files support development and tests. The benchmark matrix specifically uses
