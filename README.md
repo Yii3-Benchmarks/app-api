@@ -138,7 +138,7 @@ The default mode is `ramp`. Configuration is passed as Make variables or environ
 | `DURATION` | `160s` | Steady-mode duration |
 | `THREADS` | host CPU count | wrkx worker threads |
 | `CONNECTIONS` | `256` | Concurrent HTTP connections |
-| `STAGES` | eight stages from 5k to 50k RPS | JSON stage list for ramp mode |
+| `STAGES` | twelve stages from 5k to 200k RPS | JSON stage list for ramp mode |
 | `OUTPUT_ROOT` | timestamped suite directory | Result destination |
 
 Example custom ramp:
@@ -155,7 +155,11 @@ than 20 seconds are not recommended.
 ## Reports
 
 The generated HTML report compares issued and successful RPS, errors, target-rate shortfall, average and p95 latency,
-connections, CPU, and memory. It is self-contained and can be opened directly in a browser or attached to an issue.
+connections, CPU, and memory. Charts are grouped into worker/non-worker and DB/non-DB comparisons.
+DB and non-DB summary tables can be sorted by clicking a column heading; RPS cap sorts by successful throughput,
+with unreached caps last. Stage-based runs mark the first stage more than 5% below target as the cap; this can
+reflect server or load-generator saturation. The default ramp extends to 200k RPS to test beyond the old 50k ceiling.
+It is self-contained and can be opened directly in a browser or attached to an issue.
 
 Regenerate a report from existing results:
 
