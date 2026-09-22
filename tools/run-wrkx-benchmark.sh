@@ -24,7 +24,7 @@ WARMUP_RATE="${WARMUP_RATE:-1000}"
 WRKX_IMAGE="${WRKX_IMAGE:-yii3-benchmarks-wrkx}"
 WRKX_REF="${WRKX_REF:-bec57539360771bedc2fc63a48e3746f1b7a9975}"
 if [[ -z "${STAGES:-}" ]]; then
-    STAGES='[{"target":5000,"duration":"30s"},{"target":10000,"duration":"30s"},{"target":15000,"duration":"30s"},{"target":20000,"duration":"30s"},{"target":25000,"duration":"30s"},{"target":30000,"duration":"30s"},{"target":40000,"duration":"30s"},{"target":50000,"duration":"30s"},{"target":75000,"duration":"30s"},{"target":100000,"duration":"30s"},{"target":150000,"duration":"30s"},{"target":200000,"duration":"30s"}]'
+    STAGES='[{"target":2500,"duration":"30s"},{"target":5000,"duration":"30s"},{"target":10000,"duration":"30s"},{"target":15000,"duration":"30s"},{"target":20000,"duration":"30s"},{"target":25000,"duration":"30s"},{"target":30000,"duration":"30s"},{"target":40000,"duration":"30s"},{"target":50000,"duration":"30s"},{"target":75000,"duration":"30s"},{"target":100000,"duration":"30s"},{"target":150000,"duration":"30s"},{"target":200000,"duration":"30s"}]'
 fi
 
 STAGE_LINES=""

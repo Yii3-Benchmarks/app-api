@@ -185,7 +185,7 @@ The default mode is `ramp`. Configuration is passed as Make variables or environ
 | `CONNECTIONS` | `256` | Concurrent HTTP connections |
 | `WARMUP_DURATION` | `10s` | Unmeasured warm-up per endpoint; `0s` disables it |
 | `WARMUP_RATE` | `1000` | Requests per second during warm-up |
-| `STAGES` | twelve stages from 5k to 200k RPS | JSON stage list for ramp mode |
+| `STAGES` | thirteen stages from 2.5k to 200k RPS | JSON stage list for ramp mode |
 | `OUTPUT_ROOT` | timestamped suite directory | Result destination |
 
 Example custom ramp:
