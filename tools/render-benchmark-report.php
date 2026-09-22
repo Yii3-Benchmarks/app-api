@@ -894,7 +894,12 @@ function renderHtmlReport(array $runs): string
         $summarySections .= <<<HTML
     <section class="panel">
       <h2>Run Summary — {$summaryTitle}</h2>
-      <p>Normal latency averages samples before latency deteriorates or the throughput cap is reached, whichever comes first. For stage data, deterioration means average latency reaches the largest of 20 ms, 4× the first stage, or the first stage + 12 ms, confirmed by p95 reaching the largest of 30 ms, 2.5× its baseline, or its baseline + 15 ms (when p95 is available). Overloaded latency uses the cap sample, matching the displayed RPS. Normal p95 is the mean of sample p95 values, not a pooled percentile. — means no qualifying measurement.</p>
+      <p>Normal latency averages samples before a detected latency surge or throughput cap, whichever comes first. Overloaded latency comes from the throughput-cap sample shown in the RPS columns. Runs may include different load levels in their normal averages, so these are not equal-load comparisons. Mean p95 averages the included sample percentiles, not pooled requests. — means no qualifying measurement.</p>
+      <details>
+        <summary>Calculation details</summary>
+        <p>For stage data, each sample represents one load stage. The first stage provides the latency baseline. A surge is detected when average latency reaches the largest of 20 ms, 4× baseline average latency, or baseline average latency + 12 ms. When baseline p95 is available, the stage must also have a p95 reaching the largest of 30 ms, 2.5× baseline p95, or baseline p95 + 15 ms. These thresholds are a heuristic, not a latency guarantee.</p>
+        <p>Normal averages exclude the first qualifying surge stage and all later stages, or stop earlier at the throughput cap. If the cap occurs in the first stage, no normal measurement is available. If no cap is reached, no overloaded measurement is available. For per-second data, the existing sustained latency-surge detector determines the cutoff, and averages use per-second samples.</p>
+      </details>
       <table class="summary-table">
         <thead>
           <tr>
@@ -903,7 +908,7 @@ function renderHtmlReport(array $runs): string
             <th scope="col" aria-sort="descending" data-sort-type="number"><button type="button">Successful RPS</button></th>
             <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Target RPS</button></th>
             <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Normal latency (avg)</button></th>
-            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Normal latency (p95)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Normal latency (mean p95)</button></th>
             <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Overloaded latency (avg)</button></th>
             <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Overloaded latency (p95)</button></th>
           </tr>
