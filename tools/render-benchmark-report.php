@@ -210,12 +210,53 @@ function summarizeRun(
         ? (int) ($rpsCap['second'] ?? 0)
         : null;
 
+    $normalEndSecond = $capSecond;
+    if (($summary['schema'] ?? '') === 'wrkx-summary-v1') {
+        $deteriorationSecond = detectStageLatencyDeterioration($avgLatencyMsSeries, $p95LatencyMsSeries);
+        if ($deteriorationSecond !== null) {
+            $normalEndSecond = $normalEndSecond === null
+                ? $deteriorationSecond
+                : min($normalEndSecond, $deteriorationSecond);
+        }
+    }
+
     return [
-        'normalLatencyAvgMs' => averageSeriesInRange($avgLatencyMsSeries, null, $capSecond),
-        'normalLatencyP95Ms' => averageSeriesInRange($p95LatencyMsSeries, null, $capSecond),
+        'normalLatencyAvgMs' => averageSeriesInRange($avgLatencyMsSeries, null, $normalEndSecond),
+        'normalLatencyP95Ms' => averageSeriesInRange($p95LatencyMsSeries, null, $normalEndSecond),
         'overloadedLatencyAvgMs' => $capSecond === null ? null : averageSeriesInRange($avgLatencyMsSeries, $capSecond, $capSecond + 1),
         'overloadedLatencyP95Ms' => $capSecond === null ? null : averageSeriesInRange($p95LatencyMsSeries, $capSecond, $capSecond + 1),
     ];
+}
+
+/** A stage aggregate already covers a sustained measurement interval. */
+function detectStageLatencyDeterioration(array $avgLatencyMsSeries, array $p95LatencyMsSeries): ?int
+{
+    $avgBySecond = indexSeriesBySecond($avgLatencyMsSeries);
+    $p95BySecond = indexSeriesBySecond($p95LatencyMsSeries);
+    ksort($avgBySecond, SORT_NUMERIC);
+    $baselineSecond = array_key_first($avgBySecond);
+    if ($baselineSecond === null) {
+        return null;
+    }
+
+    $baselineAvg = $avgBySecond[$baselineSecond];
+    $baselineP95 = $p95BySecond[$baselineSecond] ?? null;
+    // Use the same baseline-relative thresholds as the per-second surge detector.
+    foreach ($avgBySecond as $second => $avg) {
+        if ($second === $baselineSecond || $avg < max(20.0, $baselineAvg + 12.0, $baselineAvg * 4.0)) {
+            continue;
+        }
+        if ($baselineP95 !== null) {
+            $p95 = $p95BySecond[$second] ?? null;
+            if ($p95 === null || $p95 < max(30.0, $baselineP95 + 15.0, $baselineP95 * 2.5)) {
+                continue;
+            }
+        }
+
+        return (int) $second;
+    }
+
+    return null;
 }
 
 function averageSeriesInRange(array $points, ?int $fromSecondInclusive, ?int $untilSecondExclusive): ?float
@@ -853,7 +894,7 @@ function renderHtmlReport(array $runs): string
         $summarySections .= <<<HTML
     <section class="panel">
       <h2>Run Summary — {$summaryTitle}</h2>
-      <p>Normal latency averages samples before the detected cap; overloaded latency uses the cap sample, matching the displayed RPS. For stage data, these are stage averages and stage p95 values; normal p95 is their mean, not a pooled percentile. — means no qualifying measurement.</p>
+      <p>Normal latency averages samples before latency deteriorates or the throughput cap is reached, whichever comes first. For stage data, deterioration means average latency reaches the largest of 20 ms, 4× the first stage, or the first stage + 12 ms, confirmed by p95 reaching the largest of 30 ms, 2.5× its baseline, or its baseline + 15 ms (when p95 is available). Overloaded latency uses the cap sample, matching the displayed RPS. Normal p95 is the mean of sample p95 values, not a pooled percentile. — means no qualifying measurement.</p>
       <table class="summary-table">
         <thead>
           <tr>

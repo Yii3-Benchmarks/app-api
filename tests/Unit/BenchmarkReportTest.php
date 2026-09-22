@@ -56,6 +56,32 @@ final class BenchmarkReportTest extends Unit
         $this->assertNull($noCap['overloadedLatencyP95Ms']);
     }
 
+    public function testNormalLatencyExcludesDeteriorationBeforeThroughputCap(): void
+    {
+        $avg = [['x' => 0, 'y' => 3.0], ['x' => 30, 'y' => 500.0], ['x' => 60, 'y' => 7000.0]];
+        $p95 = [['x' => 0, 'y' => 6.0], ['x' => 30, 'y' => 750.0], ['x' => 60, 'y' => 10000.0]];
+        foreach ([['reached' => true, 'second' => 60], ['reached' => false]] as $cap) {
+            $summary = summarizeRun(['schema' => 'wrkx-summary-v1'], $avg, $p95, $cap);
+            $this->assertSame(3.0, $summary['normalLatencyAvgMs']);
+            $this->assertSame(6.0, $summary['normalLatencyP95Ms']);
+            $this->assertSame($cap['reached'] ? 7000.0 : null, $summary['overloadedLatencyAvgMs']);
+        }
+        $summary = summarizeRun(['schema' => 'wrkx-summary-v1'], $avg, $p95, ['reached' => true, 'second' => 0]);
+        $this->assertNull($summary['normalLatencyAvgMs']);
+    }
+
+    public function testStageLatencyDeteriorationAllowsSmallChangesAndRequiresTailConfirmation(): void
+    {
+        $avg = [['x' => 0, 'y' => 2.0], ['x' => 30, 'y' => 6.0], ['x' => 60, 'y' => 40.0]];
+        $p95 = [['x' => 0, 'y' => 4.0], ['x' => 30, 'y' => 10.0], ['x' => 60, 'y' => 60.0]];
+        $this->assertSame(60, detectStageLatencyDeterioration($avg, $p95));
+        $this->assertNull(detectStageLatencyDeterioration(array_slice($avg, 0, 2), array_slice($p95, 0, 2)));
+        $p95[2]['y'] = 20.0;
+        $this->assertNull(detectStageLatencyDeterioration($avg, $p95));
+        $this->assertSame(60, detectStageLatencyDeterioration($avg, []));
+        $this->assertNull(detectStageLatencyDeterioration([], []));
+    }
+
     public function testReportSeparatesRuntimeAndEndpointGroups(): void
     {
         $runs = [];
