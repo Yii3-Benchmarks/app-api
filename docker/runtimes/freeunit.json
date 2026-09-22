@@ -1,17 +1,57 @@
 {
-    "listeners": {"*:80": {"pass": "routes"}},
+    "listeners": {
+        "*:80": {
+            "pass": "routes"
+        }
+    },
     "routes": [
-        {"match": {"uri": ["!/assets/*", "*.php", "*.php/*"]}, "action": {"pass": "applications/yii/direct"}},
-        {"action": {"share": "/app/public$uri", "fallback": {"pass": "applications/yii/index"}}}
+        {
+            "match": {
+                "uri": [
+                    "!/assets/*",
+                    "*.php",
+                    "*.php/*"
+                ]
+            },
+            "action": {
+                "pass": "applications/yii/direct"
+            }
+        },
+        {
+            "action": {
+                "share": "/app/public$uri",
+                "fallback": {
+                    "pass": "applications/yii/index"
+                }
+            }
+        }
     ],
     "applications": {
         "yii": {
             "type": "php",
             "processes": 20,
             "targets": {
-                "direct": {"root": "/app/public/"},
-                "index": {"root": "/app/public/", "script": "index.php"}
+                "direct": {
+                    "root": "/app/public/"
+                },
+                "index": {
+                    "root": "/app/public/",
+                    "script": "index.php"
+                }
+            },
+            "limits": {
+                "requests": 10000,
+                "timeout": 30
             }
+        }
+    },
+    "settings": {
+        "http": {
+            "max_body_size": 8388608,
+            "header_read_timeout": 30,
+            "body_read_timeout": 30,
+            "send_timeout": 30,
+            "idle_timeout": 60
         }
     }
 }

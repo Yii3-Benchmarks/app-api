@@ -1,22 +1,25 @@
 version: "3"
 
 server:
-  command: "php worker-roadrunner.php"
+  # The supervisor enforces per-request timeouts; PHP must not time the entire worker loop.
+  command: "php -d max_execution_time=0 worker-roadrunner.php"
   relay: pipes
 
 http:
   address: 0.0.0.0:8080
-  middleware: [static, gzip, headers]
+  max_request_size: 8
+  middleware: [static, gzip]
   pool:
-    num_workers: 0
+    num_workers: 20
+    max_queue_size: 1024
+    allocate_timeout: 30s
+    destroy_timeout: 30s
     supervisor:
-      max_worker_memory: 192
+      max_worker_memory: 256
+      exec_ttl: 30s
   static:
     dir: ./public
     forbid: [.php, .htaccess]
-  headers:
-    response:
-      Cache-Control: no-cache
 
 logs:
   mode: production

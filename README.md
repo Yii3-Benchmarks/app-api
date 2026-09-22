@@ -25,6 +25,46 @@ Every runtime is an isolated Docker Compose profile defined in `docker/benchmark
 own PostgreSQL and Valkey containers and uses the same source tree mounted at `/app`. The PostgreSQL database is seeded
 from `docker/postgres/initdb.d/10-benchmark.sql`.
 
+The runtime configs use a production-oriented benchmark baseline:
+
+- All runtimes start 20 PHP execution workers. FrankenPHP worker mode reserves one additional thread for
+  non-worker requests. PHP-FPM uses a static pool, avoiding worker ramp-up during measurement.
+- Every PHP image loads `php.ini-production` plus `docker/runtimes/php-production.ini`: OPcache is enabled
+  for web and CLI SAPIs, JIT is disabled, errors go to stderr, and PHP memory is limited to 256 MiB.
+- OPcache timestamp validation is disabled. **Restart the runtime after changing PHP files**, including
+  files in the mounted source tree. The benchmark suite rebuilds and restarts each runtime automatically.
+- FPM, FreeUnit, Rapira and FrankenPHP workers recycle after 10,000 requests; RoadRunner uses its
+  memory supervisor. API body limits are 8 MiB, and request/queue timeouts are configured where supported.
+- HTTP readiness checks gate benchmark startup. Containers have a 45-second shutdown grace period,
+  bounded Docker logs, and an increased open-file limit. Nginx access logging is disabled to match the
+  other servers, while errors remain logged. FastCGI keepalive is intentionally disabled so idle Nginx
+  connections cannot reserve the smaller FPM worker pool.
+- Each endpoint receives a separate unmeasured warm-up before load and resource samples are recorded.
+
+These are production-like application-server settings for a controlled local benchmark. HTTP on port 9991,
+bind-mounted application code, disposable database storage and benchmark credentials remain intentional;
+a deployed service still needs its own TLS ingress, secrets and persistent database storage. Worker counts
+must be sized for the deployment's CPU and memory budget. Historical results use the configs in effect when
+they were recorded and must be rerun to compare this baseline.
+
+Server releases checked on 2026-09-22 are pinned in the benchmark Dockerfile and Compose file:
+
+| Component | Version |
+| --- | --- |
+| PHP / PHP-FPM | [8.5.10](https://www.php.net/downloads.php) |
+| FrankenPHP | [1.12.7](https://github.com/php/frankenphp/releases/tag/v1.12.7) |
+| RoadRunner | [2025.1.15](https://github.com/roadrunner-server/roadrunner/releases/tag/v2025.1.15) |
+| FreeUnit | [1.36.1](https://github.com/freeunitorg/freeunit/releases/tag/1.36.1) |
+| Rapira (all modes) | [0.8.1](https://github.com/rapira-rs/rapira/releases/tag/v0.8.1) |
+| Nginx | [1.31.6 (mainline)](https://nginx.org/en/download.html) |
+| PostgreSQL | [18.6](https://www.postgresql.org/support/versioning/) |
+| Valkey | [9.1.2](https://github.com/valkey-io/valkey/releases/tag/9.1.2) |
+
+FreeUnit's published `latest-php8.5` image still contains 1.35.5. Its build target therefore compiles
+the checksummed 1.36.1 release source against PHP 8.5.10, with TLS and compression support. Optional
+JavaScript routing and OpenTelemetry modules are not built; the benchmark does not use them.
+Version pins should be refreshed from upstream releases when updating the benchmark baseline.
+
 Two endpoints are benchmarked:
 
 - `/` measures framework and runtime overhead with a minimal response.
@@ -143,6 +183,8 @@ The default mode is `ramp`. Configuration is passed as Make variables or environ
 | `DURATION` | `160s` | Steady-mode duration |
 | `THREADS` | host CPU count | wrkx worker threads |
 | `CONNECTIONS` | `256` | Concurrent HTTP connections |
+| `WARMUP_DURATION` | `10s` | Unmeasured warm-up per endpoint; `0s` disables it |
+| `WARMUP_RATE` | `1000` | Requests per second during warm-up |
 | `STAGES` | twelve stages from 5k to 200k RPS | JSON stage list for ramp mode |
 | `OUTPUT_ROOT` | timestamped suite directory | Result destination |
 

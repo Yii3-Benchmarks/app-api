@@ -1,14 +1,23 @@
 {
     auto_https off
     skip_install_trust
-    frankenphp
+    frankenphp {
+        num_threads 21
+        max_threads 21
+        max_wait_time 30s
+    }
 }
 
 :80 {
+    request_body {
+        max_size 8MB
+    }
     encode zstd br gzip
     php_server {
         root /app/public
         worker {
+            num 20
+            env MAX_REQUESTS 10000
             match *
             file /app/worker-frankenphp.php
         }

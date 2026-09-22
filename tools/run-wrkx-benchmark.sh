@@ -19,6 +19,8 @@ RATE="${RATE:-10000}"
 DURATION="${DURATION:-160s}"
 THREADS="${THREADS:-$(nproc)}"
 CONNECTIONS="${CONNECTIONS:-256}"
+WARMUP_DURATION="${WARMUP_DURATION:-10s}"
+WARMUP_RATE="${WARMUP_RATE:-1000}"
 WRKX_IMAGE="${WRKX_IMAGE:-yii3-benchmarks-wrkx}"
 WRKX_REF="${WRKX_REF:-bec57539360771bedc2fc63a48e3746f1b7a9975}"
 if [[ -z "${STAGES:-}" ]]; then
@@ -137,7 +139,18 @@ CONNECTIONS=${CONNECTIONS}
 STAGES=${STAGES}
 COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME}
 WRKX_REF=${WRKX_REF}
+WARMUP_DURATION=${WARMUP_DURATION}
+WARMUP_RATE=${WARMUP_RATE}
 EOF
+fi
+
+# Warm PHP workers and application caches before recording any stage or resource samples.
+if [[ "$WARMUP_DURATION" != 0s ]]; then
+    echo "Warming up: rate=$WARMUP_RATE duration=$WARMUP_DURATION"
+    docker run --rm --network=host "$WRKX_IMAGE" \
+        -t "$THREADS" -c "$CONNECTIONS" -d "$WARMUP_DURATION" -R "$WARMUP_RATE" "$URL" > /dev/null
+fi
+if [[ "$CAPTURE_METRICS" == 1 ]]; then
     start_sampler
     trap stop_sampler EXIT
 fi

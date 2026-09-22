@@ -1,6 +1,17 @@
 [http]
 listen = "0.0.0.0:8080"
+max_body_size_mb = 8
+write_timeout_secs = 30
+keepalive_timeout_secs = 60
 
 [pool]
 entrypoint = "../../worker-rapira.php"
 mode = "classic"
+processes = 20
+scaling = "static"
+max_requests = 10000
+request_terminate_timeout_secs = 30
+
+[log]
+level = "warn"
+format = "json"
