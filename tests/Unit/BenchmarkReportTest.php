@@ -35,6 +35,27 @@ final class BenchmarkReportTest extends Unit
         $this->assertFalse(detectStageRpsCap([], [])['reached']);
     }
 
+    public function testLatencySeparatesNormalStagesFromCapStage(): void
+    {
+        $avg = [['x' => 0, 'y' => 2.0], ['x' => 30, 'y' => 6.0], ['x' => 60, 'y' => 4000.0], ['x' => 90, 'y' => 8000.0]];
+        $p95 = [['x' => 0, 'y' => 4.0], ['x' => 30, 'y' => 10.0], ['x' => 60, 'y' => 7000.0], ['x' => 90, 'y' => 12000.0]];
+        $summary = summarizeRun([], $avg, $p95, ['reached' => true, 'second' => 60]);
+        $this->assertSame(4.0, $summary['normalLatencyAvgMs']);
+        $this->assertSame(7.0, $summary['normalLatencyP95Ms']);
+        $this->assertSame(4000.0, $summary['overloadedLatencyAvgMs']);
+        $this->assertSame(7000.0, $summary['overloadedLatencyP95Ms']);
+
+        $firstStageCap = summarizeRun([], $avg, $p95, ['reached' => true, 'second' => 0]);
+        $this->assertNull($firstStageCap['normalLatencyAvgMs']);
+        $this->assertNull($firstStageCap['normalLatencyP95Ms']);
+        $this->assertSame(2.0, $firstStageCap['overloadedLatencyAvgMs']);
+
+        $noCap = summarizeRun([], $avg, $p95, ['reached' => false]);
+        $this->assertSame(3002.0, $noCap['normalLatencyAvgMs']);
+        $this->assertNull($noCap['overloadedLatencyAvgMs']);
+        $this->assertNull($noCap['overloadedLatencyP95Ms']);
+    }
+
     public function testReportSeparatesRuntimeAndEndpointGroups(): void
     {
         $runs = [];
@@ -44,7 +65,7 @@ final class BenchmarkReportTest extends Unit
                     'label' => $name . ($db ? ' DB' : ''),
                     'directory' => '/tmp/example',
                     'metadata' => ['TARGET_PATH' => $db ? '/postgres/orders' : '/', 'MODE' => 'ramp'],
-                    'summary' => ['latencyAvgMs' => 2.5, 'latencyP95Ms' => 9.5],
+                    'summary' => ['normalLatencyAvgMs' => 2.5, 'normalLatencyP95Ms' => 9.5, 'overloadedLatencyAvgMs' => 50.0, 'overloadedLatencyP95Ms' => 90.0],
                     'series' => ['successfulResponsesPerSecond' => [['x' => 0, 'y' => 1000]]],
                     'docker' => [],
                 ];
@@ -66,6 +87,8 @@ final class BenchmarkReportTest extends Unit
             'Non-worker DB' => ['FrankenPHP classic DB', 'PHP-FPM + Nginx DB', 'Rapira classic DB', 'FreeUnit DB'],
         ], $groups);
         $this->assertSame(2, substr_count($html, '<table class="summary-table">'));
-        $this->assertSame(10, substr_count($html, 'aria-sort="none"'));
+        $this->assertSame(2, substr_count($html, '>Normal latency (avg)</button>'));
+        $this->assertSame(2, substr_count($html, '>Overloaded latency (avg)</button>'));
+        $this->assertSame(14, substr_count($html, 'aria-sort="none"'));
     }
 }

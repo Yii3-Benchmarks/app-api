@@ -211,12 +211,14 @@ function summarizeRun(
         : null;
 
     return [
-        'latencyAvgMs' => averageSeriesUntilSecond($avgLatencyMsSeries, $capSecond),
-        'latencyP95Ms' => averageSeriesUntilSecond($p95LatencyMsSeries, $capSecond),
+        'normalLatencyAvgMs' => averageSeriesInRange($avgLatencyMsSeries, null, $capSecond),
+        'normalLatencyP95Ms' => averageSeriesInRange($p95LatencyMsSeries, null, $capSecond),
+        'overloadedLatencyAvgMs' => $capSecond === null ? null : averageSeriesInRange($avgLatencyMsSeries, $capSecond, $capSecond + 1),
+        'overloadedLatencyP95Ms' => $capSecond === null ? null : averageSeriesInRange($p95LatencyMsSeries, $capSecond, $capSecond + 1),
     ];
 }
 
-function averageSeriesUntilSecond(array $points, ?int $untilSecondExclusive): float
+function averageSeriesInRange(array $points, ?int $fromSecondInclusive, ?int $untilSecondExclusive): ?float
 {
     $filteredPoints = [];
 
@@ -226,18 +228,15 @@ function averageSeriesUntilSecond(array $points, ?int $untilSecondExclusive): fl
         }
 
         $second = (int) $point['x'];
-        if ($untilSecondExclusive !== null && $second >= $untilSecondExclusive) {
+        if (($fromSecondInclusive !== null && $second < $fromSecondInclusive)
+            || ($untilSecondExclusive !== null && $second >= $untilSecondExclusive)) {
             continue;
         }
 
         $filteredPoints[] = $point;
     }
 
-    if ($filteredPoints === [] && $untilSecondExclusive !== null) {
-        $filteredPoints = $points;
-    }
-
-    return averageSeriesValue($filteredPoints);
+    return $filteredPoints === [] ? null : averageSeriesValue($filteredPoints);
 }
 
 function averageSeriesValue(array $points): float
@@ -831,6 +830,12 @@ function renderHtmlReport(array $runs): string
         $targetRps = $capReached
             ? (float) ($summary['rpsCap']['baselineRps'] ?? $summary['rpsCap']['issuedRps'] ?? 0.0)
             : null;
+        $latencyCells = '';
+        foreach (['normalLatencyAvgMs', 'normalLatencyP95Ms', 'overloadedLatencyAvgMs', 'overloadedLatencyP95Ms'] as $metric) {
+            $value = $summary[$metric] ?? null;
+            $latencyCells .= '<td data-sort-value="' . ($value ?? '') . '">'
+                . ($value === null ? '—' : formatMilliseconds($value)) . '</td>';
+        }
         $runColor = $palette[$index % count($palette)];
         $runLabel = h($run['label']);
         $summaryRows[isDatabaseRun($run) ? 'db' : 'home'] .= '<tr>'
@@ -838,8 +843,7 @@ function renderHtmlReport(array $runs): string
             . '<td>' . h($run['metadata']['TARGET_PATH'] ?? '') . '</td>'
             . '<td data-sort-value="' . ($successfulRps ?? '') . '">' . ($successfulRps === null ? 'Not reached' : formatInteger((int) round($successfulRps))) . '</td>'
             . '<td data-sort-value="' . ($targetRps ?? '') . '">' . ($targetRps === null ? 'Not reached' : formatInteger((int) round($targetRps))) . '</td>'
-            . '<td data-sort-value="' . $summary['latencyAvgMs'] . '">' . formatMilliseconds($summary['latencyAvgMs']) . '</td>'
-            . '<td data-sort-value="' . $summary['latencyP95Ms'] . '">' . formatMilliseconds($summary['latencyP95Ms']) . '</td>'
+            . $latencyCells
             . '</tr>';
     }
 
@@ -849,6 +853,7 @@ function renderHtmlReport(array $runs): string
         $summarySections .= <<<HTML
     <section class="panel">
       <h2>Run Summary — {$summaryTitle}</h2>
+      <p>Normal latency averages samples before the detected cap; overloaded latency uses the cap sample, matching the displayed RPS. For stage data, these are stage averages and stage p95 values; normal p95 is their mean, not a pooled percentile. — means no qualifying measurement.</p>
       <table class="summary-table">
         <thead>
           <tr>
@@ -856,8 +861,10 @@ function renderHtmlReport(array $runs): string
             <th scope="col" aria-sort="none" data-sort-type="text"><button type="button">Path</button></th>
             <th scope="col" aria-sort="descending" data-sort-type="number"><button type="button">Successful RPS</button></th>
             <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Target RPS</button></th>
-            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Avg Latency</button></th>
-            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">P95 Latency</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Normal latency (avg)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Normal latency (p95)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Overloaded latency (avg)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Overloaded latency (p95)</button></th>
           </tr>
         </thead>
         <tbody>
@@ -1676,7 +1683,7 @@ HTML;
           rows.sort((a, b) => {
             const value = (row) => row.cells[column].dataset.sortValue ?? row.cells[column].textContent.trim();
             const left = value(a), right = value(b);
-            // Unreached caps stay last in either direction.
+            // Missing measurements stay last in either direction.
             if (left === '' || right === '') return (left === '') - (right === '');
             const order = numeric ? Number(left) - Number(right) : left.localeCompare(right);
             return ascending ? order : -order;
