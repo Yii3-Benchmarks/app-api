@@ -125,7 +125,7 @@ services:
       context: ..
       dockerfile: docker/runtimes/Dockerfile
       target: rapira
-    command: ["rapira", "serve", "--config", "docker/runtimes/rapira-classic.toml"]
+    command: ["rapira", "serve", "docker/runtimes/rapira-classic.toml"]
     ports: ["9991:8080"]
     volumes: ["../:/app"]
     env_file: [dev/.env]
@@ -141,7 +141,7 @@ services:
       context: ..
       dockerfile: docker/runtimes/Dockerfile
       target: rapira
-    command: ["rapira", "serve", "--config", "docker/runtimes/rapira-dispatcher.toml"]
+    command: ["rapira", "serve", "docker/runtimes/rapira-dispatcher.toml"]
     ports: ["9991:8080"]
     volumes: ["../:/app"]
     env_file: [dev/.env]

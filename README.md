@@ -47,7 +47,7 @@ a deployed service still needs its own TLS ingress, secrets and persistent datab
 must be sized for the deployment's CPU and memory budget. Historical results use the configs in effect when
 they were recorded and must be rerun to compare this baseline.
 
-Server releases checked on 2026-09-22 are pinned in the benchmark Dockerfile and Compose file:
+Server releases checked on 2026-09-22 are pinned in the benchmark Dockerfile and Compose file, except Rapira, which uses nightly builds:
 
 | Component | Version |
 | --- | --- |
@@ -55,7 +55,7 @@ Server releases checked on 2026-09-22 are pinned in the benchmark Dockerfile and
 | FrankenPHP | [1.12.7](https://github.com/php/frankenphp/releases/tag/v1.12.7) |
 | RoadRunner | [2025.1.15](https://github.com/roadrunner-server/roadrunner/releases/tag/v2025.1.15) |
 | FreeUnit | [1.36.1](https://github.com/freeunitorg/freeunit/releases/tag/1.36.1) |
-| Rapira (all modes) | [0.8.1](https://github.com/rapira-rs/rapira/releases/tag/v0.8.1) |
+| Rapira (all modes) | [Nightly for PHP 8.5](https://rapira.rs/docs/intro/installation) (`nightly-php8.5`) |
 | Nginx | [1.31.6 (mainline)](https://nginx.org/en/download.html) |
 | PostgreSQL | [18.6](https://www.postgresql.org/support/versioning/) |
 | Valkey | [9.1.2](https://github.com/valkey-io/valkey/releases/tag/9.1.2) |
@@ -138,7 +138,8 @@ Benchmark all Rapira modes on both endpoints:
 make bench-all RUNTIMES="rapira rapira-classic rapira-dispatcher"
 ```
 
-All Rapira modes use the pinned `0.8.1-php8.5` server image and the same `worker-rapira.php` entry point.
+All Rapira modes use the `nightly-php8.5` server image and the same `worker-rapira.php` entry point.
+The nightly CLI uses `rapira serve <config>` and configures a fixed process count under `[http.pool]`.
 The Yii runner detects the configured mode: classic handles one request per application bootstrap, while worker
 and dispatcher keep the application in memory. `rapira` continues to select worker mode.
 Its Yii runner and PHP contract currently

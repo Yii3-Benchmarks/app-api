@@ -104,11 +104,11 @@ ENTRYPOINT ["/usr/local/bin/freeunit-entrypoint.sh"]
 CMD ["unitd", "--no-daemon", "--control", "unix:/var/run/control.unit.sock"]
 
 FROM php:8.5.10-cli-trixie AS rapira
-COPY --from=ghcr.io/rapira-rs/rapira:0.8.1-php8.5 / /
+COPY --from=ghcr.io/rapira-rs/rapira:nightly-php8.5 / /
 COPY --from=php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/install-php-extensions
 RUN install-php-extensions mbstring intl pdo_pgsql
 COPY --from=composer /composer /usr/bin/composer
 RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 COPY docker/runtimes/php-production.ini /usr/local/etc/php/conf.d/zz-production.ini
 WORKDIR /app
-CMD ["rapira", "serve", "--config", "docker/runtimes/rapira.toml"]
+CMD ["rapira", "serve", "docker/runtimes/rapira.toml"]

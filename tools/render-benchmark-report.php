@@ -807,6 +807,28 @@ function parseDockerStats(string $dockerStatsFile): array
 
 function renderHtmlReport(array $runs): string
 {
+    $systemDescriptions = [];
+    $contextFiles = array_unique(array_map(
+        static fn(array $run): string => dirname($run['directory']) . '/run-context.json',
+        $runs,
+    ));
+    foreach ($contextFiles as $contextFile) {
+        if (!is_file($contextFile)) {
+            continue;
+        }
+        $context = json_decode(file_get_contents($contextFile), true, 512, JSON_THROW_ON_ERROR);
+        $details = [];
+        foreach (['os' => 'OS', 'kernel' => 'Kernel', 'cpu' => 'CPU', 'memory' => 'Memory', 'disk' => 'Disk', 'filesystem' => 'Filesystem'] as $key => $label) {
+            if (isset($context['system'][$key])) {
+                $details[] = '<strong>' . $label . ':</strong> ' . h($context['system'][$key]);
+            }
+        }
+        if ($details !== []) {
+            $systemDescriptions[] = '<p><strong>Test system.</strong> ' . implode('; ', $details) . '.</p>';
+        }
+    }
+    $systemDescription = implode("\n      ", array_unique($systemDescriptions));
+
     $palette = [
         '#e6194b', // Red.
         '#4363d8', // Blue.
@@ -1121,6 +1143,7 @@ HTML;
       color: var(--muted);
       width: 15%;
     }
+    .summary-table tbody tr:hover { background-color: rgba(37, 99, 235, 0.08); }
     .summary-table th button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; text-align: left; }
     .summary-table th button::after { content: ' ↕'; }
     .summary-table th[aria-sort="ascending"] button::after { content: ' ↑'; }
@@ -1239,6 +1262,7 @@ HTML;
     <section class="panel">
       <h1>Benchmark Report</h1>
       <p>Generated {$generatedAt}. This report combines wrkx stage summaries with Docker CPU and memory samples.</p>
+      {$systemDescription}
       <p>Charts show raw samples. For stage results, RPS cap marks the first stage with successful throughput more than 5% below target; per-second results use a sustained latency surge. The load generator can also limit throughput.</p>
       <p>Hover over a chart legend label or focus it with Tab to highlight that run.</p>
     </section>

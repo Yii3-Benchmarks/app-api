@@ -4,11 +4,10 @@ max_body_size_mb = 8
 write_timeout_secs = 30
 keepalive_timeout_secs = 60
 
-[pool]
+[http.pool]
 entrypoint = "../../worker-rapira.php"
 mode = "dispatcher"
 processes = 20
-scaling = "static"
 max_requests = 10000
 request_terminate_timeout_secs = 30
 
