@@ -777,7 +777,7 @@ function parseDockerStats(string $dockerStatsFile): array
         $service = (string) ($record['service'] ?? 'unknown');
         $service = match ($service) {
             'frankenphp-classic', 'frankenphp-worker', 'roadrunner',
-            'php', 'nginx', 'freeunit', 'rapira', 'rapira-classic', 'rapira-dispatcher' => 'app',
+            'php', 'nginx', 'freeunit', 'rapira', 'rapira-classic', 'rapira-dispatcher', 'oxphp-classic', 'oxphp-worker' => 'app',
             default => $service,
         };
         $second = max(0, (int) floor($timestamp - $firstTimestamp));
@@ -845,10 +845,10 @@ function renderHtmlReport(array $runs): string
     ];
     $allRuns = $runs;
     $groups = [
-        'worker-home' => ['Worker no DB', false, ['FrankenPHP worker', 'RoadRunner', 'Rapira worker', 'Rapira dispatcher']],
-        'worker-db' => ['Worker DB', true, ['FrankenPHP worker', 'RoadRunner', 'Rapira worker', 'Rapira dispatcher']],
-        'non-worker-home' => ['Non-worker no DB', false, ['FrankenPHP classic', 'PHP-FPM + Nginx', 'Rapira classic', 'FreeUnit']],
-        'non-worker-db' => ['Non-worker DB', true, ['FrankenPHP classic', 'PHP-FPM + Nginx', 'Rapira classic', 'FreeUnit']],
+        'worker-home' => ['Worker no DB', false, ['FrankenPHP worker', 'RoadRunner', 'Rapira worker', 'Rapira dispatcher', 'OxPHP worker']],
+        'worker-db' => ['Worker DB', true, ['FrankenPHP worker', 'RoadRunner', 'Rapira worker', 'Rapira dispatcher', 'OxPHP worker']],
+        'non-worker-home' => ['Non-worker no DB', false, ['FrankenPHP classic', 'PHP-FPM + Nginx', 'Rapira classic', 'FreeUnit', 'OxPHP classic']],
+        'non-worker-db' => ['Non-worker DB', true, ['FrankenPHP classic', 'PHP-FPM + Nginx', 'Rapira classic', 'FreeUnit', 'OxPHP classic']],
     ];
     $chartDefinitions = [];
     $included = [];

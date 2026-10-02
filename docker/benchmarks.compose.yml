@@ -147,6 +147,36 @@ services:
     env_file: [dev/.env]
     depends_on: {postgres: {condition: service_healthy}, valkey: {condition: service_healthy}}
 
+  oxphp-classic:
+    <<: *runtime
+    healthcheck:
+      <<: *http-health
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:80/') === false ? 1 : 0);"]
+    profiles: [oxphp-classic]
+    build:
+      context: ..
+      dockerfile: docker/runtimes/Dockerfile
+      target: oxphp-classic
+    ports: ["9991:80"]
+    volumes: ["../:/app"]
+    env_file: [dev/.env]
+    depends_on: {postgres: {condition: service_healthy}, valkey: {condition: service_healthy}}
+
+  oxphp-worker:
+    <<: *runtime
+    healthcheck:
+      <<: *http-health
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:80/') === false ? 1 : 0);"]
+    profiles: [oxphp-worker]
+    build:
+      context: ..
+      dockerfile: docker/runtimes/Dockerfile
+      target: oxphp-worker
+    ports: ["9991:80"]
+    volumes: ["../:/app"]
+    env_file: [dev/.env]
+    depends_on: {postgres: {condition: service_healthy}, valkey: {condition: service_healthy}}
+
   valkey:
     <<: *runtime
     image: valkey/valkey:9.1.2-alpine

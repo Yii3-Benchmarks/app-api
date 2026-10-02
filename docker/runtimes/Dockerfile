@@ -1,6 +1,38 @@
 FROM composer/composer:2-bin AS composer
 FROM ghcr.io/mlocati/php-extension-installer:2 AS php-extension-installer
 FROM ghcr.io/roadrunner-server/roadrunner:2025.1.15 AS roadrunner-bin
+FROM ghcr.io/oxphp/oxphp:0.12.0 AS oxphp-bin
+
+# Follow OxPHP's Yii3 recipe: PHP CLI and extensions share the server's ZTS ABI.
+FROM php:8.5.10-zts-alpine3.23 AS oxphp-base
+COPY --from=php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/install-php-extensions
+RUN apk add --no-cache libgcc \
+    && install-php-extensions mbstring intl pdo_pgsql
+COPY --from=composer /composer /usr/bin/composer
+COPY --from=oxphp-bin /usr/local/bin/oxphp /usr/local/bin/oxphp
+COPY --from=oxphp-bin /usr/local/lib/liboxphp_bridge.so /usr/local/lib/
+COPY --from=oxphp-bin /usr/local/lib/php/extensions/ /tmp/oxphp-ext/
+RUN cp /tmp/oxphp-ext/*/oxphp_sapi.so "$(php-config --extension-dir)/" \
+    && rm -rf /tmp/oxphp-ext \
+    && echo 'extension=oxphp_sapi.so' > "$PHP_INI_DIR/conf.d/oxphp.ini" \
+    && cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
+COPY docker/runtimes/php-production.ini /usr/local/etc/php/conf.d/zz-production.ini
+ENV LD_LIBRARY_PATH=/usr/local/lib \
+    DOCUMENT_ROOT=/app/public \
+    LISTEN_ADDR=0.0.0.0:80 \
+    PHP_WORKERS=20 \
+    QUEUE_WAIT_TIMEOUT_MS=30000
+WORKDIR /app
+CMD ["oxphp"]
+
+FROM oxphp-base AS oxphp-classic
+ENV ENTRY_FILE=index.php
+
+FROM oxphp-base AS oxphp-worker
+ENV WORKER_MODE_ENABLED=true \
+    ENTRY_FILE=/app/worker-oxphp.php \
+    WORKER_MAX_MEMORY_MIB=256 \
+    MAX_REQUESTS=10000
 
 FROM dunglas/frankenphp:1.12.7-php8.5-bookworm AS frankenphp-base
 RUN set -eux; \

@@ -85,7 +85,7 @@ final class BenchmarkReportTest extends Unit
     public function testReportSeparatesRuntimeAndEndpointGroups(): void
     {
         $runs = [];
-        foreach (['FrankenPHP worker', 'RoadRunner', 'Rapira worker', 'Rapira dispatcher', 'FrankenPHP classic', 'PHP-FPM + Nginx', 'Rapira classic', 'FreeUnit'] as $name) {
+        foreach (['FrankenPHP worker', 'RoadRunner', 'Rapira worker', 'Rapira dispatcher', 'OxPHP worker', 'FrankenPHP classic', 'PHP-FPM + Nginx', 'Rapira classic', 'FreeUnit', 'OxPHP classic'] as $name) {
             foreach ([false, true] as $db) {
                 $runs[] = [
                     'label' => $name . ($db ? ' DB' : ''),
@@ -107,10 +107,10 @@ final class BenchmarkReportTest extends Unit
             }
         }
         $this->assertSame([
-            'Worker no DB' => ['FrankenPHP worker', 'RoadRunner', 'Rapira worker', 'Rapira dispatcher'],
-            'Worker DB' => ['FrankenPHP worker DB', 'RoadRunner DB', 'Rapira worker DB', 'Rapira dispatcher DB'],
-            'Non-worker no DB' => ['FrankenPHP classic', 'PHP-FPM + Nginx', 'Rapira classic', 'FreeUnit'],
-            'Non-worker DB' => ['FrankenPHP classic DB', 'PHP-FPM + Nginx DB', 'Rapira classic DB', 'FreeUnit DB'],
+            'Worker no DB' => ['FrankenPHP worker', 'RoadRunner', 'Rapira worker', 'Rapira dispatcher', 'OxPHP worker'],
+            'Worker DB' => ['FrankenPHP worker DB', 'RoadRunner DB', 'Rapira worker DB', 'Rapira dispatcher DB', 'OxPHP worker DB'],
+            'Non-worker no DB' => ['FrankenPHP classic', 'PHP-FPM + Nginx', 'Rapira classic', 'FreeUnit', 'OxPHP classic'],
+            'Non-worker DB' => ['FrankenPHP classic DB', 'PHP-FPM + Nginx DB', 'Rapira classic DB', 'FreeUnit DB', 'OxPHP classic DB'],
         ], $groups);
         $this->assertSame(2, substr_count($html, '<table class="summary-table">'));
         $this->assertSame(2, substr_count($html, '>Normal latency (avg)</button>'));

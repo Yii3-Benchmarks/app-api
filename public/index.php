@@ -21,8 +21,8 @@ if (Environment::appC3()) {
     }
 }
 
-// PHP built-in server routing.
-if (PHP_SAPI === 'cli-server') {
+// PHP built-in server routing. OxPHP also reports cli-server, but handles routing itself.
+if (PHP_SAPI === 'cli-server' && !extension_loaded('oxphp_sapi')) {
     // Serve static files as is.
     /** @var string $path */
     $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);

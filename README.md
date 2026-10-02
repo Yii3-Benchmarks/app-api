@@ -14,6 +14,8 @@ made on the same machine with the same settings and minimal background activity.
 | --- | --- | --- |
 | `frankenphp-classic` | FrankenPHP | A normal PHP application bootstrap for each request |
 | `frankenphp-worker` | FrankenPHP | A persistent Yii worker |
+| `oxphp-classic` | OxPHP | A normal PHP application bootstrap for each request |
+| `oxphp-worker` | OxPHP | A persistent Yii worker with per-request state reset |
 | `roadrunner` | RoadRunner | A persistent Yii worker managed by RoadRunner |
 | `php-fpm` | PHP-FPM + Nginx | Traditional FastCGI processes behind Nginx |
 | `freeunit` | FreeUnit | PHP application hosted by FreeUnit; grouped with non-worker runtimes |
@@ -33,7 +35,7 @@ The runtime configs use a production-oriented benchmark baseline:
   for web and CLI SAPIs, JIT is disabled, errors go to stderr, and PHP memory is limited to 256 MiB.
 - OPcache timestamp validation is disabled. **Restart the runtime after changing PHP files**, including
   files in the mounted source tree. The benchmark suite rebuilds and restarts each runtime automatically.
-- FPM, FreeUnit, Rapira and FrankenPHP workers recycle after 10,000 requests; RoadRunner uses its
+- FPM, FreeUnit, Rapira, OxPHP and FrankenPHP workers recycle after 10,000 requests; RoadRunner uses its
   memory supervisor. API body limits are 8 MiB, and request/queue timeouts are configured where supported.
 - HTTP readiness checks gate benchmark startup. Containers have a 45-second shutdown grace period,
   bounded Docker logs, and an increased open-file limit. Nginx access logging is disabled to match the
@@ -56,6 +58,7 @@ Server releases checked on 2026-09-22 are pinned in the benchmark Dockerfile and
 | RoadRunner | [2025.1.15](https://github.com/roadrunner-server/roadrunner/releases/tag/v2025.1.15) |
 | FreeUnit | [1.36.1](https://github.com/freeunitorg/freeunit/releases/tag/1.36.1) |
 | Rapira (all modes) | [Nightly for PHP 8.5](https://rapira.rs/docs/intro/installation) (`nightly-php8.5`) |
+| OxPHP (both modes) | [0.12.0](https://github.com/oxphp/oxphp/releases/tag/v0.12.0) (added 2026-10-02) |
 | Nginx | [1.31.6 (mainline)](https://nginx.org/en/download.html) |
 | PostgreSQL | [18.6](https://www.postgresql.org/support/versioning/) |
 | Valkey | [9.1.2](https://github.com/valkey-io/valkey/releases/tag/9.1.2) |
@@ -145,6 +148,19 @@ and dispatcher keep the application in memory. `rapira` continues to select work
 Its Yii runner and PHP contract currently
 require development packages; Composer records their exact revisions in the local lock file.
 
+Run both OxPHP modes through both endpoints:
+
+```shell
+make bench-all RUNTIMES="oxphp-classic oxphp-worker"
+```
+
+OxPHP follows the [official Yii3 recipe](https://oxphp.dev/en/docs/examples/framework/yii3), using
+PHP 8.5 ZTS with native `mbstring`, `intl`, and `pdo_pgsql` extensions. Classic mode uses `public/index.php`;
+worker mode bootstraps Yii once in `worker-oxphp.php`, resets container state after each response, and
+schedules worker recycling after 10,000 requests. Both modes use 20 PHP workers and the shared production
+PHP settings. Access logging is disabled. OxPHP reports the `cli-server` SAPI, so the front controller
+excludes its extension from PHP's built-in development-server routing.
+
 Run a subset of runtimes through both endpoints:
 
 ```shell
@@ -177,7 +193,7 @@ The default mode is `ramp`. Configuration is passed as Make variables or environ
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `RUNTIME` | `frankenphp-classic` | Runtime used by `make bench` and `make bench-db` |
-| `RUNTIMES` | all eight runtimes | Space-separated runtimes used by `make bench-all` |
+| `RUNTIMES` | all ten runtimes | Space-separated runtimes used by `make bench-all` |
 | `TARGETS` | `home postgres-orders` | Space-separated endpoint keys for the suite script |
 | `MODE` | `ramp` | `steady` for one rate or `ramp` for sequential rate stages |
 | `RATE` | `10000` | Requests per second in steady mode |
@@ -236,6 +252,7 @@ tools/run-benchmark-suite.sh    multi-runtime orchestration and cleanup
 tools/run-wrkx-benchmark.sh     one endpoint/stage benchmark runner
 tools/compile-wrkx-results.php  wrkx output normalization
 tools/render-benchmark-report.* HTML report generator
+worker-oxphp.php                OxPHP persistent worker entry point
 worker-frankenphp.php           FrankenPHP persistent worker entry point
 worker-roadrunner.php           RoadRunner persistent worker entry point
 worker-rapira.php               Rapira entry point for all three modes

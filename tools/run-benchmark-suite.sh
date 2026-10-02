@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_FILE="$ROOT_DIR/docker/benchmarks.compose.yml"
-RUNTIMES="${RUNTIMES:-frankenphp-classic frankenphp-worker roadrunner php-fpm freeunit rapira rapira-classic rapira-dispatcher}"
+RUNTIMES="${RUNTIMES:-frankenphp-classic frankenphp-worker roadrunner php-fpm freeunit rapira rapira-classic rapira-dispatcher oxphp-classic oxphp-worker}"
 TARGETS="${TARGETS:-home postgres-orders}"
 OUTPUT_ROOT="${OUTPUT_ROOT:-$ROOT_DIR/runtime/benchmarks/$(date -u +%Y%m%dT%H%M%SZ)-suite}"
 
@@ -43,6 +43,8 @@ runtime_label() {
     case "$1" in
         frankenphp-classic) echo "FrankenPHP classic" ;;
         frankenphp-worker) echo "FrankenPHP worker" ;;
+        oxphp-classic) echo "OxPHP classic" ;;
+        oxphp-worker) echo "OxPHP worker" ;;
         roadrunner) echo "RoadRunner" ;;
         php-fpm) echo "PHP-FPM + Nginx" ;;
         freeunit) echo "FreeUnit" ;;
