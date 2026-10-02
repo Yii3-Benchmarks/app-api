@@ -58,31 +58,28 @@ $runner = new class (
         $requests = 0;
 
         $application->start();
-        try {
-            oxphp_worker(static function () use ($application, $container, $requestFactory, $emitter, $maxRequests, &$requests): void {
-                $startTime = microtime(true);
-                $request = $requestFactory->create()->withAttribute('applicationStartTime', $startTime);
-                $response = null;
+        oxphp_worker(static function () use ($application, $container, $requestFactory, $emitter, $maxRequests, &$requests): void {
+            $startTime = microtime(true);
+            $request = $requestFactory->create()->withAttribute('applicationStartTime', $startTime);
+            $response = null;
+            try {
                 try {
-                    try {
-                        $response = $application->handle($request);
-                    } catch (Throwable $throwable) {
-                        $response = $container->get(ErrorCatcher::class)->process($request, new ThrowableHandler($throwable));
-                    }
-                    $emitter->emit($response);
-                } finally {
-                    $application->afterEmit($response);
-                    // Resolve after handling so lazily created services are included.
-                    $container->get(StateResetter::class)->reset();
-                    gc_collect_cycles();
-                    if ($maxRequests > 0 && ++$requests >= $maxRequests) {
-                        Worker::current()->scheduleExit();
-                    }
+                    $response = $application->handle($request);
+                } catch (Throwable $throwable) {
+                    $response = $container->get(ErrorCatcher::class)->process($request, new ThrowableHandler($throwable));
                 }
-            });
-        } finally {
-            $application->shutdown();
-        }
+                $emitter->emit($response);
+            } finally {
+                $application->afterEmit($response);
+                // Resolve after handling so lazily created services are included.
+                $container->get(StateResetter::class)->reset();
+                gc_collect_cycles();
+                if ($maxRequests > 0 && ++$requests >= $maxRequests) {
+                    Worker::current()->scheduleExit();
+                }
+            }
+        });
+        $application->shutdown();
     }
 };
 $runner->run();
