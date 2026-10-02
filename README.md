@@ -9,9 +9,10 @@ on the host, Docker version, CPU scheduling, runtime configuration, request rate
 made on the same machine with the same settings and minimal background activity.
 
 The [published benchmark report](https://yii3-benchmarks.github.io/app-api/) combines the September 30, 2026
-results for the original eight runtimes with the October 2, 2026 OxPHP classic and worker results.
-Raw results and run context are in `results/samdark_2026-09-30/` and `results/samdark_2026-10-02/`;
-the combined report is saved as `results/report.html`.
+results for the original eight runtimes with the October 2, 2026 OxPHP classic and worker rerun results.
+Raw results and run context are in `results/samdark_2026-09-30/` and `results/samdark_2026-10-02-rerun/`;
+the combined report is saved as `results/report.html`. The earlier OxPHP measurements remain archived in
+`results/samdark_2026-10-02/`.
 
 ## What is included
 
@@ -245,7 +246,7 @@ make bench-report INPUT="runtime/benchmarks/<run-1> runtime/benchmarks/<run-2>"
 Rebuild the published comparison from the recorded full runs:
 
 ```shell
-make bench-report INPUT="results/samdark_2026-09-30 results/samdark_2026-10-02" OUTPUT=results/report.html
+make bench-report INPUT="results/samdark_2026-09-30 results/samdark_2026-10-02-rerun" OUTPUT=results/report.html
 ```
 
 Raw wrkx output and exact run settings are retained next to the compact data. Include them when reporting unexpected

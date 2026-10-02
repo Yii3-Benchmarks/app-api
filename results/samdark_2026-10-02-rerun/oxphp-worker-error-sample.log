@@ -1,0 +1,150 @@
+oxphp-worker-1  | #20 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Yiisoft\ErrorHandler\Middleware\ErrorCatcher->process()
+oxphp-worker-1  | #21 /app/vendor/yiisoft/data-response/src/Middleware/ContentNegotiatorDataResponseMiddleware.php(47): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+oxphp-worker-1  | #22 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareFactory.php(232): Yiisoft\DataResponse\Middleware\ContentNegotiatorDataResponseMiddleware->process()
+oxphp-worker-1  | #23 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Psr\Http\Server\MiddlewareInterface@anonymous->process()
+oxphp-worker-1  | #24 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(49): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+oxphp-worker-1  | #25 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareDispatcher.php(48): Yiisoft\Middleware\Dispatcher\MiddlewareStack->handle()
+oxphp-worker-1  | #26 /app/vendor/yiisoft/yii-http/src/Application.php(81): Yiisoft\Middleware\Dispatcher\MiddlewareDispatcher->dispatch()
+oxphp-worker-1  | #27 /app/worker-oxphp.php(67): Yiisoft\Yii\Http\Application->handle()
+oxphp-worker-1  | #28 [internal function]: Yiisoft\Yii\Runner\ApplicationRunner@anonymous::{closure:Yiisoft\Yii\Runner\ApplicationRunner@anonymous()
+oxphp-worker-1  | #29 [internal function]: oxphp fiber loop()
+oxphp-worker-1  | #30 /app/worker-oxphp.php(61): oxphp_worker()
+oxphp-worker-1  | #31 /app/worker-oxphp.php(85): Yiisoft\Yii\Runner\ApplicationRunner@anonymous->run()
+oxphp-worker-1  | #32 {main}
+oxphp-worker-1  | Additional Information:
+oxphp-worker-1  | Array
+oxphp-worker-1  | (
+oxphp-worker-1  |     [0] => 08006
+oxphp-worker-1  |     [1] => 7
+oxphp-worker-1  |     [2] => connection to server at "postgres" (172.26.0.3), port 5432 failed: Address not available
+oxphp-worker-1  | 	Is the server running on that host and accepting TCP/IP connections?
+oxphp-worker-1  | )
+oxphp-worker-1  | 
+oxphp-worker-1  | 
+oxphp-worker-1  | 2026-10-02 15:53:57.591500 [error][application] SQLSTATE[08006] [7] connection to server at "postgres" (172.26.0.3), port 5432 failed: Address not available
+oxphp-worker-1  | 	Is the server running on that host and accepting TCP/IP connections?
+oxphp-worker-1  | 
+oxphp-worker-1  | Message context:
+oxphp-worker-1  | 
+oxphp-worker-1  | trace:
+oxphp-worker-1  |     
+oxphp-worker-1  | time: 1790956437.591483
+oxphp-worker-1  | memory: 693248
+oxphp-worker-1  | category: 'application'
+oxphp-worker-1  | throwable: PDOException: SQLSTATE[08006] [7] connection to server at "postgres" (172.26.0.3), port 5432 failed: Address not available
+oxphp-worker-1  | 	Is the server running on that host and accepting TCP/IP connections? in /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoDriver.php:41
+oxphp-worker-1  | Stack trace:
+oxphp-worker-1  | #0 /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoDriver.php(41): PDO->__construct()
+oxphp-worker-1  | #1 /app/vendor/yiisoft/db-pgsql/src/Driver.php(20): Yiisoft\Db\Driver\Pdo\AbstractPdoDriver->createConnection()
+oxphp-worker-1  | #2 /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoConnection.php(221): Yiisoft\Db\Pgsql\Driver->createConnection()
+oxphp-worker-1  | #3 /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoConnection.php(111): Yiisoft\Db\Driver\Pdo\AbstractPdoConnection->initConnection()
+oxphp-worker-1  | #4 /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoConnection.php(147): Yiisoft\Db\Driver\Pdo\AbstractPdoConnection->open()
+oxphp-worker-1  | #5 /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoCommand.php(152): Yiisoft\Db\Driver\Pdo\AbstractPdoConnection->getActivePdo()
+oxphp-worker-1  | #6 /app/vendor/yiisoft/db/src/Command/AbstractCommand.php(607): Yiisoft\Db\Driver\Pdo\AbstractPdoCommand->prepare()
+oxphp-worker-1  | #7 /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoCommand.php(302): Yiisoft\Db\Command\AbstractCommand->queryInternal()
+oxphp-worker-1  | #8 /app/vendor/yiisoft/db/src/Command/AbstractCommand.php(410): Yiisoft\Db\Driver\Pdo\AbstractPdoCommand->queryInternal()
+oxphp-worker-1  | #9 /app/vendor/yiisoft/db/src/Query/Query.php(266): Yiisoft\Db\Command\AbstractCommand->queryAll()
+oxphp-worker-1  | #10 /app/src/Api/PostgresOrdersAction.php(39): Yiisoft\Db\Query\Query->all()
+oxphp-worker-1  | #11 /app/vendor/yiisoft/injector/src/Injector.php(86): App\Api\PostgresOrdersAction->__invoke()
+oxphp-worker-1  | #12 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareFactory.php(290): Yiisoft\Injector\Injector->invoke()
+oxphp-worker-1  | #13 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Psr\Http\Server\MiddlewareInterface@anonymous->process()
+oxphp-worker-1  | #14 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(49): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+oxphp-worker-1  | #15 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareDispatcher.php(48): Yiisoft\Middleware\Dispatcher\MiddlewareStack->handle()
+oxphp-worker-1  | #16 /app/vendor/yiisoft/router/src/Middleware/Router.php(59): Yiisoft\Middleware\Dispatcher\MiddlewareDispatcher->dispatch()
+oxphp-worker-1  | #17 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Yiisoft\Router\Middleware\Router->process()
+oxphp-worker-1  | #18 /app/vendor/yiisoft/request-body-parser/src/RequestBodyParser.php(130): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+oxphp-worker-1  | #19 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Yiisoft\Request\Body\RequestBodyParser->process()
+oxphp-worker-1  | #20 /app/vendor/yiisoft/error-handler/src/Middleware/ExceptionResponder.php(68): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+oxphp-worker-1  | #21 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareFactory.php(232): Yiisoft\ErrorHandler\Middleware\ExceptionResponder->process()
+oxphp-worker-1  | #22 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Psr\Http\Server\MiddlewareInterface@anonymous->process()
+oxphp-worker-1  | #23 /app/vendor/yiisoft/error-handler/src/Middleware/ErrorCatcher.php(32): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+oxphp-worker-1  | #24 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Yiisoft\ErrorHandler\Middleware\ErrorCatcher->process()
+oxphp-worker-1  | #25 /app/vendor/yiisoft/data-response/src/Middleware/ContentNegotiatorDataResponseMiddleware.php(47): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+oxphp-worker-1  | #26 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareFactory.php(232): Yiisoft\DataResponse\Middleware\ContentNegotiatorDataResponseMiddleware->process()
+oxphp-worker-1  | #27 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Psr\Http\Server\MiddlewareInterface@anonymous->process()
+oxphp-worker-1  | #28 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(49): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+oxphp-worker-1  | #29 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareDispatcher.php(48): Yiisoft\Middleware\Dispatcher\MiddlewareStack->handle()
+oxphp-worker-1  | #30 /app/vendor/yiisoft/yii-http/src/Application.php(81): Yiisoft\Middleware\Dispatcher\MiddlewareDispatcher->dispatch()
+oxphp-worker-1  | #31 /app/worker-oxphp.php(67): Yiisoft\Yii\Http\Application->handle()
+oxphp-worker-1  | #32 [internal function]: Yiisoft\Yii\Runner\ApplicationRunner@anonymous::{closure:Yiisoft\Yii\Runner\ApplicationRunner@anonymous()
+oxphp-worker-1  | #33 [internal function]: oxphp fiber loop()
+oxphp-worker-1  | #34 /app/worker-oxphp.php(61): oxphp_worker()
+oxphp-worker-1  | #35 /app/worker-oxphp.php(85): Yiisoft\Yii\Runner\ApplicationRunner@anonymous->run()
+oxphp-worker-1  | #36 {main}
+oxphp-worker-1  | 
+oxphp-worker-1  | Next Yiisoft\Db\Exception\Exception: SQLSTATE[08006] [7] connection to server at "postgres" (172.26.0.3), port 5432 failed: Address not available
+oxphp-worker-1  | 	Is the server running on that host and accepting TCP/IP connections? in /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoConnection.php:117
+oxphp-worker-1  | Stack trace:
+oxphp-worker-1  | #0 /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoConnection.php(147): Yiisoft\Db\Driver\Pdo\AbstractPdoConnection->open()
+oxphp-worker-1  | #1 /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoCommand.php(152): Yiisoft\Db\Driver\Pdo\AbstractPdoConnection->getActivePdo()
+oxphp-worker-1  | #2 /app/vendor/yiisoft/db/src/Command/AbstractCommand.php(607): Yiisoft\Db\Driver\Pdo\AbstractPdoCommand->prepare()
+oxphp-worker-1  | #3 /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoCommand.php(302): Yiisoft\Db\Command\AbstractCommand->queryInternal()
+oxphp-worker-1  | #4 /app/vendor/yiisoft/db/src/Command/AbstractCommand.php(410): Yiisoft\Db\Driver\Pdo\AbstractPdoCommand->queryInternal()
+oxphp-worker-1  | #5 /app/vendor/yiisoft/db/src/Query/Query.php(266): Yiisoft\Db\Command\AbstractCommand->queryAll()
+oxphp-worker-1  | #6 /app/src/Api/PostgresOrdersAction.php(39): Yiisoft\Db\Query\Query->all()
+oxphp-worker-1  | #7 /app/vendor/yiisoft/injector/src/Injector.php(86): App\Api\PostgresOrdersAction->__invoke()
+oxphp-worker-1  | #8 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareFactory.php(290): Yiisoft\Injector\Injector->invoke()
+oxphp-worker-1  | #9 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Psr\Http\Server\MiddlewareInterface@anonymous->process()
+oxphp-worker-1  | #10 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(49): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+oxphp-worker-1  | #11 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareDispatcher.php(48): Yiisoft\Middleware\Dispatcher\MiddlewareStack->handle()
+oxphp-worker-1  | #12 /app/vendor/yiisoft/router/src/Middleware/Router.php(59): Yiisoft\Middleware\Dispatcher\MiddlewareDispatcher->dispatch()
+oxphp-worker-1  | #13 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Yiisoft\Router\Middleware\Router->process()
+oxphp-worker-1  | #14 /app/vendor/yiisoft/request-body-parser/src/RequestBodyParser.php(130): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+oxphp-worker-1  | #15 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Yiisoft\Request\Body\RequestBodyParser->process()
+oxphp-worker-1  | #16 /app/vendor/yiisoft/error-handler/src/Middleware/ExceptionResponder.php(68): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+oxphp-worker-1  | #17 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareFactory.php(232): Yiisoft\ErrorHandler\Middleware\ExceptionResponder->process()
+oxphp-worker-1  | #18 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Psr\Http\Server\MiddlewareInterface@anonymous->process()
+oxphp-worker-1  | #19 /app/vendor/yiisoft/error-handler/src/Middleware/ErrorCatcher.php(32): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+oxphp-worker-1  | #20 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Yiisoft\ErrorHandler\Middleware\ErrorCatcher->process()
+oxphp-worker-1  | #21 /app/vendor/yiisoft/data-response/src/Middleware/ContentNegotiatorDataResponseMiddleware.php(47): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+oxphp-worker-1  | #22 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareFactory.php(232): Yiisoft\DataResponse\Middleware\ContentNegotiatorDataResponseMiddleware->process()
+oxphp-worker-1  | #23 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Psr\Http\Server\MiddlewareInterface@anonymous->process()
+oxphp-worker-1  | #24 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(49): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+oxphp-worker-1  | #25 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareDispatcher.php(48): Yiisoft\Middleware\Dispatcher\MiddlewareStack->handle()
+oxphp-worker-1  | #26 /app/vendor/yiisoft/yii-http/src/Application.php(81): Yiisoft\Middleware\Dispatcher\MiddlewareDispatcher->dispatch()
+oxphp-worker-1  | #27 /app/worker-oxphp.php(67): Yiisoft\Yii\Http\Application->handle()
+oxphp-worker-1  | #28 [internal function]: Yiisoft\Yii\Runner\ApplicationRunner@anonymous::{closure:Yiisoft\Yii\Runner\ApplicationRunner@anonymous()
+oxphp-worker-1  | #29 [internal function]: oxphp fiber loop()
+oxphp-worker-1  | #30 /app/worker-oxphp.php(61): oxphp_worker()
+oxphp-worker-1  | #31 /app/worker-oxphp.php(85): Yiisoft\Yii\Runner\ApplicationRunner@anonymous->run()
+oxphp-worker-1  | #32 {main}
+oxphp-worker-1  | Additional Information:
+oxphp-worker-1  | Array
+oxphp-worker-1  | (
+oxphp-worker-1  |     [0] => 08006
+oxphp-worker-1  |     [1] => 7
+oxphp-worker-1  |     [2] => connection to server at "postgres" (172.26.0.3), port 5432 failed: Address not available
+oxphp-worker-1  | 	Is the server running on that host and accepting TCP/IP connections?
+oxphp-worker-1  | )
+oxphp-worker-1  | 
+oxphp-worker-1  | 
+oxphp-worker-1  | 2026-10-02 15:53:57.591500 [error][application] SQLSTATE[08006] [7] connection to server at "postgres" (172.26.0.3), port 5432 failed: Address not available
+oxphp-worker-1  | 	Is the server running on that host and accepting TCP/IP connections?
+oxphp-worker-1  | 
+oxphp-worker-1  | Message context:
+oxphp-worker-1  | 
+oxphp-worker-1  | trace:
+oxphp-worker-1  |     
+oxphp-worker-1  | time: 1790956437.591488
+oxphp-worker-1  | memory: 693248
+oxphp-worker-1  | category: 'application'
+oxphp-worker-1  | throwable: PDOException: SQLSTATE[08006] [7] connection to server at "postgres" (172.26.0.3), port 5432 failed: Address not available
+oxphp-worker-1  | 	Is the server running on that host and accepting TCP/IP connections? in /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoDriver.php:41
+oxphp-worker-1  | Stack trace:
+oxphp-worker-1  | #0 /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoDriver.php(41): PDO->__construct()
+oxphp-worker-1  | #1 /app/vendor/yiisoft/db-pgsql/src/Driver.php(20): Yiisoft\Db\Driver\Pdo\AbstractPdoDriver->createConnection()
+oxphp-worker-1  | #2 /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoConnection.php(221): Yiisoft\Db\Pgsql\Driver->createConnection()
+oxphp-worker-1  | #3 /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoConnection.php(111): Yiisoft\Db\Driver\Pdo\AbstractPdoConnection->initConnection()
+oxphp-worker-1  | #4 /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoConnection.php(147): Yiisoft\Db\Driver\Pdo\AbstractPdoConnection->open()
+oxphp-worker-1  | #5 /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoCommand.php(152): Yiisoft\Db\Driver\Pdo\AbstractPdoConnection->getActivePdo()
+oxphp-worker-1  | #6 /app/vendor/yiisoft/db/src/Command/AbstractCommand.php(607): Yiisoft\Db\Driver\Pdo\AbstractPdoCommand->prepare()
+oxphp-worker-1  | #7 /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoCommand.php(302): Yiisoft\Db\Command\AbstractCommand->queryInternal()
+oxphp-worker-1  | #8 /app/vendor/yiisoft/db/src/Command/AbstractCommand.php(410): Yiisoft\Db\Driver\Pdo\AbstractPdoCommand->queryInternal()
+oxphp-worker-1  | #9 /app/vendor/yiisoft/db/src/Query/Query.php(266): Yiisoft\Db\Command\AbstractCommand->queryAll()
+oxphp-worker-1  | #10 /app/src/Api/PostgresOrdersAction.php(39): Yiisoft\Db\Query\Query->all()
+oxphp-worker-1  | #11 /app/vendor/yiisoft/injector/src/Injector.php(86): App\Api\PostgresOrdersAction->__invoke()
+oxphp-worker-1  | #12 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareFactory.php(290): Yiisoft\Injector\Injector->invoke()
+oxphp-worker-1  | #13 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Psr\Http\Server\MiddlewareInterface@anonymous->process()
+oxphp-worker-1  | #14 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(49): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+oxphp-worker-1  | #15 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareDispatcher.php(48): Yiisoft\Middleware\Dispatcher\MiddlewareStack->handle()
+oxphp-worker-1  | #16 /app/vendor/yiisoft/router/src/Middleware/Router.php(59): Yiisoft\Middleware\Dispatcher\MiddlewareDispatcher->dispatch()
