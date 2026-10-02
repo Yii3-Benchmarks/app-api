@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Benchmark Report</title>
+  <style>
+    :root {
+      --bg: #f4f1ea;
+      --panel: #fffdf8;
+      --text: #1f2933;
+      --muted: #5c6b73;
+      --line: #d6d0c4;
+      --accent: #b56576;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+      background:
+        radial-gradient(circle at top left, rgba(181, 101, 118, 0.12), transparent 30%),
+        linear-gradient(180deg, #f8f4ec 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 28px 24px 48px;
+    }
+    h1, h2 {
+      margin: 0 0 12px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+    h1 {
+      font-size: 2.2rem;
+    }
+    h2 {
+      font-size: 1.25rem;
+    }
+    p {
+      margin: 0 0 8px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .path {
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: 0.9rem;
+      word-break: break-all;
+    }
+    .grid {
+      display: grid;
+      gap: 20px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(31, 41, 51, 0.08);
+      border-radius: 18px;
+      padding: 20px 22px;
+      box-shadow: 0 18px 42px rgba(31, 41, 51, 0.06);
+    }
+    .summary-table, .metadata-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .summary-table th,
+    .summary-table td,
+    .metadata-table th,
+    .metadata-table td {
+      border-top: 1px solid var(--line);
+      padding: 10px 8px;
+      text-align: left;
+      vertical-align: top;
+      font-size: 0.95rem;
+    }
+    .summary-table th,
+    .metadata-table th {
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      width: 15%;
+    }
+    .summary-table tbody tr:hover { background-color: rgba(37, 99, 235, 0.08); }
+    .summary-table th button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; text-align: left; }
+    .summary-table th button::after { content: ' ↕'; }
+    .summary-table th[aria-sort="ascending"] button::after { content: ' ↑'; }
+    .summary-table th[aria-sort="descending"] button::after { content: ' ↓'; }
+    .chart-panel {
+      overflow: hidden;
+    }
+    .chart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+    .chart-header h2 {
+      margin-bottom: 0;
+    }
+    .chart-wrap {
+      width: 100%;
+      overflow-x: hidden;
+    }
+    .chart {
+      width: 100%;
+      height: auto;
+      display: block;
+      background: linear-gradient(180deg, rgba(255,255,255,0.55), rgba(246,241,233,0.95));
+      border-radius: 14px;
+      border: 1px solid rgba(31, 41, 51, 0.08);
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 18px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .style-legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 12px 18px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    button.legend-item {
+      font: inherit;
+      color: inherit;
+      background: transparent;
+      border: 0;
+      border-radius: 4px;
+      padding: 4px;
+      cursor: pointer;
+    }
+    .legend-item.is-dimmed {
+      opacity: 0.3;
+    }
+    .legend-item.is-highlighted {
+      color: var(--text);
+      box-shadow: 0 0 0 2px currentColor;
+    }
+    .legend-item:focus-visible {
+      outline: 2px solid var(--text);
+      outline-offset: 3px;
+    }
+    .summary-run {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .style-legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .legend-swatch {
+      width: 12px;
+      height: 12px;
+      display: inline-block;
+      border-radius: 999px;
+    }
+    .style-legend-swatch {
+      width: 24px;
+      height: 8px;
+      display: inline-block;
+    }
+    .style-legend-target {
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .meta-grid {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    @media (max-width: 720px) {
+      .meta-grid { grid-template-columns: 1fr; }
+      main { padding: 20px 14px 36px; }
+      h1 { font-size: 1.8rem; }
+      .panel { padding: 16px; }
+      .chart-header { align-items: flex-start; flex-direction: column; }
+      .style-legend { justify-content: flex-start; }
+      .summary-table th, .summary-table td, .metadata-table th, .metadata-table td { padding: 8px 6px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="grid">
+    <section class="panel">
+      <h1>Benchmark Report</h1>
+      <p>Generated 2026-10-02 13:13:05 UTC. This report combines wrkx stage summaries with Docker CPU and memory samples.</p>
+      <p><strong>Test system.</strong> <strong>OS:</strong> Ubuntu 26.04.1 LTS (x86_64); <strong>Kernel:</strong> Linux 7.0.0-34-generic; <strong>CPU:</strong> AMD Ryzen 9 7950X, 16 cores / 32 threads; <strong>Memory:</strong> 93.9 GiB usable RAM; <strong>Disk:</strong> Samsung SSD 980 PRO 2TB (NVMe); <strong>Filesystem:</strong> ext4 on LUKS-encrypted storage for the application and Docker data; Docker uses overlayfs.</p>
+      <p><strong>Run dates.</strong> 2026-10-02: OxPHP classic, OxPHP worker.</p>
+      <p><strong>Run note (2026-10-02).</strong> OxPHP worker DB began returning errors at the 30,000 RPS target. Runtime logs reported PostgreSQL connection failures (Address not available), and PostgreSQL rejected diagnostic connections with too many clients already. These failures are retained in the results; the other three OxPHP runs completed without recorded errors.</p>
+      <p>Charts show raw samples. For stage results, RPS cap marks the first stage with successful throughput more than 5% below target; per-second results use a sustained latency surge. The load generator can also limit throughput.</p>
+      <p>Hover over a chart legend label or focus it with Tab to highlight that run.</p>
+    </section>
+
+        <section class="panel">
+      <h2>Run Summary — Non-DB</h2>
+      <p>Normal latency averages samples before a detected latency surge or throughput cap, whichever comes first. Overloaded latency comes from the throughput-cap sample shown in the RPS columns. Runs may include different load levels in their normal averages, so these are not equal-load comparisons. Mean p95 averages the included sample percentiles, not pooled requests. — means no qualifying measurement.</p>
+      <details>
+        <summary>Calculation details</summary>
+        <p>For stage data, each sample represents one load stage. The first stage provides the latency baseline. A surge is detected when average latency reaches the largest of 20 ms, 4× baseline average latency, or baseline average latency + 12 ms. When baseline p95 is available, the stage must also have a p95 reaching the largest of 30 ms, 2.5× baseline p95, or baseline p95 + 15 ms. These thresholds are a heuristic, not a latency guarantee.</p>
+        <p>Normal averages exclude the first qualifying surge stage and all later stages, or stop earlier at the throughput cap. If the cap occurs in the first stage, no normal measurement is available. If no cap is reached, no overloaded measurement is available. For per-second data, the existing sustained latency-surge detector determines the cutoff, and averages use per-second samples.</p>
+      </details>
+      <table class="summary-table">
+        <thead>
+          <tr>
+            <th scope="col" aria-sort="none" data-sort-type="text"><button type="button">Run</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="text"><button type="button">Path</button></th>
+            <th scope="col" aria-sort="descending" data-sort-type="number"><button type="button">Successful RPS</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Target RPS</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Normal latency (avg)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Normal latency (mean p95)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Overloaded latency (avg)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Overloaded latency (p95)</button></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="summary-run"><span class="legend-swatch" style="background:#008000"></span>OxPHP worker</span></td><td>/</td><td data-sort-value="79491.339009531">79491</td><td data-sort-value="100000">100000</td><td data-sort-value="3.3993888888889">3.40 ms</td><td data-sort-value="21.142333333333">21.14 ms</td><td data-sort-value="4134.2522">4134.25 ms</td><td data-sort-value="6029.311">6029.31 ms</td></tr><tr><td><span class="summary-run"><span class="legend-swatch" style="background:#e6194b"></span>OxPHP classic</span></td><td>/</td><td data-sort-value="6948.3935195727">6948</td><td data-sort-value="10000">10000</td><td data-sort-value="6.26655">6.27 ms</td><td data-sort-value="11.059">11.06 ms</td><td data-sort-value="6063.9251">6063.93 ms</td><td data-sort-value="8847.359">8847.36 ms</td></tr>
+        </tbody>
+      </table>
+    </section>    <section class="panel">
+      <h2>Run Summary — DB</h2>
+      <p>Normal latency averages samples before a detected latency surge or throughput cap, whichever comes first. Overloaded latency comes from the throughput-cap sample shown in the RPS columns. Runs may include different load levels in their normal averages, so these are not equal-load comparisons. Mean p95 averages the included sample percentiles, not pooled requests. — means no qualifying measurement.</p>
+      <details>
+        <summary>Calculation details</summary>
+        <p>For stage data, each sample represents one load stage. The first stage provides the latency baseline. A surge is detected when average latency reaches the largest of 20 ms, 4× baseline average latency, or baseline average latency + 12 ms. When baseline p95 is available, the stage must also have a p95 reaching the largest of 30 ms, 2.5× baseline p95, or baseline p95 + 15 ms. These thresholds are a heuristic, not a latency guarantee.</p>
+        <p>Normal averages exclude the first qualifying surge stage and all later stages, or stop earlier at the throughput cap. If the cap occurs in the first stage, no normal measurement is available. If no cap is reached, no overloaded measurement is available. For per-second data, the existing sustained latency-surge detector determines the cutoff, and averages use per-second samples.</p>
+      </details>
+      <table class="summary-table">
+        <thead>
+          <tr>
+            <th scope="col" aria-sort="none" data-sort-type="text"><button type="button">Run</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="text"><button type="button">Path</button></th>
+            <th scope="col" aria-sort="descending" data-sort-type="number"><button type="button">Successful RPS</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Target RPS</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Normal latency (avg)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Normal latency (mean p95)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Overloaded latency (avg)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Overloaded latency (p95)</button></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="summary-run"><span class="legend-swatch" style="background:#f58200"></span>OxPHP worker DB</span></td><td>/postgres/orders</td><td data-sort-value="12840.49196729">12840</td><td data-sort-value="15000">15000</td><td data-sort-value="3.5854">3.59 ms</td><td data-sort-value="4.8996666666667">4.90 ms</td><td data-sort-value="2951.136">2951.14 ms</td><td data-sort-value="4171.775">4171.77 ms</td></tr><tr><td><span class="summary-run"><span class="legend-swatch" style="background:#4363d8"></span>OxPHP classic DB</span></td><td>/postgres/orders</td><td data-sort-value="4268.1789436505">4268</td><td data-sort-value="5000">5000</td><td data-sort-value="12.9697">12.97 ms</td><td data-sort-value="22.479">22.48 ms</td><td data-sort-value="2894.3959">2894.40 ms</td><td data-sort-value="4239.359">4239.36 ms</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <h2>Worker no DB</h2><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Request Rate Per Second</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  successful
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="2 4" stroke-linecap="round"></line>
+  </svg>
+  issued
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  errored
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-home-requests-per-second" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-home-requests-per-second" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Latency (ms)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  avg
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  p95
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-home-latency" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-home-latency" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP CPU (% of one core, 100% = 1 core)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-home-cpu-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-home-cpu-app" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP Memory (MiB)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-home-memory-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-home-memory-app" class="legend"></div>
+</section><h2>Worker DB</h2><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Request Rate Per Second</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  successful
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="2 4" stroke-linecap="round"></line>
+  </svg>
+  issued
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  errored
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-db-requests-per-second" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-db-requests-per-second" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Latency (ms)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  avg
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  p95
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-db-latency" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-db-latency" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP CPU (% of one core, 100% = 1 core)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-db-cpu-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-db-cpu-app" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP Memory (MiB)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-db-memory-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-db-memory-app" class="legend"></div>
+</section><h2>Non-worker no DB</h2><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Request Rate Per Second</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  successful
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="2 4" stroke-linecap="round"></line>
+  </svg>
+  issued
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  errored
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-non-worker-home-requests-per-second" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-non-worker-home-requests-per-second" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Latency (ms)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  avg
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  p95
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-non-worker-home-latency" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-non-worker-home-latency" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP CPU (% of one core, 100% = 1 core)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-non-worker-home-cpu-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-non-worker-home-cpu-app" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP Memory (MiB)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-non-worker-home-memory-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-non-worker-home-memory-app" class="legend"></div>
+</section><h2>Non-worker DB</h2><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Request Rate Per Second</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  successful
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="2 4" stroke-linecap="round"></line>
+  </svg>
+  issued
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  errored
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-non-worker-db-requests-per-second" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-non-worker-db-requests-per-second" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Latency (ms)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  avg
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  p95
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-non-worker-db-latency" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-non-worker-db-latency" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP CPU (% of one core, 100% = 1 core)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-non-worker-db-cpu-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-non-worker-db-cpu-app" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP Memory (MiB)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-non-worker-db-memory-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-non-worker-db-memory-app" class="legend"></div>
+</section>
+
+    <section class="meta-grid">
+      <section class="panel">
+  <h2>OxPHP classic</h2>
+  <p class="path">/home/samdark/src/yii3-benchmarks/app-api/results/samdark_2026-10-02/20261002T124550Z-OxPHP-classic-home-ramp</p>
+  <table class="metadata-table">
+    <tr><th>BASE_URL</th><td>http://localhost:9991</td></tr><tr><th>TARGET_NAME</th><td>home</td></tr><tr><th>TARGET_PATH</th><td>/</td></tr><tr><th>BENCH_NAME</th><td>OxPHP classic</td></tr><tr><th>MODE</th><td>ramp</td></tr><tr><th>CAPTURE_METRICS</th><td>1</td></tr><tr><th>RATE</th><td>10000</td></tr><tr><th>DURATION</th><td>160s</td></tr><tr><th>THREADS</th><td>32</td></tr><tr><th>CONNECTIONS</th><td>256</td></tr><tr><th>STAGES</th><td>[{&quot;target&quot;:2500,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:5000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:10000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:15000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:20000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:25000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:30000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:40000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:50000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:75000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:100000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:150000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:200000,&quot;duration&quot;:&quot;30s&quot;}]</td></tr><tr><th>COMPOSE_PROJECT_NAME</th><td>yii3-benchmarks-oxphp-classic</td></tr><tr><th>WRKX_REF</th><td>bec57539360771bedc2fc63a48e3746f1b7a9975</td></tr><tr><th>WARMUP_DURATION</th><td>10s</td></tr><tr><th>WARMUP_RATE</th><td>1000</td></tr>
+  </table>
+</section><section class="panel">
+  <h2>OxPHP classic DB</h2>
+  <p class="path">/home/samdark/src/yii3-benchmarks/app-api/results/samdark_2026-10-02/20261002T125237Z-OxPHP-classic-DB-postgres-orders-ramp</p>
+  <table class="metadata-table">
+    <tr><th>BASE_URL</th><td>http://localhost:9991</td></tr><tr><th>TARGET_NAME</th><td>postgres-orders</td></tr><tr><th>TARGET_PATH</th><td>/postgres/orders</td></tr><tr><th>BENCH_NAME</th><td>OxPHP classic DB</td></tr><tr><th>MODE</th><td>ramp</td></tr><tr><th>CAPTURE_METRICS</th><td>1</td></tr><tr><th>RATE</th><td>10000</td></tr><tr><th>DURATION</th><td>160s</td></tr><tr><th>THREADS</th><td>32</td></tr><tr><th>CONNECTIONS</th><td>256</td></tr><tr><th>STAGES</th><td>[{&quot;target&quot;:2500,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:5000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:10000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:15000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:20000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:25000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:30000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:40000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:50000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:75000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:100000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:150000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:200000,&quot;duration&quot;:&quot;30s&quot;}]</td></tr><tr><th>COMPOSE_PROJECT_NAME</th><td>yii3-benchmarks-oxphp-classic</td></tr><tr><th>WRKX_REF</th><td>bec57539360771bedc2fc63a48e3746f1b7a9975</td></tr><tr><th>WARMUP_DURATION</th><td>10s</td></tr><tr><th>WARMUP_RATE</th><td>1000</td></tr>
+  </table>
+</section><section class="panel">
+  <h2>OxPHP worker</h2>
+  <p class="path">/home/samdark/src/yii3-benchmarks/app-api/results/samdark_2026-10-02/20261002T125932Z-OxPHP-worker-home-ramp</p>
+  <table class="metadata-table">
+    <tr><th>BASE_URL</th><td>http://localhost:9991</td></tr><tr><th>TARGET_NAME</th><td>home</td></tr><tr><th>TARGET_PATH</th><td>/</td></tr><tr><th>BENCH_NAME</th><td>OxPHP worker</td></tr><tr><th>MODE</th><td>ramp</td></tr><tr><th>CAPTURE_METRICS</th><td>1</td></tr><tr><th>RATE</th><td>10000</td></tr><tr><th>DURATION</th><td>160s</td></tr><tr><th>THREADS</th><td>32</td></tr><tr><th>CONNECTIONS</th><td>256</td></tr><tr><th>STAGES</th><td>[{&quot;target&quot;:2500,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:5000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:10000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:15000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:20000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:25000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:30000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:40000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:50000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:75000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:100000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:150000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:200000,&quot;duration&quot;:&quot;30s&quot;}]</td></tr><tr><th>COMPOSE_PROJECT_NAME</th><td>yii3-benchmarks-oxphp-worker</td></tr><tr><th>WRKX_REF</th><td>bec57539360771bedc2fc63a48e3746f1b7a9975</td></tr><tr><th>WARMUP_DURATION</th><td>10s</td></tr><tr><th>WARMUP_RATE</th><td>1000</td></tr>
+  </table>
+</section><section class="panel">
+  <h2>OxPHP worker DB</h2>
+  <p class="path">/home/samdark/src/yii3-benchmarks/app-api/results/samdark_2026-10-02/20261002T130619Z-OxPHP-worker-DB-postgres-orders-ramp</p>
+  <table class="metadata-table">
+    <tr><th>BASE_URL</th><td>http://localhost:9991</td></tr><tr><th>TARGET_NAME</th><td>postgres-orders</td></tr><tr><th>TARGET_PATH</th><td>/postgres/orders</td></tr><tr><th>BENCH_NAME</th><td>OxPHP worker DB</td></tr><tr><th>MODE</th><td>ramp</td></tr><tr><th>CAPTURE_METRICS</th><td>1</td></tr><tr><th>RATE</th><td>10000</td></tr><tr><th>DURATION</th><td>160s</td></tr><tr><th>THREADS</th><td>32</td></tr><tr><th>CONNECTIONS</th><td>256</td></tr><tr><th>STAGES</th><td>[{&quot;target&quot;:2500,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:5000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:10000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:15000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:20000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:25000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:30000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:40000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:50000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:75000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:100000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:150000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:200000,&quot;duration&quot;:&quot;30s&quot;}]</td></tr><tr><th>COMPOSE_PROJECT_NAME</th><td>yii3-benchmarks-oxphp-worker</td></tr><tr><th>WRKX_REF</th><td>bec57539360771bedc2fc63a48e3746f1b7a9975</td></tr><tr><th>WARMUP_DURATION</th><td>10s</td></tr><tr><th>WARMUP_RATE</th><td>1000</td></tr>
+  </table>
+</section>
+    </section>
+  </main>
+
+  <script>
+    const reportData = {"charts":[{"id":"worker-home-requests-per-second","title":"Request Rate Per Second","series":[{"label":"OxPHP worker issued","runLabel":"OxPHP worker","color":"#008000","runIndex":2,"affectsYAxis":false,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000}],"showPoints":false,"dash":[2,4],"capSecond":300,"errorStartSecond":null},{"label":"OxPHP worker successful","runLabel":"OxPHP worker","color":"#008000","runIndex":2,"affectsYAxis":true,"points":[{"x":0,"y":2500.9379},{"x":30,"y":5000.5562},{"x":60,"y":10001.2029},{"x":90,"y":14994.3815},{"x":120,"y":19988.0413},{"x":150,"y":24995.0589},{"x":180,"y":29980.7482},{"x":210,"y":39995.0003},{"x":240,"y":49986.295},{"x":270,"y":74568.9141},{"x":300,"y":79491.339},{"x":330,"y":80179.8673},{"x":360,"y":79883.3223}],"showPoints":false,"dash":[],"capSecond":300,"errorStartSecond":null,"startMarker":true},{"label":"OxPHP worker errored","runLabel":"OxPHP worker","color":"#008000","runIndex":2,"affectsYAxis":true,"points":[{"x":0,"y":0},{"x":30,"y":0},{"x":60,"y":0},{"x":90,"y":0},{"x":120,"y":0},{"x":150,"y":0},{"x":180,"y":0},{"x":210,"y":0},{"x":240,"y":0},{"x":270,"y":0},{"x":300,"y":0},{"x":330,"y":0},{"x":360,"y":0}],"showPoints":false,"dash":[8,4],"capSecond":300,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"OxPHP worker","runLabel":"OxPHP worker","color":"#008000","runIndex":2,"affectsYAxis":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":300,"errorStartSecond":null}],"styleLegend":[{"label":"successful","dash":[]},{"label":"issued","dash":[2,4]},{"label":"errored","dash":[8,4]}],"format":"integer","smoothingWindow":0,"group":"Worker no DB"},{"id":"worker-home-latency","title":"Latency (ms)","series":[{"label":"OxPHP worker avg","runLabel":"OxPHP worker","color":"#008000","runIndex":2,"affectsYAxis":true,"points":[{"x":0,"y":1.0457},{"x":30,"y":1.1582},{"x":60,"y":1.0715},{"x":90,"y":0.9517},{"x":120,"y":1.1194},{"x":150,"y":1.0927},{"x":180,"y":1.974},{"x":210,"y":18.7103},{"x":240,"y":3.471},{"x":270,"y":91.0567},{"x":300,"y":4134.2522},{"x":330,"y":9262.0587},{"x":360,"y":11971.5953}],"showPoints":false,"dash":[],"capSecond":300,"errorStartSecond":null},{"label":"OxPHP worker p95","runLabel":"OxPHP worker","color":"#008000","runIndex":2,"affectsYAxis":true,"points":[{"x":0,"y":1.696},{"x":30,"y":1.87},{"x":60,"y":1.809},{"x":90,"y":1.672},{"x":120,"y":1.887},{"x":150,"y":1.8},{"x":180,"y":2.249},{"x":210,"y":174.463},{"x":240,"y":2.835},{"x":270,"y":355.583},{"x":300,"y":6029.311},{"x":330,"y":13393.919},{"x":360,"y":17268.735}],"showPoints":false,"dash":[8,4],"capSecond":300,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"OxPHP worker","runLabel":"OxPHP worker","color":"#008000","runIndex":2,"affectsYAxis":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":300,"errorStartSecond":null}],"styleLegend":[{"label":"avg","dash":[]},{"label":"p95","dash":[8,4]}],"format":"milliseconds-integer","smoothingWindow":0,"yMax":6029.311,"group":"Worker no DB"},{"id":"worker-home-cpu-app","title":"APP CPU (% of one core, 100% = 1 core)","series":[{"label":"OxPHP worker","runLabel":"OxPHP worker","color":"#008000","points":[{"x":0,"y":61.65},{"x":3,"y":63.85},{"x":6,"y":63.31},{"x":9,"y":61.99},{"x":12,"y":62.11},{"x":15,"y":62.72},{"x":18,"y":64.79},{"x":21,"y":64.82},{"x":24,"y":65.36},{"x":27,"y":64.75},{"x":30,"y":129.87},{"x":33,"y":130.14},{"x":36,"y":127.6},{"x":39,"y":133.13},{"x":42,"y":133.39},{"x":45,"y":126.11},{"x":48,"y":131.67},{"x":51,"y":128.41},{"x":54,"y":128.37},{"x":57,"y":127.9},{"x":60,"y":135.01},{"x":63,"y":229.22},{"x":66,"y":227.97},{"x":69,"y":239.5},{"x":72,"y":241.31},{"x":75,"y":227.07},{"x":78,"y":240.43},{"x":81,"y":228.86},{"x":84,"y":236.08},{"x":87,"y":238.45},{"x":90,"y":316.4},{"x":94,"y":315.98},{"x":97,"y":317.02},{"x":100,"y":315.12},{"x":103,"y":315.45},{"x":106,"y":312.7},{"x":109,"y":320.81},{"x":112,"y":315.03},{"x":115,"y":311.85},{"x":118,"y":312.57},{"x":121,"y":451.69},{"x":124,"y":449.82},{"x":127,"y":455.06},{"x":130,"y":454.2},{"x":133,"y":440.7},{"x":136,"y":453.72},{"x":139,"y":447.95},{"x":142,"y":464.32},{"x":145,"y":445.8},{"x":148,"y":448.3},{"x":151,"y":309.51},{"x":154,"y":587.75},{"x":157,"y":588.38},{"x":160,"y":584.5},{"x":163,"y":598.52},{"x":166,"y":589.78},{"x":169,"y":592.37},{"x":172,"y":586.14},{"x":175,"y":587.3},{"x":178,"y":591.66},{"x":181,"y":674.72},{"x":184,"y":650.61},{"x":187,"y":696.46},{"x":190,"y":669.94},{"x":193,"y":684.61},{"x":196,"y":699.55},{"x":199,"y":693.11},{"x":202,"y":690.96},{"x":205,"y":699.37},{"x":208,"y":694.71},{"x":211,"y":614.14},{"x":214,"y":957.23},{"x":217,"y":692.58},{"x":220,"y":951.45},{"x":223,"y":945.89},{"x":226,"y":692.6},{"x":230,"y":950.37},{"x":233,"y":1134.23},{"x":236,"y":960.15},{"x":239,"y":954.3},{"x":242,"y":935.69},{"x":245,"y":1214.17},{"x":248,"y":1205.25},{"x":251,"y":1227.57},{"x":254,"y":1211.98},{"x":257,"y":1215.36},{"x":260,"y":1207.35},{"x":263,"y":1216.76},{"x":266,"y":1211.85},{"x":269,"y":1234.74},{"x":272,"y":1122.49},{"x":275,"y":1875.81},{"x":278,"y":2136.31},{"x":281,"y":1729.11},{"x":284,"y":1115.97},{"x":287,"y":2112.49},{"x":290,"y":1903.46},{"x":293,"y":2153.45},{"x":296,"y":1999.86},{"x":299,"y":1866.37},{"x":302,"y":1548.52},{"x":305,"y":1893},{"x":308,"y":1517.07},{"x":311,"y":1880.69},{"x":314,"y":2128.78},{"x":317,"y":2020.52},{"x":320,"y":1547.64},{"x":323,"y":1511.03},{"x":327,"y":1491.24},{"x":330,"y":2119.8},{"x":333,"y":1567.49},{"x":336,"y":2148.74},{"x":339,"y":2135.38},{"x":342,"y":2058.22},{"x":345,"y":1512.39},{"x":348,"y":2131.57},{"x":351,"y":1820.25},{"x":354,"y":1497.89},{"x":357,"y":2004.69},{"x":360,"y":1506.89},{"x":363,"y":1627.36},{"x":366,"y":2140.96},{"x":369,"y":2156.48},{"x":372,"y":2149.32},{"x":375,"y":1521.93},{"x":378,"y":2166.2},{"x":381,"y":2093.48},{"x":384,"y":1505.58},{"x":387,"y":1982.99},{"x":390,"y":2125.1}],"capSecond":300,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"OxPHP worker","runLabel":"OxPHP worker","color":"#008000","runIndex":2,"affectsYAxis":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":300,"errorStartSecond":null}],"format":"percent-integer","smoothingWindow":0,"group":"Worker no DB"},{"id":"worker-home-memory-app","title":"APP Memory (MiB)","series":[{"label":"OxPHP worker","runLabel":"OxPHP worker","color":"#008000","points":[{"x":0,"y":150.9},{"x":3,"y":151},{"x":6,"y":151.1},{"x":9,"y":151},{"x":12,"y":150.7},{"x":15,"y":151.4},{"x":18,"y":150.6},{"x":21,"y":148.3},{"x":24,"y":148.6},{"x":27,"y":148.9},{"x":30,"y":153.4},{"x":33,"y":153.1},{"x":36,"y":153.2},{"x":39,"y":153.3},{"x":42,"y":152.8},{"x":45,"y":152.3},{"x":48,"y":153.3},{"x":51,"y":149.5},{"x":54,"y":146.6},{"x":57,"y":147.1},{"x":60,"y":147.5},{"x":63,"y":146.8},{"x":66,"y":147.5},{"x":69,"y":146.9},{"x":72,"y":144.2},{"x":75,"y":144.2},{"x":78,"y":150.9},{"x":81,"y":149.8},{"x":84,"y":149.9},{"x":87,"y":150.3},{"x":90,"y":150.2},{"x":94,"y":152.8},{"x":97,"y":160.4},{"x":100,"y":159.2},{"x":103,"y":159.7},{"x":106,"y":159.4},{"x":109,"y":161},{"x":112,"y":160.3},{"x":115,"y":161.1},{"x":118,"y":160},{"x":121,"y":160.6},{"x":124,"y":162.9},{"x":127,"y":161.8},{"x":130,"y":160.9},{"x":133,"y":164.1},{"x":136,"y":165.4},{"x":139,"y":164.9},{"x":142,"y":170.1},{"x":145,"y":168.1},{"x":148,"y":168},{"x":151,"y":168.6},{"x":154,"y":166.4},{"x":157,"y":161.8},{"x":160,"y":163.3},{"x":163,"y":166.4},{"x":166,"y":166.1},{"x":169,"y":168.9},{"x":172,"y":168.2},{"x":175,"y":169.3},{"x":178,"y":168.7},{"x":181,"y":169.7},{"x":184,"y":170.3},{"x":187,"y":168.5},{"x":190,"y":167.9},{"x":193,"y":170.4},{"x":196,"y":170.6},{"x":199,"y":172},{"x":202,"y":172.1},{"x":205,"y":171.9},{"x":208,"y":172},{"x":211,"y":167.8},{"x":214,"y":174.5},{"x":217,"y":170.7},{"x":220,"y":174.9},{"x":223,"y":176.4},{"x":226,"y":174.4},{"x":230,"y":174.3},{"x":233,"y":171.6},{"x":236,"y":171.5},{"x":239,"y":172.8},{"x":242,"y":173.8},{"x":245,"y":173.6},{"x":248,"y":170.7},{"x":251,"y":172.7},{"x":254,"y":173.2},{"x":257,"y":174.3},{"x":260,"y":174.7},{"x":263,"y":174.4},{"x":266,"y":175.2},{"x":269,"y":174.4},{"x":272,"y":169.7},{"x":275,"y":177.6},{"x":278,"y":179.6},{"x":281,"y":182.6},{"x":284,"y":182.6},{"x":287,"y":184.2},{"x":290,"y":182.7},{"x":293,"y":182.5},{"x":296,"y":186.2},{"x":299,"y":183.6},{"x":302,"y":184.7},{"x":305,"y":184.2},{"x":308,"y":188.2},{"x":311,"y":187.8},{"x":314,"y":186.1},{"x":317,"y":186.8},{"x":320,"y":184.1},{"x":323,"y":189},{"x":327,"y":185.2},{"x":330,"y":185.5},{"x":333,"y":187},{"x":336,"y":186.7},{"x":339,"y":187.3},{"x":342,"y":186.2},{"x":345,"y":189.1},{"x":348,"y":190.3},{"x":351,"y":187.5},{"x":354,"y":188},{"x":357,"y":190.2},{"x":360,"y":191.6},{"x":363,"y":192},{"x":366,"y":191.8},{"x":369,"y":192.5},{"x":372,"y":194},{"x":375,"y":194.9},{"x":378,"y":197.1},{"x":381,"y":196.7},{"x":384,"y":198.1},{"x":387,"y":197.3},{"x":390,"y":199.6}],"capSecond":300,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"OxPHP worker","runLabel":"OxPHP worker","color":"#008000","runIndex":2,"affectsYAxis":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":300,"errorStartSecond":null}],"format":"integer","group":"Worker no DB"},{"id":"worker-db-requests-per-second","title":"Request Rate Per Second","series":[{"label":"OxPHP worker DB issued","runLabel":"OxPHP worker DB","color":"#f58200","runIndex":3,"affectsYAxis":false,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000}],"showPoints":false,"dash":[2,4],"capSecond":90,"errorStartSecond":180},{"label":"OxPHP worker DB successful","runLabel":"OxPHP worker DB","color":"#f58200","runIndex":3,"affectsYAxis":true,"points":[{"x":0,"y":2500.8376},{"x":30,"y":5002.8343},{"x":60,"y":9999.6163},{"x":90,"y":12840.492},{"x":120,"y":12616.8411},{"x":150,"y":12762.9619},{"x":180,"y":8425.0996},{"x":210,"y":0},{"x":240,"y":0},{"x":270,"y":0},{"x":300,"y":0},{"x":330,"y":0},{"x":360,"y":0}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":180,"startMarker":true},{"label":"OxPHP worker DB errored","runLabel":"OxPHP worker DB","color":"#f58200","runIndex":3,"affectsYAxis":true,"points":[{"x":0,"y":0},{"x":30,"y":0},{"x":60,"y":0},{"x":90,"y":0},{"x":120,"y":0},{"x":150,"y":0},{"x":180,"y":1345.0557},{"x":210,"y":3899.2925},{"x":240,"y":3864.4105},{"x":270,"y":3895.0598},{"x":300,"y":3884.2625},{"x":330,"y":3848.1206},{"x":360,"y":3899.0904}],"showPoints":false,"dash":[8,4],"capSecond":90,"errorStartSecond":180}],"xAxisTargetSeries":[{"label":"OxPHP worker DB","runLabel":"OxPHP worker DB","color":"#f58200","runIndex":3,"affectsYAxis":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":180}],"styleLegend":[{"label":"successful","dash":[]},{"label":"issued","dash":[2,4]},{"label":"errored","dash":[8,4]}],"format":"integer","smoothingWindow":0,"group":"Worker DB"},{"id":"worker-db-latency","title":"Latency (ms)","series":[{"label":"OxPHP worker DB avg","runLabel":"OxPHP worker DB","color":"#f58200","runIndex":3,"affectsYAxis":true,"points":[{"x":0,"y":2.4827},{"x":30,"y":2.6479},{"x":60,"y":5.6256},{"x":90,"y":2951.136},{"x":120,"y":7499.3298},{"x":150,"y":9835.5076},{"x":180,"y":10272.0961},{"x":210,"y":18042.1022},{"x":240,"y":18482.6666},{"x":270,"y":18925.0121},{"x":300,"y":19201.9742},{"x":330,"y":19484.7223},{"x":360,"y":19672.2086}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":180},{"label":"OxPHP worker DB p95","runLabel":"OxPHP worker DB","color":"#f58200","runIndex":3,"affectsYAxis":true,"points":[{"x":0,"y":3.869},{"x":30,"y":4.595},{"x":60,"y":6.235},{"x":90,"y":4171.775},{"x":120,"y":10731.519},{"x":150,"y":14196.735},{"x":180,"y":18333.695},{"x":210,"y":26148.863},{"x":240,"y":26673.151},{"x":270,"y":27459.583},{"x":300,"y":27754.495},{"x":330,"y":28246.015},{"x":360,"y":28442.623}],"showPoints":false,"dash":[8,4],"capSecond":90,"errorStartSecond":180}],"xAxisTargetSeries":[{"label":"OxPHP worker DB","runLabel":"OxPHP worker DB","color":"#f58200","runIndex":3,"affectsYAxis":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":180}],"styleLegend":[{"label":"avg","dash":[]},{"label":"p95","dash":[8,4]}],"format":"milliseconds-integer","smoothingWindow":0,"yMax":4171.775,"group":"Worker DB"},{"id":"worker-db-cpu-app","title":"APP CPU (% of one core, 100% = 1 core)","series":[{"label":"OxPHP worker DB","runLabel":"OxPHP worker DB","color":"#f58200","points":[{"x":0,"y":132.19},{"x":4,"y":136.24},{"x":7,"y":131.34},{"x":10,"y":139.88},{"x":13,"y":136.7},{"x":16,"y":137.87},{"x":19,"y":131.43},{"x":22,"y":134.54},{"x":25,"y":128.18},{"x":28,"y":136.9},{"x":31,"y":271.75},{"x":34,"y":269.33},{"x":37,"y":266.08},{"x":40,"y":347.1},{"x":43,"y":269},{"x":46,"y":263.64},{"x":49,"y":264.74},{"x":52,"y":260.47},{"x":55,"y":260.19},{"x":58,"y":261.61},{"x":61,"y":597.08},{"x":64,"y":582.73},{"x":67,"y":580.17},{"x":70,"y":664.69},{"x":73,"y":587.61},{"x":76,"y":583.63},{"x":79,"y":588.43},{"x":82,"y":584.34},{"x":85,"y":595.31},{"x":88,"y":590.36},{"x":91,"y":756.85},{"x":94,"y":779.35},{"x":97,"y":779.73},{"x":100,"y":778.37},{"x":103,"y":779.06},{"x":106,"y":706.35},{"x":109,"y":778.85},{"x":112,"y":777.51},{"x":115,"y":777.53},{"x":118,"y":777.84},{"x":121,"y":583.02},{"x":125,"y":773.03},{"x":128,"y":779.09},{"x":131,"y":781.2},{"x":134,"y":774.69},{"x":137,"y":763.8},{"x":140,"y":780.1},{"x":143,"y":777.96},{"x":146,"y":770.56},{"x":149,"y":772.05},{"x":152,"y":508.56},{"x":155,"y":768.22},{"x":158,"y":772.68},{"x":161,"y":773.36},{"x":164,"y":774.05},{"x":167,"y":777.45},{"x":170,"y":768.75},{"x":173,"y":779.29},{"x":176,"y":780.05},{"x":179,"y":774.9},{"x":182,"y":781.8},{"x":185,"y":695.41},{"x":188,"y":776.77},{"x":191,"y":774.72},{"x":194,"y":777.1},{"x":197,"y":778.06},{"x":200,"y":776.73},{"x":203,"y":268.74},{"x":206,"y":954.66},{"x":209,"y":2006.84},{"x":212,"y":1998.33},{"x":215,"y":2009.9},{"x":218,"y":2003.92},{"x":221,"y":2004.58},{"x":224,"y":1995.1},{"x":228,"y":1999.68},{"x":231,"y":2000.91},{"x":234,"y":2000.79},{"x":237,"y":1997.2},{"x":240,"y":1994.63},{"x":243,"y":1984.71},{"x":246,"y":2008.9},{"x":249,"y":1999.45},{"x":252,"y":1936.33},{"x":255,"y":1971.56},{"x":258,"y":1998.01},{"x":261,"y":1616.06},{"x":264,"y":2013.21},{"x":267,"y":283.03},{"x":270,"y":1163.67},{"x":273,"y":683.82},{"x":276,"y":2005.64},{"x":279,"y":2000.01},{"x":282,"y":2006.56},{"x":285,"y":2001.85},{"x":288,"y":2004.04},{"x":291,"y":1999.66},{"x":294,"y":1990.1},{"x":297,"y":2006.95},{"x":300,"y":1991.68},{"x":303,"y":1728.27},{"x":306,"y":1985.8},{"x":309,"y":2005.4},{"x":312,"y":2001.89},{"x":315,"y":2004.21},{"x":318,"y":2009.06},{"x":321,"y":1977.49},{"x":324,"y":1997.52},{"x":327,"y":312.72},{"x":330,"y":439.02},{"x":333,"y":840.02},{"x":335,"y":969.27},{"x":338,"y":1986.34},{"x":342,"y":1999.52},{"x":345,"y":1999.21},{"x":348,"y":1998.45},{"x":351,"y":2012.26},{"x":354,"y":2007.45},{"x":357,"y":2004.27},{"x":360,"y":2008.82},{"x":363,"y":2010.44},{"x":366,"y":1998.51},{"x":369,"y":2009.23},{"x":372,"y":2006.2},{"x":375,"y":2001.02},{"x":378,"y":2007.2},{"x":381,"y":1989.76},{"x":384,"y":1847.77},{"x":387,"y":1886.06},{"x":390,"y":1995.62},{"x":393,"y":1186.64}],"capSecond":90,"errorStartSecond":180}],"xAxisTargetSeries":[{"label":"OxPHP worker DB","runLabel":"OxPHP worker DB","color":"#f58200","runIndex":3,"affectsYAxis":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":180}],"format":"percent-integer","smoothingWindow":0,"group":"Worker DB"},{"id":"worker-db-memory-app","title":"APP Memory (MiB)","series":[{"label":"OxPHP worker DB","runLabel":"OxPHP worker DB","color":"#f58200","points":[{"x":0,"y":208.4},{"x":4,"y":208.8},{"x":7,"y":208.1},{"x":10,"y":207.3},{"x":13,"y":207.9},{"x":16,"y":208},{"x":19,"y":207.8},{"x":22,"y":208.4},{"x":25,"y":208.4},{"x":28,"y":208.2},{"x":31,"y":210.2},{"x":34,"y":210.8},{"x":37,"y":209.7},{"x":40,"y":219},{"x":43,"y":220.6},{"x":46,"y":221.2},{"x":49,"y":221.2},{"x":52,"y":220.7},{"x":55,"y":220.8},{"x":58,"y":221},{"x":61,"y":221.7},{"x":64,"y":214.4},{"x":67,"y":214.2},{"x":70,"y":222.9},{"x":73,"y":222.3},{"x":76,"y":222.9},{"x":79,"y":222.6},{"x":82,"y":219.6},{"x":85,"y":215},{"x":88,"y":215.8},{"x":91,"y":232.1},{"x":94,"y":232.6},{"x":97,"y":230.7},{"x":100,"y":219.7},{"x":103,"y":219.9},{"x":106,"y":220.3},{"x":109,"y":228.1},{"x":112,"y":228},{"x":115,"y":221.2},{"x":118,"y":221.1},{"x":121,"y":224.7},{"x":125,"y":235.6},{"x":128,"y":234.3},{"x":131,"y":234.9},{"x":134,"y":224},{"x":137,"y":224.7},{"x":140,"y":234.8},{"x":143,"y":234.8},{"x":146,"y":234.9},{"x":149,"y":228.8},{"x":152,"y":229.4},{"x":155,"y":241.9},{"x":158,"y":241.8},{"x":161,"y":242.2},{"x":164,"y":241.9},{"x":167,"y":232.9},{"x":170,"y":236.2},{"x":173,"y":248.7},{"x":176,"y":247.6},{"x":179,"y":240.5},{"x":182,"y":241.7},{"x":185,"y":250.1},{"x":188,"y":254.8},{"x":191,"y":255.4},{"x":194,"y":255.2},{"x":197,"y":249},{"x":200,"y":252.3},{"x":203,"y":257.7},{"x":206,"y":259.4},{"x":209,"y":261.5},{"x":212,"y":261.9},{"x":215,"y":261.4},{"x":218,"y":262.2},{"x":221,"y":261.7},{"x":224,"y":257.4},{"x":228,"y":257.9},{"x":231,"y":255},{"x":234,"y":256.5},{"x":237,"y":255.8},{"x":240,"y":256.4},{"x":243,"y":257.4},{"x":246,"y":255.5},{"x":249,"y":255.2},{"x":252,"y":256},{"x":255,"y":257.4},{"x":258,"y":258.5},{"x":261,"y":255.6},{"x":264,"y":255.4},{"x":267,"y":254.5},{"x":270,"y":254},{"x":273,"y":256.3},{"x":276,"y":257.9},{"x":279,"y":257.8},{"x":282,"y":257.6},{"x":285,"y":258.9},{"x":288,"y":258.3},{"x":291,"y":258.4},{"x":294,"y":257.7},{"x":297,"y":257.7},{"x":300,"y":258.7},{"x":303,"y":258.1},{"x":306,"y":259.9},{"x":309,"y":259.7},{"x":312,"y":260.2},{"x":315,"y":259.7},{"x":318,"y":260.1},{"x":321,"y":259.9},{"x":324,"y":259.1},{"x":327,"y":258.2},{"x":330,"y":257.2},{"x":333,"y":253},{"x":335,"y":259.8},{"x":338,"y":258.7},{"x":342,"y":259.1},{"x":345,"y":260.4},{"x":348,"y":259.4},{"x":351,"y":260.7},{"x":354,"y":260.4},{"x":357,"y":260.4},{"x":360,"y":260.4},{"x":363,"y":258.5},{"x":366,"y":260.8},{"x":369,"y":260.1},{"x":372,"y":260.6},{"x":375,"y":260.5},{"x":378,"y":260.7},{"x":381,"y":261.4},{"x":384,"y":261.1},{"x":387,"y":259.8},{"x":390,"y":260.1},{"x":393,"y":260.5}],"capSecond":90,"errorStartSecond":180}],"xAxisTargetSeries":[{"label":"OxPHP worker DB","runLabel":"OxPHP worker DB","color":"#f58200","runIndex":3,"affectsYAxis":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":180}],"format":"integer","group":"Worker DB"},{"id":"non-worker-home-requests-per-second","title":"Request Rate Per Second","series":[{"label":"OxPHP classic issued","runLabel":"OxPHP classic","color":"#e6194b","runIndex":0,"affectsYAxis":false,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000}],"showPoints":false,"dash":[2,4],"capSecond":60,"errorStartSecond":null},{"label":"OxPHP classic successful","runLabel":"OxPHP classic","color":"#e6194b","runIndex":0,"affectsYAxis":true,"points":[{"x":0,"y":2500.716},{"x":30,"y":5002.1033},{"x":60,"y":6948.3935},{"x":90,"y":6912.6595},{"x":120,"y":6835.1979},{"x":150,"y":6846.3591},{"x":180,"y":6885.7233},{"x":210,"y":6793.1025},{"x":240,"y":6794.5403},{"x":270,"y":6847.4467},{"x":300,"y":6791.9498},{"x":330,"y":6777.9867},{"x":360,"y":6825.2994}],"showPoints":false,"dash":[],"capSecond":60,"errorStartSecond":null,"startMarker":true},{"label":"OxPHP classic errored","runLabel":"OxPHP classic","color":"#e6194b","runIndex":0,"affectsYAxis":true,"points":[{"x":0,"y":0},{"x":30,"y":0},{"x":60,"y":0},{"x":90,"y":0},{"x":120,"y":0},{"x":150,"y":0},{"x":180,"y":0},{"x":210,"y":0},{"x":240,"y":0},{"x":270,"y":0},{"x":300,"y":0},{"x":330,"y":0},{"x":360,"y":0}],"showPoints":false,"dash":[8,4],"capSecond":60,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"OxPHP classic","runLabel":"OxPHP classic","color":"#e6194b","runIndex":0,"affectsYAxis":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":60,"errorStartSecond":null}],"styleLegend":[{"label":"successful","dash":[]},{"label":"issued","dash":[2,4]},{"label":"errored","dash":[8,4]}],"format":"integer","smoothingWindow":0,"group":"Non-worker no DB"},{"id":"non-worker-home-latency","title":"Latency (ms)","series":[{"label":"OxPHP classic avg","runLabel":"OxPHP classic","color":"#e6194b","runIndex":0,"affectsYAxis":true,"points":[{"x":0,"y":5.6409},{"x":30,"y":6.8922},{"x":60,"y":6063.9251},{"x":90,"y":10770.6376},{"x":120,"y":13126.8113},{"x":150,"y":14509.2297},{"x":180,"y":15393.6929},{"x":210,"y":16598.8513},{"x":240,"y":17274.9455},{"x":270,"y":18182.5014},{"x":300,"y":18540.8472},{"x":330,"y":19076.2837},{"x":360,"y":19295.8584}],"showPoints":false,"dash":[],"capSecond":60,"errorStartSecond":null},{"label":"OxPHP classic p95","runLabel":"OxPHP classic","color":"#e6194b","runIndex":0,"affectsYAxis":true,"points":[{"x":0,"y":8.991},{"x":30,"y":13.127},{"x":60,"y":8847.359},{"x":90,"y":15613.951},{"x":120,"y":19070.975},{"x":150,"y":21037.055},{"x":180,"y":22331.391},{"x":210,"y":24051.711},{"x":240,"y":25051.135},{"x":270,"y":26329.087},{"x":300,"y":26886.143},{"x":330,"y":27672.575},{"x":360,"y":27983.871}],"showPoints":false,"dash":[8,4],"capSecond":60,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"OxPHP classic","runLabel":"OxPHP classic","color":"#e6194b","runIndex":0,"affectsYAxis":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":60,"errorStartSecond":null}],"styleLegend":[{"label":"avg","dash":[]},{"label":"p95","dash":[8,4]}],"format":"milliseconds-integer","smoothingWindow":0,"yMax":8847.359,"group":"Non-worker no DB"},{"id":"non-worker-home-cpu-app","title":"APP CPU (% of one core, 100% = 1 core)","series":[{"label":"OxPHP classic","runLabel":"OxPHP classic","color":"#e6194b","points":[{"x":0,"y":681.08},{"x":3,"y":674.85},{"x":7,"y":661.75},{"x":10,"y":687.4},{"x":13,"y":655.87},{"x":16,"y":686.12},{"x":19,"y":648.74},{"x":22,"y":683.92},{"x":25,"y":661.08},{"x":28,"y":689.79},{"x":31,"y":1406.12},{"x":34,"y":1373.07},{"x":37,"y":1370.71},{"x":40,"y":1382.31},{"x":43,"y":1369.58},{"x":46,"y":1372.88},{"x":49,"y":1416.74},{"x":52,"y":1390.33},{"x":55,"y":1385.09},{"x":58,"y":1381.51},{"x":61,"y":1207.73},{"x":64,"y":2004.61},{"x":67,"y":2019.41},{"x":70,"y":2009.79},{"x":73,"y":2001.17},{"x":76,"y":2007.71},{"x":79,"y":2009.34},{"x":82,"y":2016.48},{"x":85,"y":2014.76},{"x":88,"y":2013.46},{"x":91,"y":2009.98},{"x":94,"y":2014.73},{"x":97,"y":2013.61},{"x":100,"y":2016.72},{"x":103,"y":2010.91},{"x":106,"y":2016.46},{"x":109,"y":2015.78},{"x":112,"y":2013.84},{"x":115,"y":2013.52},{"x":118,"y":2011.24},{"x":122,"y":2005.59},{"x":125,"y":2006.18},{"x":128,"y":2011.13},{"x":131,"y":2013.07},{"x":134,"y":2014.05},{"x":137,"y":2014.49},{"x":140,"y":2009.63},{"x":143,"y":2008.23},{"x":146,"y":2012.94},{"x":149,"y":2014.58},{"x":152,"y":1994.58},{"x":155,"y":2007.9},{"x":158,"y":2013.75},{"x":161,"y":2013.12},{"x":164,"y":2020.2},{"x":167,"y":2015.46},{"x":170,"y":2013.93},{"x":173,"y":2019.7},{"x":176,"y":2014.93},{"x":179,"y":2022.37},{"x":182,"y":2017.49},{"x":185,"y":2009.14},{"x":188,"y":2013.73},{"x":191,"y":2013.83},{"x":194,"y":2009.62},{"x":197,"y":2008.93},{"x":200,"y":2011.87},{"x":203,"y":2015.7},{"x":206,"y":2005.19},{"x":209,"y":2016.4},{"x":212,"y":2008.61},{"x":215,"y":2017.11},{"x":218,"y":2008.42},{"x":221,"y":2013.91},{"x":224,"y":2010.8},{"x":228,"y":2007.52},{"x":231,"y":2010.01},{"x":234,"y":2014.33},{"x":237,"y":2008.37},{"x":240,"y":2013.83},{"x":243,"y":2002.74},{"x":246,"y":2008.57},{"x":249,"y":2018.7},{"x":252,"y":2014.77},{"x":255,"y":2009.77},{"x":258,"y":2011.1},{"x":261,"y":2019.71},{"x":264,"y":2014.73},{"x":267,"y":2019.99},{"x":270,"y":2015.13},{"x":273,"y":1317.64},{"x":276,"y":2008.81},{"x":279,"y":2017.51},{"x":282,"y":2011.53},{"x":285,"y":2012.06},{"x":288,"y":2014.78},{"x":291,"y":2011.87},{"x":294,"y":2010.65},{"x":297,"y":2018.56},{"x":300,"y":2013.7},{"x":303,"y":1317.52},{"x":306,"y":2010.74},{"x":309,"y":2017.66},{"x":312,"y":2020.11},{"x":315,"y":2012.06},{"x":318,"y":2022.76},{"x":321,"y":2022.06},{"x":324,"y":2019.85},{"x":327,"y":2022.97},{"x":330,"y":2009.45},{"x":334,"y":1388.11},{"x":337,"y":2006.9},{"x":340,"y":2013.04},{"x":343,"y":2005.71},{"x":346,"y":2017.63},{"x":349,"y":2016.64},{"x":352,"y":2016.15},{"x":355,"y":2000.83},{"x":358,"y":2018.35},{"x":361,"y":2008.87},{"x":364,"y":1711.46},{"x":367,"y":2014.23},{"x":370,"y":2018.87},{"x":373,"y":2013.56},{"x":376,"y":2015.84},{"x":379,"y":2016.78},{"x":382,"y":2017.49},{"x":385,"y":2005.74},{"x":388,"y":2016.99},{"x":391,"y":2016.05}],"capSecond":60,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"OxPHP classic","runLabel":"OxPHP classic","color":"#e6194b","runIndex":0,"affectsYAxis":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":60,"errorStartSecond":null}],"format":"percent-integer","smoothingWindow":0,"group":"Non-worker no DB"},{"id":"non-worker-home-memory-app","title":"APP Memory (MiB)","series":[{"label":"OxPHP classic","runLabel":"OxPHP classic","color":"#e6194b","points":[{"x":0,"y":133.5},{"x":3,"y":133.9},{"x":7,"y":134},{"x":10,"y":134.1},{"x":13,"y":134},{"x":16,"y":134.2},{"x":19,"y":134.1},{"x":22,"y":133.8},{"x":25,"y":134.1},{"x":28,"y":133.9},{"x":31,"y":133.8},{"x":34,"y":133.8},{"x":37,"y":133.3},{"x":40,"y":134},{"x":43,"y":133.2},{"x":46,"y":133.8},{"x":49,"y":134.9},{"x":52,"y":133.5},{"x":55,"y":133.1},{"x":58,"y":134.3},{"x":61,"y":134.3},{"x":64,"y":135.2},{"x":67,"y":136.6},{"x":70,"y":137.1},{"x":73,"y":136.4},{"x":76,"y":136.9},{"x":79,"y":137.4},{"x":82,"y":137},{"x":85,"y":136.9},{"x":88,"y":136.4},{"x":91,"y":136.9},{"x":94,"y":137.4},{"x":97,"y":137.4},{"x":100,"y":136.6},{"x":103,"y":136.8},{"x":106,"y":136.3},{"x":109,"y":136.3},{"x":112,"y":137.2},{"x":115,"y":137.7},{"x":118,"y":137.1},{"x":122,"y":137.5},{"x":125,"y":137.6},{"x":128,"y":137.9},{"x":131,"y":136.6},{"x":134,"y":136.8},{"x":137,"y":137.3},{"x":140,"y":137.2},{"x":143,"y":137.2},{"x":146,"y":137.6},{"x":149,"y":137},{"x":152,"y":137.2},{"x":155,"y":137.6},{"x":158,"y":137.1},{"x":161,"y":136.4},{"x":164,"y":136.1},{"x":167,"y":137.5},{"x":170,"y":136.3},{"x":173,"y":136.7},{"x":176,"y":137.6},{"x":179,"y":136},{"x":182,"y":136.7},{"x":185,"y":136.9},{"x":188,"y":136.3},{"x":191,"y":137.8},{"x":194,"y":136.7},{"x":197,"y":136.4},{"x":200,"y":137},{"x":203,"y":136.6},{"x":206,"y":136.2},{"x":209,"y":137},{"x":212,"y":137.3},{"x":215,"y":136.9},{"x":218,"y":136.7},{"x":221,"y":137},{"x":224,"y":137.8},{"x":228,"y":139.8},{"x":231,"y":136.2},{"x":234,"y":136.1},{"x":237,"y":137},{"x":240,"y":137.5},{"x":243,"y":137.2},{"x":246,"y":137.1},{"x":249,"y":137},{"x":252,"y":137},{"x":255,"y":137.1},{"x":258,"y":137.2},{"x":261,"y":137.3},{"x":264,"y":137.1},{"x":267,"y":136.9},{"x":270,"y":137.4},{"x":273,"y":135.8},{"x":276,"y":136.5},{"x":279,"y":137.5},{"x":282,"y":136.2},{"x":285,"y":137.2},{"x":288,"y":137.5},{"x":291,"y":136.5},{"x":294,"y":136.4},{"x":297,"y":137.3},{"x":300,"y":138.3},{"x":303,"y":137.3},{"x":306,"y":137.8},{"x":309,"y":138.1},{"x":312,"y":138.8},{"x":315,"y":137.5},{"x":318,"y":138},{"x":321,"y":137.7},{"x":324,"y":134.7},{"x":327,"y":135.1},{"x":330,"y":135.4},{"x":334,"y":128.2},{"x":337,"y":135.5},{"x":340,"y":134.1},{"x":343,"y":133.9},{"x":346,"y":134.6},{"x":349,"y":134.6},{"x":352,"y":134.6},{"x":355,"y":135.7},{"x":358,"y":134.8},{"x":361,"y":134.7},{"x":364,"y":128.4},{"x":367,"y":137.3},{"x":370,"y":137.1},{"x":373,"y":137.1},{"x":376,"y":136.8},{"x":379,"y":136.3},{"x":382,"y":137.2},{"x":385,"y":136.6},{"x":388,"y":136.7},{"x":391,"y":136.8}],"capSecond":60,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"OxPHP classic","runLabel":"OxPHP classic","color":"#e6194b","runIndex":0,"affectsYAxis":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":60,"errorStartSecond":null}],"format":"integer","group":"Non-worker no DB"},{"id":"non-worker-db-requests-per-second","title":"Request Rate Per Second","series":[{"label":"OxPHP classic DB issued","runLabel":"OxPHP classic DB","color":"#4363d8","runIndex":1,"affectsYAxis":false,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000}],"showPoints":false,"dash":[2,4],"capSecond":30,"errorStartSecond":null},{"label":"OxPHP classic DB successful","runLabel":"OxPHP classic DB","color":"#4363d8","runIndex":1,"affectsYAxis":true,"points":[{"x":0,"y":2500.3904},{"x":30,"y":4268.1789},{"x":60,"y":4250.2921},{"x":90,"y":4308.9414},{"x":120,"y":4261.6283},{"x":150,"y":4211.7478},{"x":180,"y":4207.7299},{"x":210,"y":4232.8692},{"x":240,"y":4260.9894},{"x":270,"y":4261.9245},{"x":300,"y":4219.9226},{"x":330,"y":4214.5604},{"x":360,"y":4246.7482}],"showPoints":false,"dash":[],"capSecond":30,"errorStartSecond":null,"startMarker":true},{"label":"OxPHP classic DB errored","runLabel":"OxPHP classic DB","color":"#4363d8","runIndex":1,"affectsYAxis":true,"points":[{"x":0,"y":0},{"x":30,"y":0},{"x":60,"y":0},{"x":90,"y":0},{"x":120,"y":0},{"x":150,"y":0},{"x":180,"y":0},{"x":210,"y":0},{"x":240,"y":0},{"x":270,"y":0},{"x":300,"y":0},{"x":330,"y":0},{"x":360,"y":0}],"showPoints":false,"dash":[8,4],"capSecond":30,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"OxPHP classic DB","runLabel":"OxPHP classic DB","color":"#4363d8","runIndex":1,"affectsYAxis":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":30,"errorStartSecond":null}],"styleLegend":[{"label":"successful","dash":[]},{"label":"issued","dash":[2,4]},{"label":"errored","dash":[8,4]}],"format":"integer","smoothingWindow":0,"group":"Non-worker DB"},{"id":"non-worker-db-latency","title":"Latency (ms)","series":[{"label":"OxPHP classic DB avg","runLabel":"OxPHP classic DB","color":"#4363d8","runIndex":1,"affectsYAxis":true,"points":[{"x":0,"y":12.9697},{"x":30,"y":2894.3959},{"x":60,"y":11574.7197},{"x":90,"y":14280.9965},{"x":120,"y":15714.4308},{"x":150,"y":16668.019},{"x":180,"y":17172.0268},{"x":210,"y":17881.1144},{"x":240,"y":18273.9331},{"x":270,"y":18866.6904},{"x":300,"y":19158.3476},{"x":330,"y":19496.1328},{"x":360,"y":19593.0364}],"showPoints":false,"dash":[],"capSecond":30,"errorStartSecond":null},{"label":"OxPHP classic DB p95","runLabel":"OxPHP classic DB","color":"#4363d8","runIndex":1,"affectsYAxis":true,"points":[{"x":0,"y":22.479},{"x":30,"y":4239.359},{"x":60,"y":16662.527},{"x":90,"y":20660.223},{"x":120,"y":22806.527},{"x":150,"y":24133.631},{"x":180,"y":24903.679},{"x":210,"y":25919.487},{"x":240,"y":26525.695},{"x":270,"y":27328.511},{"x":300,"y":27754.495},{"x":330,"y":28196.863},{"x":360,"y":28377.087}],"showPoints":false,"dash":[8,4],"capSecond":30,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"OxPHP classic DB","runLabel":"OxPHP classic DB","color":"#4363d8","runIndex":1,"affectsYAxis":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":30,"errorStartSecond":null}],"styleLegend":[{"label":"avg","dash":[]},{"label":"p95","dash":[8,4]}],"format":"milliseconds-integer","smoothingWindow":0,"yMax":4239.359,"group":"Non-worker DB"},{"id":"non-worker-db-cpu-app","title":"APP CPU (% of one core, 100% = 1 core)","series":[{"label":"OxPHP classic DB","runLabel":"OxPHP classic DB","color":"#4363d8","points":[{"x":0,"y":894.78},{"x":3,"y":883.54},{"x":6,"y":868.57},{"x":9,"y":897.72},{"x":12,"y":872.12},{"x":16,"y":900.89},{"x":19,"y":881.96},{"x":22,"y":911.03},{"x":25,"y":875.95},{"x":28,"y":875.83},{"x":31,"y":1588.53},{"x":34,"y":1583.59},{"x":37,"y":1582.65},{"x":40,"y":1561.05},{"x":43,"y":1574.35},{"x":46,"y":1590.82},{"x":49,"y":1582.14},{"x":52,"y":1588.64},{"x":55,"y":1580.28},{"x":58,"y":1583.59},{"x":61,"y":1005.69},{"x":64,"y":1578.2},{"x":67,"y":1583.82},{"x":70,"y":1591.31},{"x":73,"y":1589.62},{"x":76,"y":1581.33},{"x":79,"y":1588.28},{"x":82,"y":1592.64},{"x":85,"y":1589.38},{"x":88,"y":1595.12},{"x":91,"y":1597.1},{"x":94,"y":1588.52},{"x":96,"y":1594.73},{"x":99,"y":1593.75},{"x":102,"y":1585.43},{"x":105,"y":1590.73},{"x":108,"y":1591.25},{"x":111,"y":1583.92},{"x":114,"y":1593.8},{"x":117,"y":1594.19},{"x":121,"y":1590.02},{"x":124,"y":1590.3},{"x":127,"y":1586.23},{"x":130,"y":1584.01},{"x":133,"y":1585.05},{"x":136,"y":1592.65},{"x":139,"y":1591.55},{"x":142,"y":1587.27},{"x":145,"y":1575.82},{"x":148,"y":1591.94},{"x":151,"y":1066.7},{"x":154,"y":1579.63},{"x":157,"y":1586.08},{"x":160,"y":1578.44},{"x":163,"y":1519.91},{"x":166,"y":1580.95},{"x":169,"y":1574.07},{"x":172,"y":1585.65},{"x":175,"y":1584.76},{"x":178,"y":1587.04},{"x":181,"y":1042.51},{"x":184,"y":1585.15},{"x":187,"y":1566.47},{"x":190,"y":1590.65},{"x":193,"y":1581.98},{"x":196,"y":1580.49},{"x":199,"y":1590.29},{"x":202,"y":1580.92},{"x":205,"y":1585.85},{"x":208,"y":1578.84},{"x":211,"y":1045.67},{"x":214,"y":1575.99},{"x":218,"y":1588.91},{"x":221,"y":1585.11},{"x":224,"y":1571.93},{"x":227,"y":1585.84},{"x":230,"y":1596.78},{"x":233,"y":1586.65},{"x":236,"y":1592.04},{"x":239,"y":1588.66},{"x":242,"y":1046.62},{"x":245,"y":1575.85},{"x":248,"y":1581.35},{"x":251,"y":1578.91},{"x":254,"y":1586.55},{"x":257,"y":1585.21},{"x":260,"y":1586.74},{"x":263,"y":1592.27},{"x":266,"y":1589.81},{"x":269,"y":1589.32},{"x":272,"y":1054.27},{"x":275,"y":1590.78},{"x":278,"y":1590.83},{"x":281,"y":1591.94},{"x":284,"y":1572.05},{"x":287,"y":1574.25},{"x":290,"y":1583.47},{"x":293,"y":1589.04},{"x":296,"y":1589.45},{"x":299,"y":1591.84},{"x":302,"y":989.98},{"x":305,"y":1584.56},{"x":308,"y":1583.15},{"x":311,"y":1591.61},{"x":314,"y":1581.28},{"x":317,"y":1592.94},{"x":321,"y":1588.54},{"x":324,"y":1590.5},{"x":326,"y":1570.7},{"x":329,"y":1587.17},{"x":332,"y":1583.99},{"x":335,"y":1567.45},{"x":338,"y":1585.43},{"x":341,"y":1581.65},{"x":344,"y":1565.6},{"x":347,"y":1580.95},{"x":350,"y":1575.51},{"x":353,"y":1561.38},{"x":356,"y":1582.57},{"x":359,"y":1586.4},{"x":362,"y":1595.33},{"x":365,"y":1585.51},{"x":368,"y":1587.77},{"x":371,"y":1588.24},{"x":374,"y":1580.9},{"x":377,"y":1593.34},{"x":380,"y":1578.33},{"x":383,"y":1590.74},{"x":386,"y":1580.37},{"x":389,"y":1589.55},{"x":392,"y":1595.14}],"capSecond":30,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"OxPHP classic DB","runLabel":"OxPHP classic DB","color":"#4363d8","runIndex":1,"affectsYAxis":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":30,"errorStartSecond":null}],"format":"percent-integer","smoothingWindow":0,"group":"Non-worker DB"},{"id":"non-worker-db-memory-app","title":"APP Memory (MiB)","series":[{"label":"OxPHP classic DB","runLabel":"OxPHP classic DB","color":"#4363d8","points":[{"x":0,"y":152.1},{"x":3,"y":152.4},{"x":6,"y":153.3},{"x":9,"y":153.4},{"x":12,"y":153},{"x":16,"y":152.6},{"x":19,"y":153.1},{"x":22,"y":152.5},{"x":25,"y":153.4},{"x":28,"y":153.3},{"x":31,"y":153.9},{"x":34,"y":153.3},{"x":37,"y":154.1},{"x":40,"y":154.3},{"x":43,"y":154.2},{"x":46,"y":153.9},{"x":49,"y":154.5},{"x":52,"y":154},{"x":55,"y":153.7},{"x":58,"y":152.8},{"x":61,"y":155.8},{"x":64,"y":155.8},{"x":67,"y":155.4},{"x":70,"y":154.6},{"x":73,"y":154.9},{"x":76,"y":155.2},{"x":79,"y":155.3},{"x":82,"y":155.2},{"x":85,"y":154.6},{"x":88,"y":155.6},{"x":91,"y":156.6},{"x":94,"y":156.3},{"x":96,"y":155.9},{"x":99,"y":155.8},{"x":102,"y":156.8},{"x":105,"y":156.4},{"x":108,"y":155.9},{"x":111,"y":155.8},{"x":114,"y":155.7},{"x":117,"y":155.7},{"x":121,"y":154.8},{"x":124,"y":153},{"x":127,"y":153.9},{"x":130,"y":153.8},{"x":133,"y":153.2},{"x":136,"y":153.7},{"x":139,"y":153.3},{"x":142,"y":153.1},{"x":145,"y":153.1},{"x":148,"y":153.5},{"x":151,"y":155.4},{"x":154,"y":155.6},{"x":157,"y":154.6},{"x":160,"y":154.8},{"x":163,"y":154.3},{"x":166,"y":155.4},{"x":169,"y":155.3},{"x":172,"y":155.4},{"x":175,"y":155.6},{"x":178,"y":156.1},{"x":181,"y":156.2},{"x":184,"y":156.9},{"x":187,"y":156.5},{"x":190,"y":157.1},{"x":193,"y":158.1},{"x":196,"y":157.2},{"x":199,"y":157.8},{"x":202,"y":156.8},{"x":205,"y":156.3},{"x":208,"y":156.9},{"x":211,"y":157.4},{"x":214,"y":158.2},{"x":218,"y":157.3},{"x":221,"y":156.8},{"x":224,"y":157.5},{"x":227,"y":157.3},{"x":230,"y":157.6},{"x":233,"y":157.6},{"x":236,"y":157.8},{"x":239,"y":157.4},{"x":242,"y":158},{"x":245,"y":158.5},{"x":248,"y":158.6},{"x":251,"y":157.7},{"x":254,"y":158.8},{"x":257,"y":158.2},{"x":260,"y":158.5},{"x":263,"y":158.6},{"x":266,"y":158.3},{"x":269,"y":158},{"x":272,"y":159},{"x":275,"y":158.1},{"x":278,"y":158.7},{"x":281,"y":158.3},{"x":284,"y":157.8},{"x":287,"y":158.4},{"x":290,"y":159.1},{"x":293,"y":158.1},{"x":296,"y":158.4},{"x":299,"y":158.7},{"x":302,"y":158.4},{"x":305,"y":158.6},{"x":308,"y":158.2},{"x":311,"y":158.4},{"x":314,"y":158.2},{"x":317,"y":157.5},{"x":321,"y":157.8},{"x":324,"y":158.3},{"x":326,"y":157},{"x":329,"y":158.1},{"x":332,"y":158.1},{"x":335,"y":159},{"x":338,"y":158.8},{"x":341,"y":158.4},{"x":344,"y":158.8},{"x":347,"y":158.3},{"x":350,"y":159.4},{"x":353,"y":159},{"x":356,"y":158.5},{"x":359,"y":159},{"x":362,"y":158.3},{"x":365,"y":158.7},{"x":368,"y":158.9},{"x":371,"y":158.6},{"x":374,"y":158.5},{"x":377,"y":158.2},{"x":380,"y":158.1},{"x":383,"y":159.5},{"x":386,"y":159.5},{"x":389,"y":159.1},{"x":392,"y":157.7}],"capSecond":30,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"OxPHP classic DB","runLabel":"OxPHP classic DB","color":"#4363d8","runIndex":1,"affectsYAxis":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":30,"errorStartSecond":null}],"format":"integer","group":"Non-worker DB"}]};
+    const X_AXIS_TICK_DIVISIONS = 10;
+
+    function getGlobalXAxisDomain() {
+      const xValues = [];
+
+      reportData.charts.forEach((chart) => {
+        (chart.series || []).forEach((item) => {
+          (item.points || []).forEach((point) => {
+            xValues.push(point.x);
+          });
+        });
+
+        (chart.xAxisTargetSeries || []).forEach((item) => {
+          (item.points || []).forEach((point) => {
+            xValues.push(point.x);
+          });
+        });
+      });
+
+      if (xValues.length === 0) {
+        return { min: 0, max: 1 };
+      }
+
+      return {
+        min: Math.min(...xValues),
+        max: Math.max(...xValues),
+      };
+    }
+
+    const globalXAxisDomain = getGlobalXAxisDomain();
+
+    function formatValue(value, format) {
+      const fixed = (number, digits) => Number(number).toFixed(digits);
+      const trimZeros = (text) => text.replace(/\.?0+$/, '');
+
+      if (format === 'integer') {
+        return String(Math.round(value));
+      }
+      if (format === 'percent') {
+        return fixed(value, 2) + '%';
+      }
+      if (format === 'percent-integer') {
+        return Math.round(value) + '%';
+      }
+      if (format === 'milliseconds-integer') {
+        return String(Math.round(value));
+      }
+      if (format === 'milliseconds') {
+        return fixed(value, 2);
+      }
+      return trimZeros(fixed(value, 2));
+    }
+
+    function formatElapsedSeconds(totalSeconds) {
+      const seconds = Math.max(0, Math.round(totalSeconds));
+      const minutes = Math.floor(seconds / 60);
+      const remainderSeconds = seconds % 60;
+
+      if (minutes === 0) {
+        return seconds + 's';
+      }
+
+      if (remainderSeconds === 0) {
+        return minutes + 'm';
+      }
+
+      return minutes + 'm ' + remainderSeconds + 's';
+    }
+
+    function sampledPointValue(points, xValue) {
+      if (!points || points.length === 0) {
+        return null;
+      }
+
+      const target = Math.max(0, Math.round(xValue));
+      let currentValue = points[0].y;
+
+      for (let index = 0; index < points.length; index++) {
+        const point = points[index];
+        if (point.x > target) {
+          break;
+        }
+        currentValue = point.y;
+      }
+
+      return currentValue;
+    }
+
+    function movingAverageSeries(points, windowSize) {
+      if (!points || points.length === 0 || windowSize <= 1) {
+        return points || [];
+      }
+
+      const result = [];
+      let sum = 0;
+      const values = [];
+
+      points.forEach((point, index) => {
+        const value = Number(point.y || 0);
+        values.push(value);
+        sum += value;
+
+        if (values.length > windowSize) {
+          sum -= values.shift();
+        }
+
+        result.push({
+          x: point.x,
+          y: sum / values.length,
+        });
+      });
+
+      return result;
+    }
+
+    function formatTargetTickLabel(chart, xValue) {
+      // Finished runs must not keep contributing their last target to later stages.
+      const targetSeries = (chart.xAxisTargetSeries || []).filter((item) =>
+        item.points.length > 1 && xValue >= item.points[0].x && xValue < item.points[item.points.length - 1].x
+      );
+      if (targetSeries.length === 0) {
+        return '';
+      }
+
+      const values = targetSeries.map((item) => sampledPointValue(item.points, xValue));
+      if (values.some((value) => value === null)) {
+        return '';
+      }
+
+      const roundedValues = values.map((value) => Math.round(value));
+      const firstValue = roundedValues[0];
+      const sameAcrossRuns = roundedValues.every((value) => value === firstValue);
+
+      if (!sameAcrossRuns) {
+        return '';
+      }
+
+      return 'T ' + String(firstValue);
+    }
+
+    function drawChart(canvasId, legendId, chart) {
+      const canvas = document.getElementById(canvasId);
+      const legend = document.getElementById(legendId);
+      if (!canvas || !legend) {
+        return;
+      }
+
+      const series = chart.series.filter((item) => item.points.length > 0);
+      if (series.length === 0) {
+        legend.textContent = 'No data available.';
+        return;
+      }
+
+      const smoothingWindow = Math.max(0, Math.round(Number(chart.smoothingWindow || 0)));
+      const displaySeries = series.map((item) => ({
+        ...item,
+        displayPoints: smoothingWindow > 1 ? movingAverageSeries(item.points, smoothingWindow) : item.points,
+      }));
+
+      const dpr = window.devicePixelRatio || 1;
+      const cssWidth = canvas.clientWidth || canvas.width;
+      const cssHeight = canvas.clientHeight || canvas.height;
+      canvas.width = cssWidth * dpr;
+      canvas.height = cssHeight * dpr;
+
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, cssWidth, cssHeight);
+
+      const margin = { top: 18, right: 24, bottom: 52, left: 64 };
+      const width = cssWidth - margin.left - margin.right;
+      const height = cssHeight - margin.top - margin.bottom;
+
+      const yValues = displaySeries
+        .filter((item) => item.affectsYAxis !== false)
+        .flatMap((item) => item.displayPoints.map((point) => point.y));
+      const xMin = globalXAxisDomain.min;
+      const xMax = globalXAxisDomain.max;
+      const rawYMax = Math.max(...yValues);
+      const configuredYMax = Number(chart.yMax || 0);
+      const yMax = configuredYMax > 0 ? configuredYMax : (rawYMax > 0 ? rawYMax * 1.08 : 1);
+
+      ctx.strokeStyle = 'rgba(31, 41, 51, 0.14)';
+      ctx.lineWidth = 1;
+      ctx.fillStyle = '#5c6b73';
+      ctx.font = '12px Menlo, Consolas, monospace';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'right';
+
+      for (let i = 0; i <= 5; i++) {
+        const y = margin.top + (height / 5) * i;
+        ctx.beginPath();
+        ctx.moveTo(margin.left, y);
+        ctx.lineTo(margin.left + width, y);
+        ctx.stroke();
+
+        const value = yMax - (yMax / 5) * i;
+        ctx.fillText(formatValue(value, chart.format), margin.left - 10, y);
+      }
+
+      ctx.textBaseline = 'top';
+      ctx.textAlign = 'center';
+      ctx.font = '12px Menlo, Consolas, monospace';
+      const stageTicks = [...new Set((chart.xAxisTargetSeries || [])
+        .flatMap((item) => item.points.slice(0, -1).map((point) => point.x)))].sort((a, b) => a - b);
+      const ticks = stageTicks.length > 1 ? stageTicks : Array.from(
+        { length: X_AXIS_TICK_DIVISIONS + 1 },
+        (_, i) => xMin + ((xMax - xMin) / X_AXIS_TICK_DIVISIONS) * i
+      );
+      for (const value of ticks) {
+        const x = margin.left + ((value - xMin) / Math.max(1, xMax - xMin)) * width;
+        ctx.beginPath();
+        ctx.moveTo(x, margin.top);
+        ctx.lineTo(x, margin.top + height);
+        ctx.stroke();
+
+        ctx.fillText(formatElapsedSeconds(value), x, margin.top + height + 10);
+
+        const targetLabel = formatTargetTickLabel(chart, value);
+        if (targetLabel !== '') {
+          ctx.fillText(targetLabel, x, margin.top + height + 24);
+        }
+      }
+
+      ctx.strokeStyle = '#1f2933';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(margin.left, margin.top);
+      ctx.lineTo(margin.left, margin.top + height);
+      ctx.lineTo(margin.left + width, margin.top + height);
+      ctx.stroke();
+
+      const toCanvasX = (x) => margin.left + ((x - xMin) / Math.max(1, xMax - xMin)) * width;
+      const toCanvasY = (y) => margin.top + height - (y / yMax) * height;
+      const startMarkerSeries = displaySeries.filter((item) => item.startMarker);
+
+      const highlightedRun = legend.dataset.highlightedRun || null;
+      const isHighlighted = (item) => (item.runLabel || item.label) === highlightedRun;
+      const opacity = (item) => highlightedRun && !isHighlighted(item) ? 0.12 : 1;
+      // Draw the highlighted run last so overlapping lines cannot hide it.
+      const orderedSeries = [...displaySeries].sort((a, b) => Number(isHighlighted(a)) - Number(isHighlighted(b)));
+
+      // Keep issued rates above the response-based scale inside the plot area.
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(margin.left, margin.top, width, height);
+      ctx.clip();
+
+      orderedSeries.forEach((item) => {
+        if (smoothingWindow > 1) {
+          drawLine(ctx, toCanvasX, toCanvasY, item.points, item.color, item.dash, 1.2, 0.22 * opacity(item));
+        }
+
+        drawLine(ctx, toCanvasX, toCanvasY, item.displayPoints, item.color, item.dash, isHighlighted(item) ? 4 : 2.2, opacity(item));
+
+        ctx.save();
+        ctx.globalAlpha = opacity(item);
+        if (chart.showPoints || item.showPoints) {
+          ctx.fillStyle = item.color;
+          item.displayPoints.forEach((point) => {
+            const x = toCanvasX(point.x);
+            const y = toCanvasY(point.y);
+            ctx.beginPath();
+            ctx.arc(x, y, 2.2, 0, Math.PI * 2);
+            ctx.fill();
+          });
+        }
+        ctx.restore();
+      });
+
+      orderedSeries.forEach((item) => {
+        ctx.save();
+        ctx.globalAlpha = opacity(item);
+        drawMarker(ctx, toCanvasX, toCanvasY, item.displayPoints, item.capSecond, item.color, 'circle');
+        drawMarker(ctx, toCanvasX, toCanvasY, item.displayPoints, item.errorStartSecond, item.color, 'cross');
+        ctx.restore();
+      });
+
+      startMarkerSeries.forEach((item, markerIndex) => {
+        ctx.save();
+        ctx.globalAlpha = opacity(item);
+        drawStartMarker(
+          ctx,
+          toCanvasX,
+          toCanvasY,
+          item.displayPoints,
+          item.color,
+          markerIndex,
+          startMarkerSeries.length,
+        );
+        ctx.restore();
+      });
+
+      ctx.restore();
+
+      const runs = [];
+      const seenRuns = new Set();
+      series.forEach((item) => {
+        const key = (item.runLabel || item.label) + '|' + item.color;
+        if (seenRuns.has(key)) {
+          return;
+        }
+        seenRuns.add(key);
+        runs.push({
+          label: item.runLabel || item.label,
+          color: item.color,
+        });
+      });
+
+      if (legend.childElementCount === 0) {
+        let hoveredRun = null;
+        let focusedRun = null;
+        const updateHighlight = () => {
+          legend.dataset.highlightedRun = hoveredRun || focusedRun || '';
+          drawChart(canvasId, legendId, chart);
+        };
+
+        runs.sort((a, b) => a.label.localeCompare(b.label, 'en', { sensitivity: 'base' }));
+        runs.forEach((item) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'legend-item';
+          button.dataset.runLabel = item.label;
+          const swatch = document.createElement('span');
+          swatch.className = 'legend-swatch';
+          swatch.style.background = item.color;
+          swatch.setAttribute('aria-hidden', 'true');
+          button.append(swatch, document.createTextNode(item.label));
+          button.addEventListener('mouseenter', () => {
+            hoveredRun = item.label;
+            updateHighlight();
+          });
+          button.addEventListener('mouseleave', () => {
+            hoveredRun = null;
+            updateHighlight();
+          });
+          button.addEventListener('focus', () => {
+            focusedRun = item.label;
+            updateHighlight();
+          });
+          button.addEventListener('blur', () => {
+            focusedRun = null;
+            updateHighlight();
+          });
+          legend.append(button);
+        });
+      }
+
+      legend.querySelectorAll('.legend-item').forEach((button) => {
+        button.classList.toggle('is-highlighted', button.dataset.runLabel === highlightedRun);
+        button.classList.toggle('is-dimmed', highlightedRun !== null && button.dataset.runLabel !== highlightedRun);
+      });
+    }
+
+    function render() {
+      reportData.charts.forEach((chart) => {
+        drawChart('chart-' + chart.id, 'legend-' + chart.id, chart);
+      });
+    }
+
+    function drawLine(ctx, toCanvasX, toCanvasY, points, color, dash, lineWidth, alpha) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lineWidth;
+      ctx.globalAlpha = alpha;
+      if (dash && dash.length > 0) {
+        ctx.setLineDash(dash);
+      } else {
+        ctx.setLineDash([]);
+      }
+
+      points.forEach((point, index) => {
+        const x = toCanvasX(point.x);
+        const y = toCanvasY(point.y);
+        if (index === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawMarker(ctx, toCanvasX, toCanvasY, points, second, color, markerType) {
+      if (second === null || second === undefined) {
+        return;
+      }
+
+      const yValue = sampledPointValue(points, second);
+      if (yValue === null) {
+        return;
+      }
+
+      const x = toCanvasX(second);
+      const y = toCanvasY(yValue);
+
+      ctx.save();
+      ctx.setLineDash([]);
+      ctx.lineCap = 'round';
+
+      if (markerType === 'circle') {
+        ctx.strokeStyle = '#fffdf8';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+        return;
+      }
+
+      ctx.strokeStyle = '#fffdf8';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(x - 5, y - 5);
+      ctx.lineTo(x + 5, y + 5);
+      ctx.moveTo(x + 5, y - 5);
+      ctx.lineTo(x - 5, y + 5);
+      ctx.stroke();
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(x - 5, y - 5);
+      ctx.lineTo(x + 5, y + 5);
+      ctx.moveTo(x + 5, y - 5);
+      ctx.lineTo(x - 5, y + 5);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawStartMarker(ctx, toCanvasX, toCanvasY, points, color, markerIndex, markerCount) {
+      if (!points || points.length === 0) {
+        return;
+      }
+
+      const firstPoint = points[0];
+      const baseX = toCanvasX(firstPoint.x);
+      const y = toCanvasY(firstPoint.y);
+      const offset = ((markerIndex - ((markerCount - 1) / 2)) * 5);
+      const x = baseX + offset;
+
+      ctx.save();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#fffdf8';
+      ctx.beginPath();
+      ctx.arc(x, y, 4.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(x, y, 3.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    document.querySelectorAll('.summary-table').forEach((table) => {
+      table.querySelectorAll('thead th').forEach((header, column) => {
+        header.querySelector('button').addEventListener('click', () => {
+          const ascending = header.getAttribute('aria-sort') !== 'ascending';
+          table.querySelectorAll('thead th').forEach((item) => item.setAttribute('aria-sort', 'none'));
+          header.setAttribute('aria-sort', ascending ? 'ascending' : 'descending');
+          const rows = Array.from(table.tBodies[0].rows);
+          const numeric = header.dataset.sortType === 'number';
+          rows.sort((a, b) => {
+            const value = (row) => row.cells[column].dataset.sortValue ?? row.cells[column].textContent.trim();
+            const left = value(a), right = value(b);
+            // Missing measurements stay last in either direction.
+            if (left === '' || right === '') return (left === '') - (right === '');
+            const order = numeric ? Number(left) - Number(right) : left.localeCompare(right);
+            return ascending ? order : -order;
+          });
+          table.tBodies[0].append(...rows);
+        });
+      });
+    });
+
+    window.addEventListener('resize', render);
+    render();
+  </script>
+</body>
+</html>

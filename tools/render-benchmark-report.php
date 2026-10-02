@@ -808,6 +808,8 @@ function parseDockerStats(string $dockerStatsFile): array
 function renderHtmlReport(array $runs): string
 {
     $systemDescriptions = [];
+    $runDates = [];
+    $runNotes = [];
     $contextFiles = array_unique(array_map(
         static fn(array $run): string => dirname($run['directory']) . '/run-context.json',
         $runs,
@@ -817,6 +819,17 @@ function renderHtmlReport(array $runs): string
             continue;
         }
         $context = json_decode(file_get_contents($contextFile), true, 512, JSON_THROW_ON_ERROR);
+        foreach ($context['report_notes'] ?? [] as $note) {
+            $runNotes[] = '<p><strong>Run note (' . h((string) ($context['date'] ?? 'undated')) . ').</strong> '
+                . h($note) . '</p>';
+        }
+        if (isset($context['date'])) {
+            foreach ($runs as $run) {
+                if (dirname($run['directory']) . '/run-context.json' === $contextFile) {
+                    $runDates[$context['date']][] = preg_replace('/ DB$/', '', $run['label']);
+                }
+            }
+        }
         $details = [];
         foreach (['os' => 'OS', 'kernel' => 'Kernel', 'cpu' => 'CPU', 'memory' => 'Memory', 'disk' => 'Disk', 'filesystem' => 'Filesystem'] as $key => $label) {
             if (isset($context['system'][$key])) {
@@ -828,6 +841,15 @@ function renderHtmlReport(array $runs): string
         }
     }
     $systemDescription = implode("\n      ", array_unique($systemDescriptions));
+    $runNoteDescription = implode("\n      ", array_unique($runNotes));
+    ksort($runDates);
+    $dateDescriptions = [];
+    foreach ($runDates as $date => $labels) {
+        $dateDescriptions[] = h((string) $date) . ': ' . h(implode(', ', array_unique($labels)));
+    }
+    $runDateDescription = $dateDescriptions === []
+        ? ''
+        : '<p><strong>Run dates.</strong> ' . implode('; ', $dateDescriptions) . '.</p>';
 
     $palette = [
         '#e6194b', // Red.
@@ -1263,6 +1285,8 @@ HTML;
       <h1>Benchmark Report</h1>
       <p>Generated {$generatedAt}. This report combines wrkx stage summaries with Docker CPU and memory samples.</p>
       {$systemDescription}
+      {$runDateDescription}
+      {$runNoteDescription}
       <p>Charts show raw samples. For stage results, RPS cap marks the first stage with successful throughput more than 5% below target; per-second results use a sustained latency surge. The load generator can also limit throughput.</p>
       <p>Hover over a chart legend label or focus it with Tab to highlight that run.</p>
     </section>
