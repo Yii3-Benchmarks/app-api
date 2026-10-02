@@ -93,7 +93,7 @@ final class BenchmarkReportTest extends Unit
                     'metadata' => ['TARGET_PATH' => $db ? '/postgres/orders' : '/', 'MODE' => 'ramp'],
                     'summary' => ['normalLatencyAvgMs' => 2.5, 'normalLatencyP95Ms' => 9.5, 'overloadedLatencyAvgMs' => 50.0, 'overloadedLatencyP95Ms' => 90.0],
                     'series' => ['successfulResponsesPerSecond' => [['x' => 0, 'y' => 1000]]],
-                    'docker' => [],
+                    'docker' => ['app' => ['cpuPercent' => [['x' => 0, 'y' => 20]]]],
                 ];
             }
         }
@@ -101,9 +101,25 @@ final class BenchmarkReportTest extends Unit
         preg_match('/const reportData = (.*);/', $html, $matches);
         $charts = json_decode($matches[1], true, 512, JSON_THROW_ON_ERROR)['charts'];
         $groups = [];
+        $runColors = [];
         foreach ($charts as $chart) {
+            foreach ($chart['series'] as $series) {
+                $label = $series['runLabel'];
+                if (isset($runColors[$label])) {
+                    $this->assertSame($runColors[$label], $series['color']);
+                }
+                $runColors[$label] = $series['color'];
+                $this->assertStringContainsString('style="background:' . $series['color'] . '"></span>' . $label, $html);
+            }
             if (str_ends_with($chart['id'], 'requests-per-second')) {
                 $groups[$chart['group']] = array_column($chart['series'], 'runLabel');
+                $coordinates = array_map('runColorCoordinates', array_column($chart['series'], 'color'));
+                foreach ($coordinates as $i => [$l, $a, $b]) {
+                    foreach (array_slice($coordinates, $i + 1) as [$otherL, $otherA, $otherB]) {
+                        $distance = sqrt(($l - $otherL) ** 2 + ($a - $otherA) ** 2 + ($b - $otherB) ** 2);
+                        $this->assertGreaterThan(0.17, $distance, 'Colors in a chart must be perceptually separated.');
+                    }
+                }
             }
         }
         $this->assertSame([
@@ -112,9 +128,24 @@ final class BenchmarkReportTest extends Unit
             'Non-worker no DB' => ['FrankenPHP classic', 'PHP-FPM + Nginx', 'Rapira classic', 'FreeUnit', 'OxPHP classic'],
             'Non-worker DB' => ['FrankenPHP classic DB', 'PHP-FPM + Nginx DB', 'Rapira classic DB', 'FreeUnit DB', 'OxPHP classic DB'],
         ], $groups);
+        $this->assertCount(20, array_unique($runColors));
+        foreach ($runColors as $color) {
+            $this->assertLessThan(0.28, runColorCoordinates($color)[3]);
+        }
+        $palette = buildRunPalette($runs);
+        $this->assertSame(array_reverse($palette, true), buildRunPalette(array_reverse($runs, true)));
+        $this->assertSame([19 => $palette[19]], buildRunPalette([19 => $runs[19]]));
         $this->assertSame(2, substr_count($html, '<table class="summary-table">'));
         $this->assertSame(2, substr_count($html, '>Normal latency (avg)</button>'));
         $this->assertSame(2, substr_count($html, '>Overloaded latency (avg)</button>'));
         $this->assertSame(14, substr_count($html, 'aria-sort="none"'));
+    }
+
+    public function testOptionalRunColorsDoNotWrap(): void
+    {
+        $runs = array_map(static fn(int $index): array => ['label' => 'Optional runtime ' . $index], range(1, 24));
+        $palette = buildRunPalette($runs);
+        $this->assertCount(24, array_unique($palette));
+        $this->assertSame(array_reverse($palette, true), buildRunPalette(array_reverse($runs, true)));
     }
 }

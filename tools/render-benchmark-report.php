@@ -805,6 +805,97 @@ function parseDockerStats(string $dockerStatsFile): array
     return $services;
 }
 
+/** Assign stable colors by run label, independent of input order and chart filtering. */
+function buildRunPalette(array $runs): array
+{
+    $colors = [
+        'FrankenPHP worker' => '#c46060',
+        'RoadRunner' => '#448c18',
+        'Rapira worker' => '#a000c8',
+        'Rapira dispatcher' => '#0078c8',
+        'OxPHP worker' => '#6b4c00',
+        'FrankenPHP classic' => '#8f4e20',
+        'PHP-FPM + Nginx' => '#ce2070',
+        'Rapira classic' => '#3b2c85',
+        'FreeUnit' => '#007d34',
+        'OxPHP classic' => '#5666de',
+        'FrankenPHP worker DB' => '#737b89',
+        'RoadRunner DB' => '#222222',
+        'Rapira worker DB' => '#d95700',
+        'Rapira dispatcher DB' => '#a50021',
+        'OxPHP worker DB' => '#00538a',
+        'FrankenPHP classic DB' => '#9965a5',
+        'PHP-FPM + Nginx DB' => '#d52b2b',
+        'Rapira classic DB' => '#806000',
+        'FreeUnit DB' => '#008a91',
+        'OxPHP classic DB' => '#004d43',
+    ];
+
+    // Optional runtimes get the most distant available color instead of wrapping the palette.
+    $labels = array_unique(array_column($runs, 'label'));
+    sort($labels, SORT_STRING);
+    foreach ($labels as $label) {
+        if (!isset($colors[$label])) {
+            $colors[$label] = nextRunColor(array_values($colors));
+        }
+    }
+
+    $palette = [];
+    foreach ($runs as $index => $run) {
+        $palette[$index] = $colors[$run['label']];
+    }
+    return $palette;
+}
+
+/** Extend the palette by maximizing the minimum perceptual distance in Oklab. */
+function nextRunColor(array $usedColors): string
+{
+    $used = array_map('runColorCoordinates', $usedColors);
+    $bestDistance = -1.0;
+    $bestColor = '#000000';
+    for ($red = 0; $red <= 255; $red += 17) {
+        for ($green = 0; $green <= 255; $green += 17) {
+            for ($blue = 0; $blue <= 255; $blue += 17) {
+                $color = sprintf('#%02x%02x%02x', $red, $green, $blue);
+                [$lightness, $a, $b, $luminance] = runColorCoordinates($color);
+                // At least 3:1 contrast against the report's warm white chart background.
+                if ($luminance > 0.28 || in_array($color, $usedColors, true)) {
+                    continue;
+                }
+                $distance = INF;
+                foreach ($used as [$otherLightness, $otherA, $otherB]) {
+                    $distance = min($distance, ($lightness - $otherLightness) ** 2 + ($a - $otherA) ** 2 + ($b - $otherB) ** 2);
+                }
+                if ($distance > $bestDistance) {
+                    $bestDistance = $distance;
+                    $bestColor = $color;
+                }
+            }
+        }
+    }
+    return $bestColor;
+}
+
+/** @return array{float, float, float, float} Oklab coordinates and relative luminance. */
+function runColorCoordinates(string $color): array
+{
+    $rgb = [];
+    foreach ([1, 3, 5] as $offset) {
+        $channel = hexdec(substr($color, $offset, 2)) / 255;
+        $rgb[] = $channel <= 0.04045 ? $channel / 12.92 : (($channel + 0.055) / 1.055) ** 2.4;
+    }
+    [$r, $g, $b] = $rgb;
+    $l = (0.4122214708 * $r + 0.5363325363 * $g + 0.0514459929 * $b) ** (1 / 3);
+    $m = (0.2119034982 * $r + 0.6806995451 * $g + 0.1073969566 * $b) ** (1 / 3);
+    $s = (0.0883024619 * $r + 0.2817188376 * $g + 0.6299787005 * $b) ** (1 / 3);
+    return [
+        0.2104542553 * $l + 0.7936177850 * $m - 0.0040720468 * $s,
+        1.9779984951 * $l - 2.4285922050 * $m + 0.4505937099 * $s,
+        0.0259040371 * $l + 0.7827717662 * $m - 0.8086757660 * $s,
+        0.2126 * $r + 0.7152 * $g + 0.0722 * $b,
+    ];
+}
+
 function renderHtmlReport(array $runs): string
 {
     $systemDescriptions = [];
@@ -851,20 +942,7 @@ function renderHtmlReport(array $runs): string
         ? ''
         : '<p><strong>Run dates.</strong> ' . implode('; ', $dateDescriptions) . '.</p>';
 
-    $palette = [
-        '#e6194b', // Red.
-        '#4363d8', // Blue.
-        '#008000', // Green.
-        '#f58200', // Orange.
-        '#911eb4', // Purple.
-        '#009eae', // Cyan.
-        '#000000', // Black.
-        '#b59b00', // Mustard.
-        '#f032e6', // Magenta.
-        '#9a6324', // Brown.
-        '#73a800', // Lime.
-        '#70899f', // Slate.
-    ];
+    $palette = buildRunPalette($runs);
     $allRuns = $runs;
     $groups = [
         'worker-home' => ['Worker no DB', false, ['FrankenPHP worker', 'RoadRunner', 'Rapira worker', 'Rapira dispatcher', 'OxPHP worker']],
@@ -921,7 +999,7 @@ function renderHtmlReport(array $runs): string
             $latencyCells .= '<td data-sort-value="' . ($value ?? '') . '">'
                 . ($value === null ? '—' : formatMilliseconds($value)) . '</td>';
         }
-        $runColor = $palette[$index % count($palette)];
+        $runColor = $palette[$index];
         $runLabel = h($run['label']);
         $summaryRows[isDatabaseRun($run) ? 'db' : 'home'] .= '<tr>'
             . '<td><span class="summary-run"><span class="legend-swatch" style="background:' . h($runColor) . '"></span>' . $runLabel . '</span></td>'
@@ -1286,7 +1364,7 @@ HTML;
       <p>Generated {$generatedAt}. This report combines wrkx stage summaries with Docker CPU and memory samples.</p>
       {$systemDescription}
       {$runDateDescription}
-      {$runNoteDescription}
+{$runNoteDescription}
       <p>Charts show raw samples. For stage results, RPS cap marks the first stage with successful throughput more than 5% below target; per-second results use a sustained latency surge. The load generator can also limit throughput.</p>
       <p>Hover over a chart legend label or focus it with Tab to highlight that run.</p>
     </section>
@@ -1889,7 +1967,7 @@ function collectRunSeries(
         $series[] = [
             'label' => $run['label'] . $labelSuffix,
             'runLabel' => $run['label'],
-            'color' => $palette[$index % count($palette)],
+            'color' => $palette[$index],
             'runIndex' => $index,
             'affectsYAxis' => $metric !== 'issuedRequestsPerSecond',
             'points' => $points,
@@ -1946,7 +2024,7 @@ function collectDockerSeries(array $runs, string $serviceName, string $metric, a
         $series[] = [
             'label' => $run['label'],
             'runLabel' => $run['label'],
-            'color' => $palette[$index % count($palette)],
+            'color' => $palette[$index],
             'points' => $points,
             'capSecond' => (($run['summary']['rpsCap']['reached'] ?? false) === true)
                 ? (int) ($run['summary']['rpsCap']['second'] ?? 0)
