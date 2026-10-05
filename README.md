@@ -47,6 +47,8 @@ The runtime configs use a production-oriented benchmark baseline:
   other servers, while errors remain logged. FastCGI keepalive is intentionally disabled so idle Nginx
   connections cannot reserve the smaller FPM worker pool.
 - Each endpoint receives a separate unmeasured warm-up before load and resource samples are recorded.
+- PostgreSQL allows 2,000 connections to leave headroom above the default 256 HTTP connections and
+  worker recycling. The published October 5 results used the earlier 200-connection limit.
 
 These are production-like application-server settings for a controlled local benchmark. HTTP on port 9991,
 bind-mounted application code, disposable database storage and benchmark credentials remain intentional;
