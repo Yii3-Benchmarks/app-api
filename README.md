@@ -10,8 +10,9 @@ made on the same machine with the same settings and minimal background activity.
 
 The [published benchmark report](https://yii3-benchmarks.github.io/app-api/) contains the October 5, 2026
 full rerun of all ten runtimes with PHP 8.5.11, FrankenPHP 1.13.0, FreeUnit 1.37.0, and OPcache file
-override enabled. Raw results and run context are in `results/samdark_2026-10-05/`;
-the report is saved as `results/report.html`. Earlier measurements remain available in Git history.
+override enabled and PostgreSQL limited to 2,000 connections. Raw results and run context are in
+`results/samdark_2026-10-05-pg2000/`; the report is saved as `results/report.html`. The earlier
+200-connection run remains in `results/samdark_2026-10-05/` for comparison; older measurements remain in Git history.
 
 ## What is included
 
@@ -48,7 +49,7 @@ The runtime configs use a production-oriented benchmark baseline:
   connections cannot reserve the smaller FPM worker pool.
 - Each endpoint receives a separate unmeasured warm-up before load and resource samples are recorded.
 - PostgreSQL allows 2,000 connections to leave headroom above the default 256 HTTP connections and
-  worker recycling. The published October 5 results used the earlier 200-connection limit.
+  worker recycling. The earlier October 5 run used a 200-connection limit; the published rerun uses 2,000.
 
 These are production-like application-server settings for a controlled local benchmark. HTTP on port 9991,
 bind-mounted application code, disposable database storage and benchmark credentials remain intentional;
@@ -248,7 +249,7 @@ make bench-report INPUT="runtime/benchmarks/<run-1> runtime/benchmarks/<run-2>"
 Rebuild the published comparison from the recorded full runs:
 
 ```shell
-make bench-report INPUT=results/samdark_2026-10-05 OUTPUT=results/report.html
+make bench-report INPUT=results/samdark_2026-10-05-pg2000 OUTPUT=results/report.html
 ```
 
 Raw wrkx output and exact run settings are retained next to the compact data. Include them when reporting unexpected
