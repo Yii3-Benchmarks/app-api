@@ -62,16 +62,17 @@ Server releases checked on 2026-09-22 are pinned in the benchmark Dockerfile and
 | PHP / PHP-FPM | [8.5.10](https://www.php.net/downloads.php) |
 | FrankenPHP | [1.12.7](https://github.com/php/frankenphp/releases/tag/v1.12.7) |
 | RoadRunner | [2025.1.15](https://github.com/roadrunner-server/roadrunner/releases/tag/v2025.1.15) |
-| FreeUnit | [1.36.1](https://github.com/freeunitorg/freeunit/releases/tag/1.36.1) |
+| FreeUnit | [1.37.0](https://docs.freeunit.org/news/2026/unit-1.37.0-released/) (updated 2026-10-05) |
 | Rapira (all modes) | [Nightly for PHP 8.5](https://rapira.rs/docs/intro/installation) (`nightly-php8.5`) |
 | OxPHP (both modes) | [0.12.0](https://github.com/oxphp/oxphp/releases/tag/v0.12.0) (added 2026-10-02) |
 | Nginx | [1.31.6 (mainline)](https://nginx.org/en/download.html) |
 | PostgreSQL | [18.6](https://www.postgresql.org/support/versioning/) |
 | Valkey | [9.1.2](https://github.com/valkey-io/valkey/releases/tag/9.1.2) |
 
-FreeUnit's published `latest-php8.5` image still contains 1.35.5. Its build target therefore compiles
-the checksummed 1.36.1 release source against PHP 8.5.10, with TLS and compression support. Optional
-JavaScript routing and OpenTelemetry modules are not built; the benchmark does not use them.
+FreeUnit's build target compiles the checksummed 1.37.0 release source against PHP 8.5.10, with TLS
+and compression support. The Docker entrypoint remains pinned to 1.36.1 because the 1.37.0 source
+archive no longer includes it. Optional JavaScript routing and OpenTelemetry modules are not built;
+the benchmark does not use them.
 Version pins should be refreshed from upstream releases when updating the benchmark baseline.
 
 Two endpoints are benchmarked:

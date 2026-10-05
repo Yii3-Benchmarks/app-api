@@ -87,15 +87,14 @@ RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 COPY docker/runtimes/php-production.ini /usr/local/etc/php/conf.d/zz-production.ini
 WORKDIR /app
 
-# The published latest-php8.5 image still contains FreeUnit 1.35.5.
-# Build the current release against the same PHP version as the other runtimes.
+# Build the pinned FreeUnit release against the same PHP version as the other runtimes.
 FROM php:8.5.10-cli-trixie AS freeunit-build
 RUN set -eux; \
     sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources; \
     apt-get update; \
     apt-get install -y --no-install-recommends build-essential curl libssl-dev libpcre2-dev zlib1g-dev libzstd-dev libbrotli-dev; \
-    curl -fsSL https://github.com/freeunitorg/freeunit/archive/refs/tags/1.36.1.tar.gz -o /tmp/freeunit.tar.gz; \
-    echo '091a2e1587f72016fd74d95019fc3b92e62c66a23548f79dd8853c175dee34c5  /tmp/freeunit.tar.gz' | sha256sum -c -; \
+    curl -fsSL https://github.com/freeunitorg/freeunit/archive/refs/tags/1.37.0.tar.gz -o /tmp/freeunit.tar.gz; \
+    echo '8ae237d5a32d77bb8a7426d844ce75aeb18583a4e47318f55e17839d865fad8c  /tmp/freeunit.tar.gz' | sha256sum -c -; \
     mkdir /usr/src/freeunit; \
     tar -xzf /tmp/freeunit.tar.gz -C /usr/src/freeunit --strip-components=1; \
     cd /usr/src/freeunit; \
@@ -110,6 +109,7 @@ RUN set -eux; \
 FROM php:8.5.10-cli-trixie AS freeunit
 COPY --from=freeunit-build /usr/sbin/unitd /usr/sbin/unitd
 COPY --from=freeunit-build /usr/lib/unit/modules /usr/lib/unit/modules
+# FreeUnit 1.37.0 no longer includes this script; retain the pinned 1.36.1 entrypoint.
 ADD --chmod=755 --checksum=sha256:3ae4c711f022a351c0b89042c4fde21260fa0578d28fd52e1585cad15f5df91b \
     https://raw.githubusercontent.com/freeunitorg/freeunit/1.36.1/pkg/docker/docker-entrypoint.sh /usr/local/bin/freeunit-entrypoint.sh
 COPY --from=php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/install-php-extensions
