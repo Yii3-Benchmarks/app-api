@@ -1,0 +1,120 @@
+#15 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Yiisoft\Request\Body\RequestBodyParser->process()
+#16 /app/vendor/yiisoft/error-handler/src/Middleware/ExceptionResponder.php(68): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+#17 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareFactory.php(232): Yiisoft\ErrorHandler\Middleware\ExceptionResponder->process()
+#18 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Psr\Http\Server\MiddlewareInterface@anonymous->process()
+#19 /app/vendor/yiisoft/error-handler/src/Middleware/ErrorCatcher.php(32): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+#20 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Yiisoft\ErrorHandler\Middleware\ErrorCatcher->process()
+#21 /app/vendor/yiisoft/data-response/src/Middleware/ContentNegotiatorDataResponseMiddleware.php(47): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+#22 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareFactory.php(232): Yiisoft\DataResponse\Middleware\ContentNegotiatorDataResponseMiddleware->process()
+#23 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Psr\Http\Server\MiddlewareInterface@anonymous->process()
+#24 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(49): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+#25 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareDispatcher.php(48): Yiisoft\Middleware\Dispatcher\MiddlewareStack->handle()
+#26 /app/vendor/yiisoft/yii-http/src/Application.php(81): Yiisoft\Middleware\Dispatcher\MiddlewareDispatcher->dispatch()
+#27 /app/worker-oxphp.php(67): Yiisoft\Yii\Http\Application->handle()
+#28 [internal function]: Yiisoft\Yii\Runner\ApplicationRunner@anonymous::{closure:Yiisoft\Yii\Runner\ApplicationRunner@anonymous()
+#29 [internal function]: oxphp fiber loop()
+#30 /app/worker-oxphp.php(61): oxphp_worker()
+#31 /app/worker-oxphp.php(85): Yiisoft\Yii\Runner\ApplicationRunner@anonymous->run()
+#32 {main}
+Additional Information:
+Array
+(
+    [0] => 08006
+    [1] => 7
+    [2] => connection to server at "postgres" (172.26.0.3), port 5432 failed: FATAL:  sorry, too many clients already
+)
+
+
+2026-10-05 15:47:45.986400 [error][application] SQLSTATE[08006] [7] connection to server at "postgres" (172.26.0.3), port 5432 failed: FATAL:  sorry, too many clients already
+
+Message context:
+
+trace:
+    
+time: 1791215265.98642
+memory: 693152
+category: 'application'
+throwable: PDOException: SQLSTATE[08006] [7] connection to server at "postgres" (172.26.0.3), port 5432 failed: FATAL:  sorry, too many clients already in /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoDriver.php:41
+Stack trace:
+#0 /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoDriver.php(41): PDO->__construct()
+#1 /app/vendor/yiisoft/db-pgsql/src/Driver.php(20): Yiisoft\Db\Driver\Pdo\AbstractPdoDriver->createConnection()
+#2 /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoConnection.php(221): Yiisoft\Db\Pgsql\Driver->createConnection()
+#3 /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoConnection.php(111): Yiisoft\Db\Driver\Pdo\AbstractPdoConnection->initConnection()
+#4 /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoConnection.php(147): Yiisoft\Db\Driver\Pdo\AbstractPdoConnection->open()
+#5 /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoCommand.php(152): Yiisoft\Db\Driver\Pdo\AbstractPdoConnection->getActivePdo()
+#6 /app/vendor/yiisoft/db/src/Command/AbstractCommand.php(607): Yiisoft\Db\Driver\Pdo\AbstractPdoCommand->prepare()
+#7 /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoCommand.php(302): Yiisoft\Db\Command\AbstractCommand->queryInternal()
+#8 /app/vendor/yiisoft/db/src/Command/AbstractCommand.php(410): Yiisoft\Db\Driver\Pdo\AbstractPdoCommand->queryInternal()
+#9 /app/vendor/yiisoft/db/src/Query/Query.php(266): Yiisoft\Db\Command\AbstractCommand->queryAll()
+#10 /app/src/Api/PostgresOrdersAction.php(39): Yiisoft\Db\Query\Query->all()
+#11 /app/vendor/yiisoft/injector/src/Injector.php(86): App\Api\PostgresOrdersAction->__invoke()
+#12 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareFactory.php(290): Yiisoft\Injector\Injector->invoke()
+#13 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Psr\Http\Server\MiddlewareInterface@anonymous->process()
+#14 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(49): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+#15 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareDispatcher.php(48): Yiisoft\Middleware\Dispatcher\MiddlewareStack->handle()
+#16 /app/vendor/yiisoft/router/src/Middleware/Router.php(59): Yiisoft\Middleware\Dispatcher\MiddlewareDispatcher->dispatch()
+#17 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Yiisoft\Router\Middleware\Router->process()
+#18 /app/vendor/yiisoft/request-body-parser/src/RequestBodyParser.php(130): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+#19 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Yiisoft\Request\Body\RequestBodyParser->process()
+#20 /app/vendor/yiisoft/error-handler/src/Middleware/ExceptionResponder.php(68): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+#21 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareFactory.php(232): Yiisoft\ErrorHandler\Middleware\ExceptionResponder->process()
+#22 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Psr\Http\Server\MiddlewareInterface@anonymous->process()
+#23 /app/vendor/yiisoft/error-handler/src/Middleware/ErrorCatcher.php(32): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+#24 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Yiisoft\ErrorHandler\Middleware\ErrorCatcher->process()
+#25 /app/vendor/yiisoft/data-response/src/Middleware/ContentNegotiatorDataResponseMiddleware.php(47): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+#26 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareFactory.php(232): Yiisoft\DataResponse\Middleware\ContentNegotiatorDataResponseMiddleware->process()
+#27 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Psr\Http\Server\MiddlewareInterface@anonymous->process()
+#28 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(49): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+#29 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareDispatcher.php(48): Yiisoft\Middleware\Dispatcher\MiddlewareStack->handle()
+#30 /app/vendor/yiisoft/yii-http/src/Application.php(81): Yiisoft\Middleware\Dispatcher\MiddlewareDispatcher->dispatch()
+#31 /app/worker-oxphp.php(67): Yiisoft\Yii\Http\Application->handle()
+#32 [internal function]: Yiisoft\Yii\Runner\ApplicationRunner@anonymous::{closure:Yiisoft\Yii\Runner\ApplicationRunner@anonymous()
+#33 [internal function]: oxphp fiber loop()
+#34 /app/worker-oxphp.php(61): oxphp_worker()
+#35 /app/worker-oxphp.php(85): Yiisoft\Yii\Runner\ApplicationRunner@anonymous->run()
+#36 {main}
+
+Next Yiisoft\Db\Exception\Exception: SQLSTATE[08006] [7] connection to server at "postgres" (172.26.0.3), port 5432 failed: FATAL:  sorry, too many clients already in /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoConnection.php:117
+Stack trace:
+#0 /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoConnection.php(147): Yiisoft\Db\Driver\Pdo\AbstractPdoConnection->open()
+#1 /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoCommand.php(152): Yiisoft\Db\Driver\Pdo\AbstractPdoConnection->getActivePdo()
+#2 /app/vendor/yiisoft/db/src/Command/AbstractCommand.php(607): Yiisoft\Db\Driver\Pdo\AbstractPdoCommand->prepare()
+#3 /app/vendor/yiisoft/db/src/Driver/Pdo/AbstractPdoCommand.php(302): Yiisoft\Db\Command\AbstractCommand->queryInternal()
+#4 /app/vendor/yiisoft/db/src/Command/AbstractCommand.php(410): Yiisoft\Db\Driver\Pdo\AbstractPdoCommand->queryInternal()
+#5 /app/vendor/yiisoft/db/src/Query/Query.php(266): Yiisoft\Db\Command\AbstractCommand->queryAll()
+#6 /app/src/Api/PostgresOrdersAction.php(39): Yiisoft\Db\Query\Query->all()
+#7 /app/vendor/yiisoft/injector/src/Injector.php(86): App\Api\PostgresOrdersAction->__invoke()
+#8 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareFactory.php(290): Yiisoft\Injector\Injector->invoke()
+#9 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Psr\Http\Server\MiddlewareInterface@anonymous->process()
+#10 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(49): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+#11 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareDispatcher.php(48): Yiisoft\Middleware\Dispatcher\MiddlewareStack->handle()
+#12 /app/vendor/yiisoft/router/src/Middleware/Router.php(59): Yiisoft\Middleware\Dispatcher\MiddlewareDispatcher->dispatch()
+#13 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Yiisoft\Router\Middleware\Router->process()
+#14 /app/vendor/yiisoft/request-body-parser/src/RequestBodyParser.php(130): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+#15 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Yiisoft\Request\Body\RequestBodyParser->process()
+#16 /app/vendor/yiisoft/error-handler/src/Middleware/ExceptionResponder.php(68): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+#17 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareFactory.php(232): Yiisoft\ErrorHandler\Middleware\ExceptionResponder->process()
+#18 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Psr\Http\Server\MiddlewareInterface@anonymous->process()
+#19 /app/vendor/yiisoft/error-handler/src/Middleware/ErrorCatcher.php(32): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+#20 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Yiisoft\ErrorHandler\Middleware\ErrorCatcher->process()
+#21 /app/vendor/yiisoft/data-response/src/Middleware/ContentNegotiatorDataResponseMiddleware.php(47): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+#22 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareFactory.php(232): Yiisoft\DataResponse\Middleware\ContentNegotiatorDataResponseMiddleware->process()
+#23 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(93): Psr\Http\Server\MiddlewareInterface@anonymous->process()
+#24 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareStack.php(49): Psr\Http\Server\RequestHandlerInterface@anonymous->handle()
+#25 /app/vendor/yiisoft/middleware-dispatcher/src/MiddlewareDispatcher.php(48): Yiisoft\Middleware\Dispatcher\MiddlewareStack->handle()
+#26 /app/vendor/yiisoft/yii-http/src/Application.php(81): Yiisoft\Middleware\Dispatcher\MiddlewareDispatcher->dispatch()
+#27 /app/worker-oxphp.php(67): Yiisoft\Yii\Http\Application->handle()
+#28 [internal function]: Yiisoft\Yii\Runner\ApplicationRunner@anonymous::{closure:Yiisoft\Yii\Runner\ApplicationRunner@anonymous()
+#29 [internal function]: oxphp fiber loop()
+#30 /app/worker-oxphp.php(61): oxphp_worker()
+#31 /app/worker-oxphp.php(85): Yiisoft\Yii\Runner\ApplicationRunner@anonymous->run()
+#32 {main}
+Additional Information:
+Array
+(
+    [0] => 08006
+    [1] => 7
+    [2] => connection to server at "postgres" (172.26.0.3), port 5432 failed: FATAL:  sorry, too many clients already
+)
+
+

@@ -1,0 +1,62 @@
+[
+  {
+    "runtime": "frankenphp-classic",
+    "image": "yii3-benchmarks-frankenphp-classic-frankenphp-classic",
+    "id": "sha256:ac183d82b0b852b615e4d31c2e466700072fe3184c050849ff549cc56d8024b9",
+    "created": "2026-10-05T13:15:14.648493597+03:00"
+  },
+  {
+    "runtime": "frankenphp-worker",
+    "image": "yii3-benchmarks-frankenphp-worker-frankenphp-worker",
+    "id": "sha256:2d9e4a799c4b42983acce0f04953d1f0635edbfa10c8b7c02a4632afaf9f3c96",
+    "created": "2026-10-05T13:15:14.634450034+03:00"
+  },
+  {
+    "runtime": "roadrunner",
+    "image": "yii3-benchmarks-roadrunner-roadrunner",
+    "id": "sha256:553458f7b662e1f492caf05763bc4651f61b21b960558d9bf0dbed70e1daceae",
+    "created": "2026-10-05T13:16:48.59454633+03:00"
+  },
+  {
+    "runtime": "php",
+    "image": "yii3-benchmarks-php-fpm-php",
+    "id": "sha256:ad820143b1fc856a66d960e846bddc09b3f80ba1bc35044f975c2e0e52df63a2",
+    "created": "2026-10-05T13:15:20.251296723+03:00"
+  },
+  {
+    "runtime": "freeunit",
+    "image": "yii3-benchmarks-freeunit-freeunit",
+    "id": "sha256:efb76395e325f3ce625f0fcc8a4112d2cdfc0022666be375fb08ca07e50553b3",
+    "created": "2026-10-05T13:16:15.353663205+03:00"
+  },
+  {
+    "runtime": "rapira",
+    "image": "yii3-benchmarks-rapira-rapira",
+    "id": "sha256:5dfae57b885f1ed5a83de120cebc3742ab44bd6f4e1560701caad7080803923b",
+    "created": "2026-10-05T13:15:02.835950773+03:00"
+  },
+  {
+    "runtime": "rapira-classic",
+    "image": "yii3-benchmarks-rapira-classic-rapira-classic",
+    "id": "sha256:518157c7d3a8ce409f64747b9b8a416aab67ac5b14fa5f331fbd3e25ad8fb883",
+    "created": "2026-10-05T13:15:02.835950773+03:00"
+  },
+  {
+    "runtime": "rapira-dispatcher",
+    "image": "yii3-benchmarks-rapira-dispatcher-rapira-dispatcher",
+    "id": "sha256:a24cf39a58a94ebf2edd046fb5a63e23a3da066da9fdd8858a4f279d486a8eb5",
+    "created": "2026-10-05T13:15:02.835950773+03:00"
+  },
+  {
+    "runtime": "oxphp-classic",
+    "image": "yii3-benchmarks-oxphp-classic-oxphp-classic",
+    "id": "sha256:0aedd45c8d90b32ff62a8ca85c2444f66f51ac7dbe4314cd5a1685496da4646e",
+    "created": "2026-10-05T13:18:01.830750645+03:00"
+  },
+  {
+    "runtime": "oxphp-worker",
+    "image": "yii3-benchmarks-oxphp-worker-oxphp-worker",
+    "id": "sha256:8283a5348220196ad38032bfe8f09f27250806108070c122746a6c862e751859",
+    "created": "2026-10-05T13:18:01.830750645+03:00"
+  }
+]
