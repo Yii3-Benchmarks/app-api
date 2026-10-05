@@ -1622,7 +1622,7 @@ HTML;
       // Draw the highlighted run last so overlapping lines cannot hide it.
       const orderedSeries = [...displaySeries].sort((a, b) => Number(isHighlighted(a)) - Number(isHighlighted(b)));
 
-      // Keep issued rates above the response-based scale inside the plot area.
+      // Clip drawing to the plot; the scale includes both target and measured rates.
       ctx.save();
       ctx.beginPath();
       ctx.rect(margin.left, margin.top, width, height);
@@ -1633,7 +1633,7 @@ HTML;
           drawLine(ctx, toCanvasX, toCanvasY, item.points, item.color, item.dash, 1.2, 0.22 * opacity(item));
         }
 
-        drawLine(ctx, toCanvasX, toCanvasY, item.displayPoints, item.color, item.dash, isHighlighted(item) ? 4 : 2.2, opacity(item));
+        drawLine(ctx, toCanvasX, toCanvasY, item.displayPoints, item.color, item.dash, isHighlighted(item) ? 4 : 2.2, opacity(item), item.stepped);
 
         ctx.save();
         ctx.globalAlpha = opacity(item);
@@ -1740,7 +1740,7 @@ HTML;
       });
     }
 
-    function drawLine(ctx, toCanvasX, toCanvasY, points, color, dash, lineWidth, alpha) {
+    function drawLine(ctx, toCanvasX, toCanvasY, points, color, dash, lineWidth, alpha, stepped = false) {
       ctx.save();
       ctx.beginPath();
       ctx.strokeStyle = color;
@@ -1758,6 +1758,9 @@ HTML;
         if (index === 0) {
           ctx.moveTo(x, y);
         } else {
+          if (stepped) {
+            ctx.lineTo(x, toCanvasY(points[index - 1].y));
+          }
           ctx.lineTo(x, y);
         }
       });
@@ -1885,14 +1888,14 @@ function buildChartDefinitions(array $runs, array $palette): array
             'id' => 'requests-per-second',
             'title' => 'Request Rate Per Second',
             'series' => array_merge(
-                collectRunSeries($runs, 'issuedRequestsPerSecond', $palette, ' issued', false, [2, 4]),
+                collectRunSeries($runs, 'targetRequestsPerSecond', $palette, ' target', false, [2, 4]),
                 withStartMarkers(collectRunSeries($runs, 'successfulResponsesPerSecond', $palette, ' successful')),
                 collectRunSeries($runs, 'erroredRequestsPerSecond', $palette, ' errored', false, [8, 4]),
             ),
             'xAxisTargetSeries' => collectRunSeries($runs, 'targetRequestsPerSecond', $palette),
             'styleLegend' => [
                 ['label' => 'successful', 'dash' => []],
-                ['label' => 'issued', 'dash' => [2, 4]],
+                ['label' => 'target', 'dash' => [2, 4]],
                 ['label' => 'errored', 'dash' => [8, 4]],
             ],
             'format' => 'integer',
@@ -1969,7 +1972,8 @@ function collectRunSeries(
             'runLabel' => $run['label'],
             'color' => $palette[$index],
             'runIndex' => $index,
-            'affectsYAxis' => $metric !== 'issuedRequestsPerSecond',
+            'affectsYAxis' => true,
+            'stepped' => $metric === 'targetRequestsPerSecond',
             'points' => $points,
             'showPoints' => $showPoints,
             'dash' => $dash,
