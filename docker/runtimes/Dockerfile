@@ -4,7 +4,7 @@ FROM ghcr.io/roadrunner-server/roadrunner:2025.1.15 AS roadrunner-bin
 FROM ghcr.io/oxphp/oxphp:0.12.0 AS oxphp-bin
 
 # Follow OxPHP's Yii3 recipe: PHP CLI and extensions share the server's ZTS ABI.
-FROM php:8.5.10-zts-alpine3.23 AS oxphp-base
+FROM php:8.5.11-zts-alpine3.23 AS oxphp-base
 COPY --from=php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/install-php-extensions
 RUN apk add --no-cache libgcc \
     && install-php-extensions mbstring intl pdo_pgsql
@@ -34,7 +34,7 @@ ENV WORKER_MODE_ENABLED=true \
     WORKER_MAX_MEMORY_MIB=256 \
     MAX_REQUESTS=10000
 
-FROM dunglas/frankenphp:1.12.7-php8.5-bookworm AS frankenphp-base
+FROM dunglas/frankenphp:1.13.0-php8.5-bookworm AS frankenphp-base
 RUN set -eux; \
     for source in /etc/apt/sources.list /etc/apt/sources.list.d/debian.sources; do \
         if [ -f "$source" ]; then \
@@ -54,7 +54,7 @@ COPY docker/runtimes/frankenphp-classic.Caddyfile /etc/frankenphp/Caddyfile
 FROM frankenphp-base AS frankenphp-worker
 COPY docker/runtimes/frankenphp-worker.Caddyfile /etc/frankenphp/Caddyfile
 
-FROM php:8.5.10-cli-bookworm AS roadrunner
+FROM php:8.5.11-cli-bookworm AS roadrunner
 COPY --from=php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/install-php-extensions
 COPY --from=roadrunner-bin /usr/bin/rr /usr/local/bin/rr
 RUN set -eux; \
@@ -71,7 +71,7 @@ COPY docker/runtimes/php-production.ini /usr/local/etc/php/conf.d/zz-production.
 WORKDIR /app
 CMD ["rr", "serve", "-c", "docker/runtimes/roadrunner.yaml", "-w", "/app"]
 
-FROM php:8.5.10-fpm-bookworm AS php-fpm
+FROM php:8.5.11-fpm-bookworm AS php-fpm
 COPY --from=php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/install-php-extensions
 RUN set -eux; \
     for source in /etc/apt/sources.list /etc/apt/sources.list.d/debian.sources; do \
@@ -88,7 +88,7 @@ COPY docker/runtimes/php-production.ini /usr/local/etc/php/conf.d/zz-production.
 WORKDIR /app
 
 # Build the pinned FreeUnit release against the same PHP version as the other runtimes.
-FROM php:8.5.10-cli-trixie AS freeunit-build
+FROM php:8.5.11-cli-trixie AS freeunit-build
 RUN set -eux; \
     sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources; \
     apt-get update; \
@@ -106,7 +106,7 @@ RUN set -eux; \
     make -j"$(nproc)"; \
     make install
 
-FROM php:8.5.10-cli-trixie AS freeunit
+FROM php:8.5.11-cli-trixie AS freeunit
 COPY --from=freeunit-build /usr/sbin/unitd /usr/sbin/unitd
 COPY --from=freeunit-build /usr/lib/unit/modules /usr/lib/unit/modules
 # FreeUnit 1.37.0 no longer includes this script; retain the pinned 1.36.1 entrypoint.
@@ -135,7 +135,7 @@ STOPSIGNAL SIGTERM
 ENTRYPOINT ["/usr/local/bin/freeunit-entrypoint.sh"]
 CMD ["unitd", "--no-daemon", "--control", "unix:/var/run/control.unit.sock"]
 
-FROM php:8.5.10-cli-trixie AS rapira
+FROM php:8.5.11-cli-trixie AS rapira
 COPY --from=ghcr.io/rapira-rs/rapira:nightly-php8.5 / /
 COPY --from=php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/install-php-extensions
 RUN install-php-extensions mbstring intl pdo_pgsql

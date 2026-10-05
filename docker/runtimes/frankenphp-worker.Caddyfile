@@ -2,7 +2,8 @@
     auto_https off
     skip_install_trust
     frankenphp {
-        num_threads 21
+        # Since 1.13, worker threads are additional to num_threads.
+        num_threads 1
         max_threads 21
         max_wait_time 30s
     }
