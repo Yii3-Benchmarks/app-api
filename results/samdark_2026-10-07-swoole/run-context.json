@@ -16,11 +16,7 @@
     "memory": "93 GiB usable RAM"
   },
   "report_notes": [
-    "Swoole was measured on October 7, 2026; the other ten runtimes retain their October 5 measurements. These were separate sessions on the same host, not a simultaneous full rerun.",
-    "Swoole 6.2.3 uses PHP 8.5.11, 20 workers in process mode, asynchronous reloads after 10,000 requests, and disabled coroutine request handling and compression. PostgreSQL max_connections=2000 and opcache.enable_file_override=1.",
-    "Swoole uses the same default 13-stage ramp, 30 seconds per stage, 32 load-generator threads, and 256 HTTP connections.",
-    "Unrelated development containers were running on the host during the Swoole measurements.",
-    "Both Swoole scenarios completed all 13 stages with zero errors. PostgreSQL connections were sampled every 30 seconds and peaked at 21, including the monitoring connection; samples are not a continuous peak measurement."
+    "Swoole 6.2.3 uses 20 workers in process mode, asynchronous reloads after 10,000 requests, and disabled coroutine request handling and compression. PHP and PostgreSQL settings match the October 5 runs."
   ],
   "source_commit": "0e621c796331551d500817e094efd36df09b1051",
   "docker_version": "29.8.1",

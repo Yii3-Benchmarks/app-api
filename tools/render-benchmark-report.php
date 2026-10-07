@@ -934,7 +934,8 @@ function renderHtmlReport(array $runs): string
         }
     }
     $systemDescription = implode("\n      ", array_unique($systemDescriptions));
-    $runNoteDescription = implode("\n      ", array_unique($runNotes));
+    $runNoteDescription = $runNotes === [] ? '' : '<details class="run-notes"><summary>Run notes</summary>'
+        . implode("\n      ", array_unique($runNotes)) . '</details>';
     ksort($runDates);
     $dateDescriptions = [];
     foreach ($runDates as $date => $labels) {

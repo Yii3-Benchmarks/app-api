@@ -26,11 +26,10 @@
     "memory": "93 GiB usable RAM"
   },
   "report_notes": [
-    "Full October 5 rerun of all ten runtimes with PostgreSQL max_connections=2000. PHP 8.5.11, FrankenPHP 1.13.0, FreeUnit 1.37.0, and opcache.enable_file_override=1.",
-    "Unrelated development containers were running on the host during the measurements.",
-    "All 20 scenarios completed all 13 load stages. All six Rapira scenarios recorded socket-read errors; the other 14 scenarios recorded zero errors.",
-    "OxPHP worker database completed with zero errors after raising PostgreSQL max_connections from 200 to 2000. Its sampled peak was 441 client connections, including the monitoring connection.",
-    "PostgreSQL connections were sampled every 30 seconds from FreeUnit onward, with a gap during an agent restart. Sampling is not a continuous peak measurement. Rapira worker application logs were empty when inspected after socket-read errors."
+    "PHP 8.5.11, FrankenPHP 1.13.0, FreeUnit 1.37.0; opcache.enable_file_override=1.",
+    "Unrelated development containers were running on the benchmark host.",
+    "All six Rapira scenarios recorded socket-read errors.",
+    "Raising PostgreSQL max_connections from 200 to 2000 eliminated the earlier OxPHP worker database failures. Its highest 30-second connection sample was 441, including the monitor."
   ],
   "completed_at": "2026-10-05T19:18:33.251742+00:00",
   "scenario_errors": {
