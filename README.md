@@ -79,7 +79,7 @@ archive no longer includes it. Optional JavaScript routing and OpenTelemetry mod
 the benchmark does not use them.
 Version pins should be refreshed from upstream releases when updating the benchmark baseline.
 
-Swoole uses 20 persistent worker processes and recycles each after 10,000 requests. Each worker
+Swoole uses process mode with 20 persistent worker processes and recycles each after 10,000 requests. Each worker
 boots Yii after forking and resets container state after every request. Coroutine request handling
 and HTTP compression are disabled, so requests do not concurrently share a Yii container or PDO
 connection. `worker-swoole.php` and `src/SwooleRequestFactory.php` provide the adapter for the

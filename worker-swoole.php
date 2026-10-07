@@ -35,11 +35,12 @@ $runner = new class (
 ) extends ApplicationRunner {
     public function run(): void
     {
-        $server = new Server('0.0.0.0', 8080);
+        $server = new Server('0.0.0.0', 8080, SWOOLE_PROCESS);
         $server->set([
             'worker_num' => 20,
             'enable_coroutine' => false,
             'max_request' => 10000,
+            'reload_async' => true,
             'max_request_grace' => 0,
             'max_wait_time' => 30,
             'max_conn' => 4096,
