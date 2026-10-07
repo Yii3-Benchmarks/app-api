@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Benchmark Report</title>
+  <style>
+    :root {
+      --bg: #f4f1ea;
+      --panel: #fffdf8;
+      --text: #1f2933;
+      --muted: #5c6b73;
+      --line: #d6d0c4;
+      --accent: #b56576;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+      background:
+        radial-gradient(circle at top left, rgba(181, 101, 118, 0.12), transparent 30%),
+        linear-gradient(180deg, #f8f4ec 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 28px 24px 48px;
+    }
+    h1, h2 {
+      margin: 0 0 12px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+    h1 {
+      font-size: 2.2rem;
+    }
+    h2 {
+      font-size: 1.25rem;
+    }
+    p {
+      margin: 0 0 8px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .path {
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: 0.9rem;
+      word-break: break-all;
+    }
+    .grid {
+      display: grid;
+      gap: 20px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(31, 41, 51, 0.08);
+      border-radius: 18px;
+      padding: 20px 22px;
+      box-shadow: 0 18px 42px rgba(31, 41, 51, 0.06);
+    }
+    .summary-table, .metadata-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .summary-table th,
+    .summary-table td,
+    .metadata-table th,
+    .metadata-table td {
+      border-top: 1px solid var(--line);
+      padding: 10px 8px;
+      text-align: left;
+      vertical-align: top;
+      font-size: 0.95rem;
+    }
+    .summary-table th,
+    .metadata-table th {
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      width: 15%;
+    }
+    .summary-table tbody tr:hover { background-color: rgba(37, 99, 235, 0.08); }
+    .summary-table th button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; text-align: left; }
+    .summary-table th button::after { content: ' ↕'; }
+    .summary-table th[aria-sort="ascending"] button::after { content: ' ↑'; }
+    .summary-table th[aria-sort="descending"] button::after { content: ' ↓'; }
+    .chart-panel {
+      overflow: hidden;
+    }
+    .chart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+    .chart-header h2 {
+      margin-bottom: 0;
+    }
+    .chart-wrap {
+      width: 100%;
+      overflow-x: hidden;
+    }
+    .chart {
+      width: 100%;
+      height: auto;
+      display: block;
+      background: linear-gradient(180deg, rgba(255,255,255,0.55), rgba(246,241,233,0.95));
+      border-radius: 14px;
+      border: 1px solid rgba(31, 41, 51, 0.08);
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 18px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .style-legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 12px 18px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    button.legend-item {
+      font: inherit;
+      color: inherit;
+      background: transparent;
+      border: 0;
+      border-radius: 4px;
+      padding: 4px;
+      cursor: pointer;
+    }
+    .legend-item.is-dimmed {
+      opacity: 0.3;
+    }
+    .legend-item.is-highlighted {
+      color: var(--text);
+      box-shadow: 0 0 0 2px currentColor;
+    }
+    .legend-item:focus-visible {
+      outline: 2px solid var(--text);
+      outline-offset: 3px;
+    }
+    .summary-run {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .style-legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .legend-swatch {
+      width: 12px;
+      height: 12px;
+      display: inline-block;
+      border-radius: 999px;
+    }
+    .style-legend-swatch {
+      width: 24px;
+      height: 8px;
+      display: inline-block;
+    }
+    .style-legend-target {
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .meta-grid {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    @media (max-width: 720px) {
+      .meta-grid { grid-template-columns: 1fr; }
+      main { padding: 20px 14px 36px; }
+      h1 { font-size: 1.8rem; }
+      .panel { padding: 16px; }
+      .chart-header { align-items: flex-start; flex-direction: column; }
+      .style-legend { justify-content: flex-start; }
+      .summary-table th, .summary-table td, .metadata-table th, .metadata-table td { padding: 8px 6px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="grid">
+    <section class="panel">
+      <h1>Benchmark Report</h1>
+      <p>Generated 2026-10-07 15:43:44 UTC. This report combines wrkx stage summaries with Docker CPU and memory samples.</p>
+      <p><strong>Test system.</strong> <strong>OS:</strong> Ubuntu 26.04.1 LTS (x86_64); <strong>Kernel:</strong> Linux 7.0.0-34-generic; <strong>CPU:</strong> AMD Ryzen 9 7950X, 16 cores / 32 threads; <strong>Memory:</strong> 93 GiB usable RAM.</p>
+      <p><strong>Run dates.</strong> 2026-10-07: Swoole.</p>
+<p><strong>Run note (2026-10-07).</strong> Swoole was measured on October 7, 2026; the other ten runtimes retain their October 5 measurements. These were separate sessions on the same host, not a simultaneous full rerun.</p>
+      <p><strong>Run note (2026-10-07).</strong> Swoole 6.2.3 uses PHP 8.5.11, 20 workers in process mode, asynchronous reloads after 10,000 requests, and disabled coroutine request handling and compression. PostgreSQL max_connections=2000 and opcache.enable_file_override=1.</p>
+      <p><strong>Run note (2026-10-07).</strong> Swoole uses the same default 13-stage ramp, 30 seconds per stage, 32 load-generator threads, and 256 HTTP connections.</p>
+      <p><strong>Run note (2026-10-07).</strong> Unrelated development containers were running on the host during the Swoole measurements.</p>
+      <p><strong>Run note (2026-10-07).</strong> Both Swoole scenarios completed all 13 stages with zero errors. PostgreSQL connections were sampled every 30 seconds and peaked at 21, including the monitoring connection; samples are not a continuous peak measurement.</p>
+      <p>Charts show raw samples. For stage results, RPS cap marks the first stage with successful throughput more than 5% below target; per-second results use a sustained latency surge. The load generator can also limit throughput.</p>
+      <p>Hover over a chart legend label or focus it with Tab to highlight that run.</p>
+    </section>
+
+        <section class="panel">
+      <h2>Run Summary — Non-DB</h2>
+      <p>Normal latency averages samples before a detected latency surge or throughput cap, whichever comes first. Overloaded latency comes from the throughput-cap sample shown in the RPS columns. Runs may include different load levels in their normal averages, so these are not equal-load comparisons. Mean p95 averages the included sample percentiles, not pooled requests. — means no qualifying measurement.</p>
+      <details>
+        <summary>Calculation details</summary>
+        <p>For stage data, each sample represents one load stage. The first stage provides the latency baseline. A surge is detected when average latency reaches the largest of 20 ms, 4× baseline average latency, or baseline average latency + 12 ms. When baseline p95 is available, the stage must also have a p95 reaching the largest of 30 ms, 2.5× baseline p95, or baseline p95 + 15 ms. These thresholds are a heuristic, not a latency guarantee.</p>
+        <p>Normal averages exclude the first qualifying surge stage and all later stages, or stop earlier at the throughput cap. If the cap occurs in the first stage, no normal measurement is available. If no cap is reached, no overloaded measurement is available. For per-second data, the existing sustained latency-surge detector determines the cutoff, and averages use per-second samples.</p>
+      </details>
+      <table class="summary-table">
+        <thead>
+          <tr>
+            <th scope="col" aria-sort="none" data-sort-type="text"><button type="button">Run</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="text"><button type="button">Path</button></th>
+            <th scope="col" aria-sort="descending" data-sort-type="number"><button type="button">Successful RPS</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Target RPS</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Normal latency (avg)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Normal latency (mean p95)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Overloaded latency (avg)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Overloaded latency (p95)</button></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="summary-run"><span class="legend-swatch" style="background:#000000"></span>Swoole</span></td><td>/</td><td data-sort-value="116191.69724757">116192</td><td data-sort-value="150000">150000</td><td data-sort-value="1.1672727272727">1.17 ms</td><td data-sort-value="2.0365454545455">2.04 ms</td><td data-sort-value="4423.1474">4423.15 ms</td><td data-sort-value="6684.671">6684.67 ms</td></tr>
+        </tbody>
+      </table>
+    </section>    <section class="panel">
+      <h2>Run Summary — DB</h2>
+      <p>Normal latency averages samples before a detected latency surge or throughput cap, whichever comes first. Overloaded latency comes from the throughput-cap sample shown in the RPS columns. Runs may include different load levels in their normal averages, so these are not equal-load comparisons. Mean p95 averages the included sample percentiles, not pooled requests. — means no qualifying measurement.</p>
+      <details>
+        <summary>Calculation details</summary>
+        <p>For stage data, each sample represents one load stage. The first stage provides the latency baseline. A surge is detected when average latency reaches the largest of 20 ms, 4× baseline average latency, or baseline average latency + 12 ms. When baseline p95 is available, the stage must also have a p95 reaching the largest of 30 ms, 2.5× baseline p95, or baseline p95 + 15 ms. These thresholds are a heuristic, not a latency guarantee.</p>
+        <p>Normal averages exclude the first qualifying surge stage and all later stages, or stop earlier at the throughput cap. If the cap occurs in the first stage, no normal measurement is available. If no cap is reached, no overloaded measurement is available. For per-second data, the existing sustained latency-surge detector determines the cutoff, and averages use per-second samples.</p>
+      </details>
+      <table class="summary-table">
+        <thead>
+          <tr>
+            <th scope="col" aria-sort="none" data-sort-type="text"><button type="button">Run</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="text"><button type="button">Path</button></th>
+            <th scope="col" aria-sort="descending" data-sort-type="number"><button type="button">Successful RPS</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Target RPS</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Normal latency (avg)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Normal latency (mean p95)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Overloaded latency (avg)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Overloaded latency (p95)</button></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="summary-run"><span class="legend-swatch" style="background:#6600ff"></span>Swoole DB</span></td><td>/postgres/orders</td><td data-sort-value="13645.041030075">13645</td><td data-sort-value="15000">15000</td><td data-sort-value="4.0581666666667">4.06 ms</td><td data-sort-value="8.0283333333333">8.03 ms</td><td data-sort-value="1804.0811">1804.08 ms</td><td data-sort-value="2992.127">2992.13 ms</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <h2>Worker no DB</h2><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Request Rate Per Second</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  successful
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="2 4" stroke-linecap="round"></line>
+  </svg>
+  target
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  errored
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-home-requests-per-second" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-home-requests-per-second" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Latency (ms)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  avg
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  p95
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-home-latency" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-home-latency" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP CPU (% of one core, 100% = 1 core)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-home-cpu-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-home-cpu-app" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP Memory (MiB)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-home-memory-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-home-memory-app" class="legend"></div>
+</section><h2>Worker DB</h2><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Request Rate Per Second</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  successful
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="2 4" stroke-linecap="round"></line>
+  </svg>
+  target
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  errored
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-db-requests-per-second" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-db-requests-per-second" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Latency (ms)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  avg
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  p95
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-db-latency" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-db-latency" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP CPU (% of one core, 100% = 1 core)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-db-cpu-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-db-cpu-app" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP Memory (MiB)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-db-memory-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-db-memory-app" class="legend"></div>
+</section>
+
+    <section class="meta-grid">
+      <section class="panel">
+  <h2>Swoole</h2>
+  <p class="path">/home/samdark/src/yii3-benchmarks/app-api/results/samdark_2026-10-07-swoole/20261007T152934Z-Swoole-home-ramp</p>
+  <table class="metadata-table">
+    <tr><th>BASE_URL</th><td>http://localhost:9991</td></tr><tr><th>TARGET_NAME</th><td>home</td></tr><tr><th>TARGET_PATH</th><td>/</td></tr><tr><th>BENCH_NAME</th><td>Swoole</td></tr><tr><th>MODE</th><td>ramp</td></tr><tr><th>CAPTURE_METRICS</th><td>1</td></tr><tr><th>RATE</th><td>10000</td></tr><tr><th>DURATION</th><td>160s</td></tr><tr><th>THREADS</th><td>32</td></tr><tr><th>CONNECTIONS</th><td>256</td></tr><tr><th>STAGES</th><td>[{&quot;target&quot;:2500,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:5000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:10000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:15000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:20000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:25000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:30000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:40000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:50000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:75000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:100000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:150000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:200000,&quot;duration&quot;:&quot;30s&quot;}]</td></tr><tr><th>COMPOSE_PROJECT_NAME</th><td>yii3-benchmarks-swoole</td></tr><tr><th>WRKX_REF</th><td>bec57539360771bedc2fc63a48e3746f1b7a9975</td></tr><tr><th>WARMUP_DURATION</th><td>10s</td></tr><tr><th>WARMUP_RATE</th><td>1000</td></tr>
+  </table>
+</section><section class="panel">
+  <h2>Swoole DB</h2>
+  <p class="path">/home/samdark/src/yii3-benchmarks/app-api/results/samdark_2026-10-07-swoole/20261007T153621Z-Swoole-DB-postgres-orders-ramp</p>
+  <table class="metadata-table">
+    <tr><th>BASE_URL</th><td>http://localhost:9991</td></tr><tr><th>TARGET_NAME</th><td>postgres-orders</td></tr><tr><th>TARGET_PATH</th><td>/postgres/orders</td></tr><tr><th>BENCH_NAME</th><td>Swoole DB</td></tr><tr><th>MODE</th><td>ramp</td></tr><tr><th>CAPTURE_METRICS</th><td>1</td></tr><tr><th>RATE</th><td>10000</td></tr><tr><th>DURATION</th><td>160s</td></tr><tr><th>THREADS</th><td>32</td></tr><tr><th>CONNECTIONS</th><td>256</td></tr><tr><th>STAGES</th><td>[{&quot;target&quot;:2500,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:5000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:10000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:15000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:20000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:25000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:30000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:40000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:50000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:75000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:100000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:150000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:200000,&quot;duration&quot;:&quot;30s&quot;}]</td></tr><tr><th>COMPOSE_PROJECT_NAME</th><td>yii3-benchmarks-swoole</td></tr><tr><th>WRKX_REF</th><td>bec57539360771bedc2fc63a48e3746f1b7a9975</td></tr><tr><th>WARMUP_DURATION</th><td>10s</td></tr><tr><th>WARMUP_RATE</th><td>1000</td></tr>
+  </table>
+</section>
+    </section>
+  </main>
+
+  <script>
+    const reportData = {"charts":[{"id":"worker-home-requests-per-second","title":"Request Rate Per Second","series":[{"label":"Swoole target","runLabel":"Swoole","color":"#000000","runIndex":0,"affectsYAxis":true,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[2,4],"capSecond":330,"errorStartSecond":null},{"label":"Swoole successful","runLabel":"Swoole","color":"#000000","runIndex":0,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":2500.9625},{"x":30,"y":5000.102},{"x":60,"y":10001.9393},{"x":90,"y":14996.7818},{"x":120,"y":19983.9586},{"x":150,"y":24977.6087},{"x":180,"y":29972.4119},{"x":210,"y":39966.7742},{"x":240,"y":49949.5596},{"x":270,"y":74990.1592},{"x":300,"y":99929.8958},{"x":330,"y":116191.6972},{"x":360,"y":117454.9928}],"showPoints":false,"dash":[],"capSecond":330,"errorStartSecond":null,"startMarker":true},{"label":"Swoole errored","runLabel":"Swoole","color":"#000000","runIndex":0,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":0},{"x":30,"y":0},{"x":60,"y":0},{"x":90,"y":0},{"x":120,"y":0},{"x":150,"y":0},{"x":180,"y":0},{"x":210,"y":0},{"x":240,"y":0},{"x":270,"y":0},{"x":300,"y":0},{"x":330,"y":0},{"x":360,"y":0}],"showPoints":false,"dash":[8,4],"capSecond":330,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"Swoole","runLabel":"Swoole","color":"#000000","runIndex":0,"affectsYAxis":true,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":330,"errorStartSecond":null}],"styleLegend":[{"label":"successful","dash":[]},{"label":"target","dash":[2,4]},{"label":"errored","dash":[8,4]}],"format":"integer","smoothingWindow":0,"group":"Worker no DB"},{"id":"worker-home-latency","title":"Latency (ms)","series":[{"label":"Swoole avg","runLabel":"Swoole","color":"#000000","runIndex":0,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":1.0568},{"x":30,"y":1.0427},{"x":60,"y":1.0278},{"x":90,"y":1.0316},{"x":120,"y":0.9659},{"x":150,"y":1.0338},{"x":180,"y":1.0185},{"x":210,"y":1.0523},{"x":240,"y":1.0502},{"x":270,"y":1.4465},{"x":300,"y":2.1139},{"x":330,"y":4423.1474},{"x":360,"y":8139.9724}],"showPoints":false,"dash":[],"capSecond":330,"errorStartSecond":null},{"label":"Swoole p95","runLabel":"Swoole","color":"#000000","runIndex":0,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":1.716},{"x":30,"y":1.698},{"x":60,"y":1.66},{"x":90,"y":1.768},{"x":120,"y":1.629},{"x":150,"y":1.743},{"x":180,"y":1.719},{"x":210,"y":1.757},{"x":240,"y":1.752},{"x":270,"y":2.385},{"x":300,"y":4.575},{"x":330,"y":6684.671},{"x":360,"y":11968.511}],"showPoints":false,"dash":[8,4],"capSecond":330,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"Swoole","runLabel":"Swoole","color":"#000000","runIndex":0,"affectsYAxis":true,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":330,"errorStartSecond":null}],"styleLegend":[{"label":"avg","dash":[]},{"label":"p95","dash":[8,4]}],"format":"milliseconds-integer","smoothingWindow":0,"yMax":6684.671,"group":"Worker no DB"},{"id":"worker-home-cpu-app","title":"APP CPU (% of one core, 100% = 1 core)","series":[{"label":"Swoole","runLabel":"Swoole","color":"#000000","points":[{"x":0,"y":50.3},{"x":3,"y":50.4},{"x":6,"y":47.95},{"x":9,"y":48.37},{"x":12,"y":47.41},{"x":15,"y":48.63},{"x":18,"y":47.4},{"x":21,"y":49.96},{"x":24,"y":47.43},{"x":27,"y":49.41},{"x":30,"y":89.97},{"x":33,"y":90.33},{"x":36,"y":89.55},{"x":39,"y":89.45},{"x":42,"y":89.39},{"x":45,"y":91.82},{"x":48,"y":90.75},{"x":51,"y":100.77},{"x":54,"y":91.53},{"x":57,"y":89.1},{"x":60,"y":171.62},{"x":63,"y":169.42},{"x":66,"y":172.95},{"x":69,"y":167.29},{"x":72,"y":168.26},{"x":75,"y":169.15},{"x":78,"y":169.45},{"x":81,"y":168.67},{"x":84,"y":168.42},{"x":87,"y":167.32},{"x":90,"y":238.55},{"x":93,"y":241.59},{"x":96,"y":242.95},{"x":99,"y":241.35},{"x":102,"y":239.73},{"x":105,"y":240.88},{"x":108,"y":240.47},{"x":111,"y":241.99},{"x":114,"y":239.43},{"x":117,"y":242},{"x":120,"y":322.56},{"x":123,"y":325.98},{"x":126,"y":325.66},{"x":129,"y":328.49},{"x":132,"y":325.24},{"x":135,"y":324.9},{"x":138,"y":322.6},{"x":142,"y":323.34},{"x":145,"y":324.87},{"x":148,"y":330.25},{"x":151,"y":410.49},{"x":154,"y":421.93},{"x":157,"y":412.59},{"x":160,"y":412.38},{"x":163,"y":406.65},{"x":166,"y":416.47},{"x":169,"y":408.73},{"x":172,"y":416.16},{"x":175,"y":407.43},{"x":178,"y":412.05},{"x":181,"y":508.8},{"x":184,"y":495.62},{"x":187,"y":495.29},{"x":190,"y":482.9},{"x":193,"y":487.42},{"x":196,"y":488.49},{"x":199,"y":486.38},{"x":202,"y":488.32},{"x":205,"y":494.61},{"x":208,"y":500.73},{"x":211,"y":351.9},{"x":214,"y":641.15},{"x":217,"y":647.85},{"x":220,"y":645.19},{"x":223,"y":644},{"x":226,"y":652.3},{"x":229,"y":650.52},{"x":232,"y":642.08},{"x":235,"y":639.51},{"x":238,"y":649.59},{"x":241,"y":658.84},{"x":244,"y":825.92},{"x":247,"y":834.91},{"x":250,"y":847.51},{"x":253,"y":823.23},{"x":256,"y":812.39},{"x":259,"y":816.57},{"x":262,"y":814.64},{"x":265,"y":819.56},{"x":269,"y":820.62},{"x":272,"y":872.76},{"x":275,"y":1226.69},{"x":278,"y":1241.06},{"x":281,"y":1218.06},{"x":284,"y":1214.9},{"x":287,"y":1245.22},{"x":290,"y":1232.06},{"x":293,"y":1230.06},{"x":296,"y":1224.05},{"x":299,"y":1241.95},{"x":302,"y":1192.56},{"x":305,"y":1666.82},{"x":308,"y":1642.66},{"x":311,"y":1653.48},{"x":314,"y":1665.17},{"x":317,"y":1657.5},{"x":320,"y":1671.44},{"x":323,"y":1643.76},{"x":326,"y":1664.45},{"x":329,"y":1652.84},{"x":332,"y":1219.04},{"x":335,"y":1869.62},{"x":338,"y":1863.22},{"x":341,"y":1877.32},{"x":344,"y":1937.54},{"x":347,"y":1889.94},{"x":350,"y":1742.74},{"x":353,"y":1784.8},{"x":356,"y":1884.24},{"x":359,"y":1821.83},{"x":363,"y":1209.41},{"x":366,"y":1867.98},{"x":368,"y":1883.39},{"x":371,"y":1879.55},{"x":374,"y":1931.52},{"x":377,"y":1857.22},{"x":380,"y":1907.33},{"x":383,"y":1877.1},{"x":386,"y":1827.29},{"x":389,"y":1865},{"x":392,"y":1773.11}],"capSecond":330,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"Swoole","runLabel":"Swoole","color":"#000000","runIndex":0,"affectsYAxis":true,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":330,"errorStartSecond":null}],"format":"percent-integer","smoothingWindow":0,"group":"Worker no DB"},{"id":"worker-home-memory-app","title":"APP Memory (MiB)","series":[{"label":"Swoole","runLabel":"Swoole","color":"#000000","points":[{"x":0,"y":82.84},{"x":3,"y":82.57},{"x":6,"y":83.27},{"x":9,"y":82.49},{"x":12,"y":83.46},{"x":15,"y":83.34},{"x":18,"y":83.16},{"x":21,"y":83.52},{"x":24,"y":83.7},{"x":27,"y":82.38},{"x":30,"y":83.26},{"x":33,"y":82.86},{"x":36,"y":82.04},{"x":39,"y":81.71},{"x":42,"y":83.82},{"x":45,"y":82.23},{"x":48,"y":81.41},{"x":51,"y":76.23},{"x":54,"y":75.51},{"x":57,"y":75.18},{"x":60,"y":77.54},{"x":63,"y":77.74},{"x":66,"y":77.78},{"x":69,"y":76.69},{"x":72,"y":77.59},{"x":75,"y":77.92},{"x":78,"y":77.38},{"x":81,"y":77.78},{"x":84,"y":76.75},{"x":87,"y":76.64},{"x":90,"y":77.59},{"x":93,"y":77.12},{"x":96,"y":77.66},{"x":99,"y":76.77},{"x":102,"y":76.54},{"x":105,"y":76.13},{"x":108,"y":77.8},{"x":111,"y":76.67},{"x":114,"y":76.64},{"x":117,"y":76.61},{"x":120,"y":76.84},{"x":123,"y":77.78},{"x":126,"y":77.34},{"x":129,"y":77.21},{"x":132,"y":77.76},{"x":135,"y":78},{"x":138,"y":76.57},{"x":142,"y":77.57},{"x":145,"y":77.17},{"x":148,"y":77.02},{"x":151,"y":77.11},{"x":154,"y":76.84},{"x":157,"y":76.74},{"x":160,"y":77.14},{"x":163,"y":77.04},{"x":166,"y":77.36},{"x":169,"y":76.85},{"x":172,"y":76.66},{"x":175,"y":76.45},{"x":178,"y":76.53},{"x":181,"y":76.94},{"x":184,"y":77.81},{"x":187,"y":77.45},{"x":190,"y":77.38},{"x":193,"y":76.9},{"x":196,"y":86.11},{"x":199,"y":77.18},{"x":202,"y":77.39},{"x":205,"y":76.58},{"x":208,"y":77.47},{"x":211,"y":70.14},{"x":214,"y":76.94},{"x":217,"y":76.7},{"x":220,"y":77.59},{"x":223,"y":77.1},{"x":226,"y":77.84},{"x":229,"y":76.77},{"x":232,"y":77.42},{"x":235,"y":77.42},{"x":238,"y":77.7},{"x":241,"y":76.78},{"x":244,"y":76.62},{"x":247,"y":76.91},{"x":250,"y":76.91},{"x":253,"y":76.29},{"x":256,"y":77.57},{"x":259,"y":76.91},{"x":262,"y":77.09},{"x":265,"y":76.64},{"x":269,"y":76.62},{"x":272,"y":76.1},{"x":275,"y":76.18},{"x":278,"y":77.12},{"x":281,"y":76.49},{"x":284,"y":76.89},{"x":287,"y":76.59},{"x":290,"y":75.49},{"x":293,"y":76.59},{"x":296,"y":76.77},{"x":299,"y":75.97},{"x":302,"y":70.61},{"x":305,"y":76.04},{"x":308,"y":76.82},{"x":311,"y":76.16},{"x":314,"y":76.53},{"x":317,"y":76.36},{"x":320,"y":76.66},{"x":323,"y":77.07},{"x":326,"y":77.38},{"x":329,"y":76.63},{"x":332,"y":75.94},{"x":335,"y":76.3},{"x":338,"y":76.5},{"x":341,"y":75.4},{"x":344,"y":76.09},{"x":347,"y":76.49},{"x":350,"y":76.02},{"x":353,"y":76.28},{"x":356,"y":75.73},{"x":359,"y":76.4},{"x":363,"y":76.09},{"x":366,"y":76.89},{"x":368,"y":76.57},{"x":371,"y":76.13},{"x":374,"y":75.97},{"x":377,"y":76.23},{"x":380,"y":75.98},{"x":383,"y":76.63},{"x":386,"y":76.07},{"x":389,"y":76.25},{"x":392,"y":71.58}],"capSecond":330,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"Swoole","runLabel":"Swoole","color":"#000000","runIndex":0,"affectsYAxis":true,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":330,"errorStartSecond":null}],"format":"integer","group":"Worker no DB"},{"id":"worker-db-requests-per-second","title":"Request Rate Per Second","series":[{"label":"Swoole DB target","runLabel":"Swoole DB","color":"#6600ff","runIndex":1,"affectsYAxis":true,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[2,4],"capSecond":90,"errorStartSecond":null},{"label":"Swoole DB successful","runLabel":"Swoole DB","color":"#6600ff","runIndex":1,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":2500.7966},{"x":30,"y":5002.4119},{"x":60,"y":9999.7786},{"x":90,"y":13645.041},{"x":120,"y":13666.9241},{"x":150,"y":13550.5321},{"x":180,"y":13425.5888},{"x":210,"y":13389.3276},{"x":240,"y":13413.5673},{"x":270,"y":13258.1162},{"x":300,"y":13352.8289},{"x":330,"y":13429.8718},{"x":360,"y":13315.7393}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":null,"startMarker":true},{"label":"Swoole DB errored","runLabel":"Swoole DB","color":"#6600ff","runIndex":1,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":0},{"x":30,"y":0},{"x":60,"y":0},{"x":90,"y":0},{"x":120,"y":0},{"x":150,"y":0},{"x":180,"y":0},{"x":210,"y":0},{"x":240,"y":0},{"x":270,"y":0},{"x":300,"y":0},{"x":330,"y":0},{"x":360,"y":0}],"showPoints":false,"dash":[8,4],"capSecond":90,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"Swoole DB","runLabel":"Swoole DB","color":"#6600ff","runIndex":1,"affectsYAxis":true,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":null}],"styleLegend":[{"label":"successful","dash":[]},{"label":"target","dash":[2,4]},{"label":"errored","dash":[8,4]}],"format":"integer","smoothingWindow":0,"group":"Worker DB"},{"id":"worker-db-latency","title":"Latency (ms)","series":[{"label":"Swoole DB avg","runLabel":"Swoole DB","color":"#6600ff","runIndex":1,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":3.6812},{"x":30,"y":3.9724},{"x":60,"y":4.5209},{"x":90,"y":1804.0811},{"x":120,"y":6295.7045},{"x":150,"y":9141.8074},{"x":180,"y":11014.8689},{"x":210,"y":13298.539},{"x":240,"y":14619.5351},{"x":270,"y":16427.5809},{"x":300,"y":17338.1792},{"x":330,"y":18202.1851},{"x":360,"y":18608.3921}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":null},{"label":"Swoole DB p95","runLabel":"Swoole DB","color":"#6600ff","runIndex":1,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":7.191},{"x":30,"y":8.191},{"x":60,"y":8.703},{"x":90,"y":2992.127},{"x":120,"y":9396.223},{"x":150,"y":13402.111},{"x":180,"y":16064.511},{"x":210,"y":19283.967},{"x":240,"y":21184.511},{"x":270,"y":23855.103},{"x":300,"y":25116.671},{"x":330,"y":26394.623},{"x":360,"y":27049.983}],"showPoints":false,"dash":[8,4],"capSecond":90,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"Swoole DB","runLabel":"Swoole DB","color":"#6600ff","runIndex":1,"affectsYAxis":true,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":null}],"styleLegend":[{"label":"avg","dash":[]},{"label":"p95","dash":[8,4]}],"format":"milliseconds-integer","smoothingWindow":0,"yMax":2992.127,"group":"Worker DB"},{"id":"worker-db-cpu-app","title":"APP CPU (% of one core, 100% = 1 core)","series":[{"label":"Swoole DB","runLabel":"Swoole DB","color":"#6600ff","points":[{"x":0,"y":115.03},{"x":3,"y":114.5},{"x":6,"y":108.76},{"x":9,"y":113.52},{"x":13,"y":110.71},{"x":16,"y":112.46},{"x":19,"y":106.13},{"x":22,"y":109.88},{"x":25,"y":105.16},{"x":28,"y":110.91},{"x":31,"y":223.81},{"x":34,"y":226.86},{"x":37,"y":218.81},{"x":40,"y":237.35},{"x":43,"y":226.6},{"x":46,"y":220.52},{"x":49,"y":218.51},{"x":52,"y":216.7},{"x":55,"y":221.46},{"x":58,"y":225.56},{"x":61,"y":264.1},{"x":64,"y":444.11},{"x":67,"y":440.35},{"x":70,"y":451.21},{"x":73,"y":445.21},{"x":76,"y":441.33},{"x":79,"y":436.74},{"x":82,"y":438.08},{"x":85,"y":443.6},{"x":88,"y":439.73},{"x":91,"y":595.56},{"x":94,"y":597.72},{"x":97,"y":596.21},{"x":100,"y":594},{"x":103,"y":583.33},{"x":106,"y":589.48},{"x":109,"y":595.89},{"x":112,"y":593.28},{"x":115,"y":591.85},{"x":118,"y":600.1},{"x":121,"y":368.56},{"x":125,"y":603.14},{"x":128,"y":601.04},{"x":131,"y":599.11},{"x":134,"y":599.53},{"x":137,"y":600.83},{"x":140,"y":605.75},{"x":143,"y":605.69},{"x":146,"y":599.89},{"x":149,"y":602.3},{"x":152,"y":615},{"x":155,"y":606.95},{"x":158,"y":605.62},{"x":161,"y":603.57},{"x":164,"y":606.9},{"x":167,"y":607.5},{"x":170,"y":607.88},{"x":173,"y":607.98},{"x":176,"y":608.14},{"x":179,"y":608.36},{"x":182,"y":614.28},{"x":185,"y":611.37},{"x":188,"y":609.17},{"x":191,"y":610.16},{"x":194,"y":614.66},{"x":197,"y":617.35},{"x":200,"y":613.33},{"x":203,"y":608.88},{"x":206,"y":611.65},{"x":209,"y":609.03},{"x":212,"y":611.9},{"x":215,"y":600.52},{"x":219,"y":606.62},{"x":222,"y":615.01},{"x":225,"y":609.59},{"x":228,"y":614.26},{"x":231,"y":608.99},{"x":234,"y":612.66},{"x":237,"y":610.78},{"x":240,"y":607.37},{"x":243,"y":619.89},{"x":246,"y":610.35},{"x":249,"y":610.43},{"x":252,"y":612.78},{"x":255,"y":611.99},{"x":258,"y":613.22},{"x":261,"y":610.85},{"x":264,"y":610.44},{"x":267,"y":610.47},{"x":270,"y":609.8},{"x":273,"y":618.27},{"x":276,"y":619.18},{"x":279,"y":613.66},{"x":282,"y":612.86},{"x":285,"y":609.91},{"x":288,"y":614.99},{"x":291,"y":610.64},{"x":294,"y":604.93},{"x":297,"y":606.51},{"x":300,"y":608.99},{"x":303,"y":379.07},{"x":306,"y":613.09},{"x":309,"y":609.32},{"x":313,"y":614.48},{"x":316,"y":615.97},{"x":319,"y":614.96},{"x":322,"y":614.79},{"x":325,"y":607.47},{"x":328,"y":613.83},{"x":331,"y":611.48},{"x":334,"y":382.03},{"x":337,"y":613.07},{"x":340,"y":612.28},{"x":343,"y":608.49},{"x":346,"y":611.14},{"x":349,"y":613.81},{"x":352,"y":611.74},{"x":355,"y":610.51},{"x":358,"y":611.08},{"x":361,"y":611.53},{"x":364,"y":618.45},{"x":367,"y":619.87},{"x":370,"y":611.51},{"x":373,"y":612.14},{"x":376,"y":612.15},{"x":379,"y":608.44},{"x":382,"y":613.1},{"x":385,"y":608.82},{"x":388,"y":599.73},{"x":391,"y":609}],"capSecond":90,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"Swoole DB","runLabel":"Swoole DB","color":"#6600ff","runIndex":1,"affectsYAxis":true,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":null}],"format":"percent-integer","smoothingWindow":0,"group":"Worker DB"},{"id":"worker-db-memory-app","title":"APP Memory (MiB)","series":[{"label":"Swoole DB","runLabel":"Swoole DB","color":"#6600ff","points":[{"x":0,"y":86.39},{"x":3,"y":87.21},{"x":6,"y":87.07},{"x":9,"y":85.79},{"x":13,"y":85.77},{"x":16,"y":86.45},{"x":19,"y":86.07},{"x":22,"y":84.97},{"x":25,"y":86.09},{"x":28,"y":86.52},{"x":31,"y":86.16},{"x":34,"y":85.97},{"x":37,"y":85.41},{"x":40,"y":85.66},{"x":43,"y":85.31},{"x":46,"y":85.54},{"x":49,"y":85.52},{"x":52,"y":85.67},{"x":55,"y":85.42},{"x":58,"y":85.56},{"x":61,"y":85.58},{"x":64,"y":86.21},{"x":67,"y":86.03},{"x":70,"y":86.18},{"x":73,"y":85.76},{"x":76,"y":85.11},{"x":79,"y":85.81},{"x":82,"y":86.16},{"x":85,"y":85.93},{"x":88,"y":85.34},{"x":91,"y":86.25},{"x":94,"y":85.54},{"x":97,"y":85.58},{"x":100,"y":85.38},{"x":103,"y":85.93},{"x":106,"y":85.82},{"x":109,"y":85.38},{"x":112,"y":85.32},{"x":115,"y":85.89},{"x":118,"y":86.04},{"x":121,"y":86.3},{"x":125,"y":86.21},{"x":128,"y":85.76},{"x":131,"y":85.72},{"x":134,"y":85.58},{"x":137,"y":85.21},{"x":140,"y":85.75},{"x":143,"y":85.68},{"x":146,"y":86.38},{"x":149,"y":84.73},{"x":152,"y":85.4},{"x":155,"y":85.31},{"x":158,"y":84.57},{"x":161,"y":85.4},{"x":164,"y":86.53},{"x":167,"y":85.45},{"x":170,"y":85.76},{"x":173,"y":85.25},{"x":176,"y":86.12},{"x":179,"y":85.73},{"x":182,"y":84.46},{"x":185,"y":86.7},{"x":188,"y":85.88},{"x":191,"y":85.26},{"x":194,"y":85.97},{"x":197,"y":85.84},{"x":200,"y":85.94},{"x":203,"y":85.46},{"x":206,"y":86.29},{"x":209,"y":86.3},{"x":212,"y":85.63},{"x":215,"y":85.23},{"x":219,"y":85.23},{"x":222,"y":84.76},{"x":225,"y":85.81},{"x":228,"y":86.08},{"x":231,"y":86.09},{"x":234,"y":85.55},{"x":237,"y":85.97},{"x":240,"y":85.5},{"x":243,"y":85.7},{"x":246,"y":85.31},{"x":249,"y":85.85},{"x":252,"y":85.54},{"x":255,"y":85.71},{"x":258,"y":86.13},{"x":261,"y":85.39},{"x":264,"y":85.68},{"x":267,"y":85.24},{"x":270,"y":86.14},{"x":273,"y":86.22},{"x":276,"y":86.32},{"x":279,"y":86.41},{"x":282,"y":85.84},{"x":285,"y":85.93},{"x":288,"y":86.32},{"x":291,"y":85.36},{"x":294,"y":85.84},{"x":297,"y":85.96},{"x":300,"y":86.32},{"x":303,"y":86.23},{"x":306,"y":86.12},{"x":309,"y":85.75},{"x":313,"y":85.59},{"x":316,"y":86.37},{"x":319,"y":85.66},{"x":322,"y":85.76},{"x":325,"y":85.8},{"x":328,"y":85.79},{"x":331,"y":85.68},{"x":334,"y":85.8},{"x":337,"y":85.77},{"x":340,"y":85.32},{"x":343,"y":85.6},{"x":346,"y":84.99},{"x":349,"y":86.7},{"x":352,"y":85.65},{"x":355,"y":85.32},{"x":358,"y":86.27},{"x":361,"y":85.81},{"x":364,"y":85.78},{"x":367,"y":85.59},{"x":370,"y":85.23},{"x":373,"y":85.39},{"x":376,"y":85.45},{"x":379,"y":85.65},{"x":382,"y":85.41},{"x":385,"y":85.47},{"x":388,"y":86.17},{"x":391,"y":85.63}],"capSecond":90,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"Swoole DB","runLabel":"Swoole DB","color":"#6600ff","runIndex":1,"affectsYAxis":true,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":null}],"format":"integer","group":"Worker DB"}]};
+    const X_AXIS_TICK_DIVISIONS = 10;
+
+    function getGlobalXAxisDomain() {
+      const xValues = [];
+
+      reportData.charts.forEach((chart) => {
+        (chart.series || []).forEach((item) => {
+          (item.points || []).forEach((point) => {
+            xValues.push(point.x);
+          });
+        });
+
+        (chart.xAxisTargetSeries || []).forEach((item) => {
+          (item.points || []).forEach((point) => {
+            xValues.push(point.x);
+          });
+        });
+      });
+
+      if (xValues.length === 0) {
+        return { min: 0, max: 1 };
+      }
+
+      return {
+        min: Math.min(...xValues),
+        max: Math.max(...xValues),
+      };
+    }
+
+    const globalXAxisDomain = getGlobalXAxisDomain();
+
+    function formatValue(value, format) {
+      const fixed = (number, digits) => Number(number).toFixed(digits);
+      const trimZeros = (text) => text.replace(/\.?0+$/, '');
+
+      if (format === 'integer') {
+        return String(Math.round(value));
+      }
+      if (format === 'percent') {
+        return fixed(value, 2) + '%';
+      }
+      if (format === 'percent-integer') {
+        return Math.round(value) + '%';
+      }
+      if (format === 'milliseconds-integer') {
+        return String(Math.round(value));
+      }
+      if (format === 'milliseconds') {
+        return fixed(value, 2);
+      }
+      return trimZeros(fixed(value, 2));
+    }
+
+    function formatElapsedSeconds(totalSeconds) {
+      const seconds = Math.max(0, Math.round(totalSeconds));
+      const minutes = Math.floor(seconds / 60);
+      const remainderSeconds = seconds % 60;
+
+      if (minutes === 0) {
+        return seconds + 's';
+      }
+
+      if (remainderSeconds === 0) {
+        return minutes + 'm';
+      }
+
+      return minutes + 'm ' + remainderSeconds + 's';
+    }
+
+    function sampledPointValue(points, xValue) {
+      if (!points || points.length === 0) {
+        return null;
+      }
+
+      const target = Math.max(0, Math.round(xValue));
+      let currentValue = points[0].y;
+
+      for (let index = 0; index < points.length; index++) {
+        const point = points[index];
+        if (point.x > target) {
+          break;
+        }
+        currentValue = point.y;
+      }
+
+      return currentValue;
+    }
+
+    function movingAverageSeries(points, windowSize) {
+      if (!points || points.length === 0 || windowSize <= 1) {
+        return points || [];
+      }
+
+      const result = [];
+      let sum = 0;
+      const values = [];
+
+      points.forEach((point, index) => {
+        const value = Number(point.y || 0);
+        values.push(value);
+        sum += value;
+
+        if (values.length > windowSize) {
+          sum -= values.shift();
+        }
+
+        result.push({
+          x: point.x,
+          y: sum / values.length,
+        });
+      });
+
+      return result;
+    }
+
+    function formatTargetTickLabel(chart, xValue) {
+      // Finished runs must not keep contributing their last target to later stages.
+      const targetSeries = (chart.xAxisTargetSeries || []).filter((item) =>
+        item.points.length > 1 && xValue >= item.points[0].x && xValue < item.points[item.points.length - 1].x
+      );
+      if (targetSeries.length === 0) {
+        return '';
+      }
+
+      const values = targetSeries.map((item) => sampledPointValue(item.points, xValue));
+      if (values.some((value) => value === null)) {
+        return '';
+      }
+
+      const roundedValues = values.map((value) => Math.round(value));
+      const firstValue = roundedValues[0];
+      const sameAcrossRuns = roundedValues.every((value) => value === firstValue);
+
+      if (!sameAcrossRuns) {
+        return '';
+      }
+
+      return 'T ' + String(firstValue);
+    }
+
+    function drawChart(canvasId, legendId, chart) {
+      const canvas = document.getElementById(canvasId);
+      const legend = document.getElementById(legendId);
+      if (!canvas || !legend) {
+        return;
+      }
+
+      const series = chart.series.filter((item) => item.points.length > 0);
+      if (series.length === 0) {
+        legend.textContent = 'No data available.';
+        return;
+      }
+
+      const smoothingWindow = Math.max(0, Math.round(Number(chart.smoothingWindow || 0)));
+      const displaySeries = series.map((item) => ({
+        ...item,
+        displayPoints: smoothingWindow > 1 ? movingAverageSeries(item.points, smoothingWindow) : item.points,
+      }));
+
+      const dpr = window.devicePixelRatio || 1;
+      const cssWidth = canvas.clientWidth || canvas.width;
+      const cssHeight = canvas.clientHeight || canvas.height;
+      canvas.width = cssWidth * dpr;
+      canvas.height = cssHeight * dpr;
+
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, cssWidth, cssHeight);
+
+      const margin = { top: 18, right: 24, bottom: 52, left: 64 };
+      const width = cssWidth - margin.left - margin.right;
+      const height = cssHeight - margin.top - margin.bottom;
+
+      const yValues = displaySeries
+        .filter((item) => item.affectsYAxis !== false)
+        .flatMap((item) => item.displayPoints.map((point) => point.y));
+      const xMin = globalXAxisDomain.min;
+      const xMax = globalXAxisDomain.max;
+      const rawYMax = Math.max(...yValues);
+      const configuredYMax = Number(chart.yMax || 0);
+      const yMax = configuredYMax > 0 ? configuredYMax : (rawYMax > 0 ? rawYMax * 1.08 : 1);
+
+      ctx.strokeStyle = 'rgba(31, 41, 51, 0.14)';
+      ctx.lineWidth = 1;
+      ctx.fillStyle = '#5c6b73';
+      ctx.font = '12px Menlo, Consolas, monospace';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'right';
+
+      for (let i = 0; i <= 5; i++) {
+        const y = margin.top + (height / 5) * i;
+        ctx.beginPath();
+        ctx.moveTo(margin.left, y);
+        ctx.lineTo(margin.left + width, y);
+        ctx.stroke();
+
+        const value = yMax - (yMax / 5) * i;
+        ctx.fillText(formatValue(value, chart.format), margin.left - 10, y);
+      }
+
+      ctx.textBaseline = 'top';
+      ctx.textAlign = 'center';
+      ctx.font = '12px Menlo, Consolas, monospace';
+      const stageTicks = [...new Set((chart.xAxisTargetSeries || [])
+        .flatMap((item) => item.points.slice(0, -1).map((point) => point.x)))].sort((a, b) => a - b);
+      const ticks = stageTicks.length > 1 ? stageTicks : Array.from(
+        { length: X_AXIS_TICK_DIVISIONS + 1 },
+        (_, i) => xMin + ((xMax - xMin) / X_AXIS_TICK_DIVISIONS) * i
+      );
+      for (const value of ticks) {
+        const x = margin.left + ((value - xMin) / Math.max(1, xMax - xMin)) * width;
+        ctx.beginPath();
+        ctx.moveTo(x, margin.top);
+        ctx.lineTo(x, margin.top + height);
+        ctx.stroke();
+
+        ctx.fillText(formatElapsedSeconds(value), x, margin.top + height + 10);
+
+        const targetLabel = formatTargetTickLabel(chart, value);
+        if (targetLabel !== '') {
+          ctx.fillText(targetLabel, x, margin.top + height + 24);
+        }
+      }
+
+      ctx.strokeStyle = '#1f2933';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(margin.left, margin.top);
+      ctx.lineTo(margin.left, margin.top + height);
+      ctx.lineTo(margin.left + width, margin.top + height);
+      ctx.stroke();
+
+      const toCanvasX = (x) => margin.left + ((x - xMin) / Math.max(1, xMax - xMin)) * width;
+      const toCanvasY = (y) => margin.top + height - (y / yMax) * height;
+      const startMarkerSeries = displaySeries.filter((item) => item.startMarker);
+
+      const highlightedRun = legend.dataset.highlightedRun || null;
+      const isHighlighted = (item) => (item.runLabel || item.label) === highlightedRun;
+      const opacity = (item) => highlightedRun && !isHighlighted(item) ? 0.12 : 1;
+      // Draw the highlighted run last so overlapping lines cannot hide it.
+      const orderedSeries = [...displaySeries].sort((a, b) => Number(isHighlighted(a)) - Number(isHighlighted(b)));
+
+      // Clip drawing to the plot; the scale includes both target and measured rates.
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(margin.left, margin.top, width, height);
+      ctx.clip();
+
+      orderedSeries.forEach((item) => {
+        if (smoothingWindow > 1) {
+          drawLine(ctx, toCanvasX, toCanvasY, item.points, item.color, item.dash, 1.2, 0.22 * opacity(item));
+        }
+
+        drawLine(ctx, toCanvasX, toCanvasY, item.displayPoints, item.color, item.dash, isHighlighted(item) ? 4 : 2.2, opacity(item), item.stepped);
+
+        ctx.save();
+        ctx.globalAlpha = opacity(item);
+        if (chart.showPoints || item.showPoints) {
+          ctx.fillStyle = item.color;
+          item.displayPoints.forEach((point) => {
+            const x = toCanvasX(point.x);
+            const y = toCanvasY(point.y);
+            ctx.beginPath();
+            ctx.arc(x, y, 2.2, 0, Math.PI * 2);
+            ctx.fill();
+          });
+        }
+        ctx.restore();
+      });
+
+      orderedSeries.forEach((item) => {
+        ctx.save();
+        ctx.globalAlpha = opacity(item);
+        drawMarker(ctx, toCanvasX, toCanvasY, item.displayPoints, item.capSecond, item.color, 'circle');
+        drawMarker(ctx, toCanvasX, toCanvasY, item.displayPoints, item.errorStartSecond, item.color, 'cross');
+        ctx.restore();
+      });
+
+      startMarkerSeries.forEach((item, markerIndex) => {
+        ctx.save();
+        ctx.globalAlpha = opacity(item);
+        drawStartMarker(
+          ctx,
+          toCanvasX,
+          toCanvasY,
+          item.displayPoints,
+          item.color,
+          markerIndex,
+          startMarkerSeries.length,
+        );
+        ctx.restore();
+      });
+
+      ctx.restore();
+
+      const runs = [];
+      const seenRuns = new Set();
+      series.forEach((item) => {
+        const key = (item.runLabel || item.label) + '|' + item.color;
+        if (seenRuns.has(key)) {
+          return;
+        }
+        seenRuns.add(key);
+        runs.push({
+          label: item.runLabel || item.label,
+          color: item.color,
+        });
+      });
+
+      if (legend.childElementCount === 0) {
+        let hoveredRun = null;
+        let focusedRun = null;
+        const updateHighlight = () => {
+          legend.dataset.highlightedRun = hoveredRun || focusedRun || '';
+          drawChart(canvasId, legendId, chart);
+        };
+
+        runs.sort((a, b) => a.label.localeCompare(b.label, 'en', { sensitivity: 'base' }));
+        runs.forEach((item) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'legend-item';
+          button.dataset.runLabel = item.label;
+          const swatch = document.createElement('span');
+          swatch.className = 'legend-swatch';
+          swatch.style.background = item.color;
+          swatch.setAttribute('aria-hidden', 'true');
+          button.append(swatch, document.createTextNode(item.label));
+          button.addEventListener('mouseenter', () => {
+            hoveredRun = item.label;
+            updateHighlight();
+          });
+          button.addEventListener('mouseleave', () => {
+            hoveredRun = null;
+            updateHighlight();
+          });
+          button.addEventListener('focus', () => {
+            focusedRun = item.label;
+            updateHighlight();
+          });
+          button.addEventListener('blur', () => {
+            focusedRun = null;
+            updateHighlight();
+          });
+          legend.append(button);
+        });
+      }
+
+      legend.querySelectorAll('.legend-item').forEach((button) => {
+        button.classList.toggle('is-highlighted', button.dataset.runLabel === highlightedRun);
+        button.classList.toggle('is-dimmed', highlightedRun !== null && button.dataset.runLabel !== highlightedRun);
+      });
+    }
+
+    function render() {
+      reportData.charts.forEach((chart) => {
+        drawChart('chart-' + chart.id, 'legend-' + chart.id, chart);
+      });
+    }
+
+    function drawLine(ctx, toCanvasX, toCanvasY, points, color, dash, lineWidth, alpha, stepped = false) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lineWidth;
+      ctx.globalAlpha = alpha;
+      if (dash && dash.length > 0) {
+        ctx.setLineDash(dash);
+      } else {
+        ctx.setLineDash([]);
+      }
+
+      points.forEach((point, index) => {
+        const x = toCanvasX(point.x);
+        const y = toCanvasY(point.y);
+        if (index === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          if (stepped) {
+            ctx.lineTo(x, toCanvasY(points[index - 1].y));
+          }
+          ctx.lineTo(x, y);
+        }
+      });
+
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawMarker(ctx, toCanvasX, toCanvasY, points, second, color, markerType) {
+      if (second === null || second === undefined) {
+        return;
+      }
+
+      const yValue = sampledPointValue(points, second);
+      if (yValue === null) {
+        return;
+      }
+
+      const x = toCanvasX(second);
+      const y = toCanvasY(yValue);
+
+      ctx.save();
+      ctx.setLineDash([]);
+      ctx.lineCap = 'round';
+
+      if (markerType === 'circle') {
+        ctx.strokeStyle = '#fffdf8';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+        return;
+      }
+
+      ctx.strokeStyle = '#fffdf8';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(x - 5, y - 5);
+      ctx.lineTo(x + 5, y + 5);
+      ctx.moveTo(x + 5, y - 5);
+      ctx.lineTo(x - 5, y + 5);
+      ctx.stroke();
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(x - 5, y - 5);
+      ctx.lineTo(x + 5, y + 5);
+      ctx.moveTo(x + 5, y - 5);
+      ctx.lineTo(x - 5, y + 5);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawStartMarker(ctx, toCanvasX, toCanvasY, points, color, markerIndex, markerCount) {
+      if (!points || points.length === 0) {
+        return;
+      }
+
+      const firstPoint = points[0];
+      const baseX = toCanvasX(firstPoint.x);
+      const y = toCanvasY(firstPoint.y);
+      const offset = ((markerIndex - ((markerCount - 1) / 2)) * 5);
+      const x = baseX + offset;
+
+      ctx.save();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#fffdf8';
+      ctx.beginPath();
+      ctx.arc(x, y, 4.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(x, y, 3.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    document.querySelectorAll('.summary-table').forEach((table) => {
+      table.querySelectorAll('thead th').forEach((header, column) => {
+        header.querySelector('button').addEventListener('click', () => {
+          const ascending = header.getAttribute('aria-sort') !== 'ascending';
+          table.querySelectorAll('thead th').forEach((item) => item.setAttribute('aria-sort', 'none'));
+          header.setAttribute('aria-sort', ascending ? 'ascending' : 'descending');
+          const rows = Array.from(table.tBodies[0].rows);
+          const numeric = header.dataset.sortType === 'number';
+          rows.sort((a, b) => {
+            const value = (row) => row.cells[column].dataset.sortValue ?? row.cells[column].textContent.trim();
+            const left = value(a), right = value(b);
+            // Missing measurements stay last in either direction.
+            if (left === '' || right === '') return (left === '') - (right === '');
+            const order = numeric ? Number(left) - Number(right) : left.localeCompare(right);
+            return ascending ? order : -order;
+          });
+          table.tBodies[0].append(...rows);
+        });
+      });
+    });
+
+    window.addEventListener('resize', render);
+    render();
+  </script>
+</body>
+</html>
