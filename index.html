@@ -200,19 +200,14 @@
   <main class="grid">
     <section class="panel">
       <h1>Benchmark Report</h1>
-      <p>Generated 2026-10-07 15:54:58 UTC. This report combines wrkx stage summaries with Docker CPU and memory samples.</p>
+      <p>Generated 2026-10-07 15:56:43 UTC. This report combines wrkx stage summaries with Docker CPU and memory samples.</p>
       <p><strong>Test system.</strong> <strong>OS:</strong> Ubuntu 26.04.1 LTS (x86_64); <strong>Kernel:</strong> Linux 7.0.0-34-generic; <strong>CPU:</strong> AMD Ryzen 9 7950X, 16 cores / 32 threads; <strong>Memory:</strong> 93 GiB usable RAM.</p>
       <p><strong>Run dates.</strong> 2026-10-05: FrankenPHP classic, FrankenPHP worker, RoadRunner, PHP-FPM + Nginx, FreeUnit, Rapira worker, Rapira classic, Rapira dispatcher, OxPHP classic, OxPHP worker; 2026-10-07: Swoole.</p>
-<p><strong>Run note (2026-10-05).</strong> Full October 5 rerun of all ten runtimes with PostgreSQL max_connections=2000. PHP 8.5.11, FrankenPHP 1.13.0, FreeUnit 1.37.0, and opcache.enable_file_override=1.</p>
-      <p><strong>Run note (2026-10-05).</strong> Unrelated development containers were running on the host during the measurements.</p>
-      <p><strong>Run note (2026-10-05).</strong> All 20 scenarios completed all 13 load stages. All six Rapira scenarios recorded socket-read errors; the other 14 scenarios recorded zero errors.</p>
-      <p><strong>Run note (2026-10-05).</strong> OxPHP worker database completed with zero errors after raising PostgreSQL max_connections from 200 to 2000. Its sampled peak was 441 client connections, including the monitoring connection.</p>
-      <p><strong>Run note (2026-10-05).</strong> PostgreSQL connections were sampled every 30 seconds from FreeUnit onward, with a gap during an agent restart. Sampling is not a continuous peak measurement. Rapira worker application logs were empty when inspected after socket-read errors.</p>
-      <p><strong>Run note (2026-10-07).</strong> Swoole was measured on October 7, 2026; the other ten runtimes retain their October 5 measurements. These were separate sessions on the same host, not a simultaneous full rerun.</p>
-      <p><strong>Run note (2026-10-07).</strong> Swoole 6.2.3 uses PHP 8.5.11, 20 workers in process mode, asynchronous reloads after 10,000 requests, and disabled coroutine request handling and compression. PostgreSQL max_connections=2000 and opcache.enable_file_override=1.</p>
-      <p><strong>Run note (2026-10-07).</strong> Swoole uses the same default 13-stage ramp, 30 seconds per stage, 32 load-generator threads, and 256 HTTP connections.</p>
-      <p><strong>Run note (2026-10-07).</strong> Unrelated development containers were running on the host during the Swoole measurements.</p>
-      <p><strong>Run note (2026-10-07).</strong> Both Swoole scenarios completed all 13 stages with zero errors. PostgreSQL connections were sampled every 30 seconds and peaked at 21, including the monitoring connection; samples are not a continuous peak measurement.</p>
+<details class="run-notes"><summary>Run notes</summary><p><strong>Run note (2026-10-05).</strong> PHP 8.5.11, FrankenPHP 1.13.0, FreeUnit 1.37.0; opcache.enable_file_override=1.</p>
+      <p><strong>Run note (2026-10-05).</strong> Unrelated development containers were running on the benchmark host.</p>
+      <p><strong>Run note (2026-10-05).</strong> All six Rapira scenarios recorded socket-read errors.</p>
+      <p><strong>Run note (2026-10-05).</strong> Raising PostgreSQL max_connections from 200 to 2000 eliminated the earlier OxPHP worker database failures. Its highest 30-second connection sample was 441, including the monitor.</p>
+      <p><strong>Run note (2026-10-07).</strong> Swoole 6.2.3 uses 20 workers in process mode, asynchronous reloads after 10,000 requests, and disabled coroutine request handling and compression. PHP and PostgreSQL settings match the October 5 runs.</p></details>
       <p>Charts show raw samples. For stage results, RPS cap marks the first stage with successful throughput more than 5% below target; per-second results use a sustained latency surge. The load generator can also limit throughput.</p>
       <p>Hover over a chart legend label or focus it with Tab to highlight that run.</p>
     </section>
