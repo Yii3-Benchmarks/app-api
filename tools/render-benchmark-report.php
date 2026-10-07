@@ -1624,7 +1624,7 @@ HTML;
       // Draw the highlighted run last so overlapping lines cannot hide it.
       const orderedSeries = [...displaySeries].sort((a, b) => Number(isHighlighted(a)) - Number(isHighlighted(b)));
 
-      // Clip drawing to the plot; the scale includes both target and measured rates.
+      // Target and error rates may exceed the scale based on successful responses.
       ctx.save();
       ctx.beginPath();
       ctx.rect(margin.left, margin.top, width, height);
@@ -1974,7 +1974,7 @@ function collectRunSeries(
             'runLabel' => $run['label'],
             'color' => $palette[$index],
             'runIndex' => $index,
-            'affectsYAxis' => true,
+            'affectsYAxis' => !in_array($metric, ['targetRequestsPerSecond', 'erroredRequestsPerSecond'], true),
             'stepped' => $metric === 'targetRequestsPerSecond',
             'points' => $points,
             'showPoints' => $showPoints,
