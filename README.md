@@ -22,6 +22,7 @@ override enabled and PostgreSQL limited to 2,000 connections. Raw results and ru
 | `frankenphp-worker` | FrankenPHP | A persistent Yii worker |
 | `oxphp-classic` | OxPHP | A normal PHP application bootstrap for each request |
 | `oxphp-worker` | OxPHP | A persistent Yii worker with per-request state reset |
+| `swoole` | Swoole | A persistent Yii worker with coroutine request handling disabled |
 | `roadrunner` | RoadRunner | A persistent Yii worker managed by RoadRunner |
 | `php-fpm` | PHP-FPM + Nginx | Traditional FastCGI processes behind Nginx |
 | `freeunit` | FreeUnit | PHP application hosted by FreeUnit; grouped with non-worker runtimes |
@@ -41,7 +42,7 @@ The runtime configs use a production-oriented benchmark baseline:
   for web and CLI SAPIs, JIT is disabled, errors go to stderr, and PHP memory is limited to 256 MiB.
 - OPcache timestamp validation is disabled. **Restart the runtime after changing PHP files**, including
   files in the mounted source tree. The benchmark suite rebuilds and restarts each runtime automatically.
-- FPM, FreeUnit, Rapira, OxPHP and FrankenPHP workers recycle after 10,000 requests; RoadRunner uses its
+- FPM, FreeUnit, Rapira, OxPHP, Swoole and FrankenPHP workers recycle after 10,000 requests; RoadRunner uses its
   memory supervisor. API body limits are 8 MiB, and request/queue timeouts are configured where supported.
 - HTTP readiness checks gate benchmark startup. Containers have a 45-second shutdown grace period,
   bounded Docker logs, and an increased open-file limit. Nginx access logging is disabled to match the
@@ -63,6 +64,7 @@ Server releases checked on 2026-09-22 are pinned in the benchmark Dockerfile and
 | --- | --- |
 | PHP / PHP-FPM | [8.5.11](https://www.php.net/downloads.php) (updated 2026-10-05) |
 | FrankenPHP | [1.13.0](https://github.com/php/frankenphp/releases/tag/v1.13.0) (updated 2026-10-05) |
+| Swoole | [6.2.3](https://github.com/swoole/swoole-src/releases/tag/v6.2.3) (added 2026-10-07) |
 | RoadRunner | [2025.1.15](https://github.com/roadrunner-server/roadrunner/releases/tag/v2025.1.15) |
 | FreeUnit | [1.37.0](https://docs.freeunit.org/news/2026/unit-1.37.0-released/) (updated 2026-10-05) |
 | Rapira (all modes) | [Nightly for PHP 8.5](https://rapira.rs/docs/intro/installation) (`nightly-php8.5`) |
@@ -76,6 +78,20 @@ and compression support. The Docker entrypoint remains pinned to 1.36.1 because 
 archive no longer includes it. Optional JavaScript routing and OpenTelemetry modules are not built;
 the benchmark does not use them.
 Version pins should be refreshed from upstream releases when updating the benchmark baseline.
+
+Swoole uses 20 persistent worker processes and recycles each after 10,000 requests. Each worker
+boots Yii after forking and resets container state after every request. Coroutine request handling
+and HTTP compression are disabled, so requests do not concurrently share a Yii container or PDO
+connection. `worker-swoole.php` and `src/SwooleRequestFactory.php` provide the adapter for the
+benchmark's GET endpoints; this is not a general-purpose upload-capable Swoole runner. The shared
+CLI PHP time limit is not a wall-clock request deadline; Swoole's 30-second `max_wait_time` bounds
+worker shutdown, and idle connections are checked every 30 seconds with a 60-second idle limit.
+
+Run only the Swoole benchmarks with:
+
+```sh
+make bench-all RUNTIMES=swoole MODE=ramp THREADS=32 CONNECTIONS=256
+```
 
 Two endpoints are benchmarked:
 
@@ -270,6 +286,7 @@ tools/render-benchmark-report.* HTML report generator
 worker-oxphp.php                OxPHP persistent worker entry point
 worker-frankenphp.php           FrankenPHP persistent worker entry point
 worker-roadrunner.php           RoadRunner persistent worker entry point
+worker-swoole.php               Swoole persistent worker entry point
 worker-rapira.php               Rapira entry point for all three modes
 ```
 

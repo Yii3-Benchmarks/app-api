@@ -60,6 +60,21 @@ services:
     env_file: [dev/.env]
     depends_on: {postgres: {condition: service_healthy}, valkey: {condition: service_healthy}}
 
+  swoole:
+    <<: *runtime
+    healthcheck:
+      <<: *http-health
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8080/') === false ? 1 : 0);"]
+    profiles: [swoole]
+    build:
+      context: ..
+      dockerfile: docker/runtimes/Dockerfile
+      target: swoole
+    ports: ["9991:8080"]
+    volumes: ["../:/app"]
+    env_file: [dev/.env]
+    depends_on: {postgres: {condition: service_healthy}, valkey: {condition: service_healthy}}
+
   php:
     <<: *runtime
     healthcheck:

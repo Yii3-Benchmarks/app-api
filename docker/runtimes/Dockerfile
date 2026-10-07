@@ -54,9 +54,8 @@ COPY docker/runtimes/frankenphp-classic.Caddyfile /etc/frankenphp/Caddyfile
 FROM frankenphp-base AS frankenphp-worker
 COPY docker/runtimes/frankenphp-worker.Caddyfile /etc/frankenphp/Caddyfile
 
-FROM php:8.5.11-cli-bookworm AS roadrunner
+FROM php:8.5.11-cli-bookworm AS php-cli-base
 COPY --from=php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/install-php-extensions
-COPY --from=roadrunner-bin /usr/bin/rr /usr/local/bin/rr
 RUN set -eux; \
     for source in /etc/apt/sources.list /etc/apt/sources.list.d/debian.sources; do \
         if [ -f "$source" ]; then \
@@ -69,6 +68,12 @@ COPY --from=composer /composer /usr/bin/composer
 RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 COPY docker/runtimes/php-production.ini /usr/local/etc/php/conf.d/zz-production.ini
 WORKDIR /app
+FROM php-cli-base AS swoole
+RUN install-php-extensions swoole-6.2.3
+CMD ["php", "worker-swoole.php"]
+
+FROM php-cli-base AS roadrunner
+COPY --from=roadrunner-bin /usr/bin/rr /usr/local/bin/rr
 CMD ["rr", "serve", "-c", "docker/runtimes/roadrunner.yaml", "-w", "/app"]
 
 FROM php:8.5.11-fpm-bookworm AS php-fpm

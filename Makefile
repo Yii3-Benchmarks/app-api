@@ -1,5 +1,5 @@
 RUNTIME ?= frankenphp-classic
-RUNTIMES ?= frankenphp-classic frankenphp-worker roadrunner php-fpm freeunit rapira rapira-classic rapira-dispatcher oxphp-classic oxphp-worker
+RUNTIMES ?= frankenphp-classic frankenphp-worker roadrunner php-fpm freeunit rapira rapira-classic rapira-dispatcher oxphp-classic oxphp-worker swoole
 TARGETS ?= home postgres-orders
 MODE ?= ramp
 

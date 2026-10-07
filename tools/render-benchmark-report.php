@@ -777,7 +777,7 @@ function parseDockerStats(string $dockerStatsFile): array
         $service = (string) ($record['service'] ?? 'unknown');
         $service = match ($service) {
             'frankenphp-classic', 'frankenphp-worker', 'roadrunner',
-            'php', 'nginx', 'freeunit', 'rapira', 'rapira-classic', 'rapira-dispatcher', 'oxphp-classic', 'oxphp-worker' => 'app',
+            'php', 'nginx', 'freeunit', 'rapira', 'rapira-classic', 'rapira-dispatcher', 'oxphp-classic', 'oxphp-worker', 'swoole' => 'app',
             default => $service,
         };
         $second = max(0, (int) floor($timestamp - $firstTimestamp));
@@ -814,6 +814,7 @@ function buildRunPalette(array $runs): array
         'Rapira worker' => '#a000c8',
         'Rapira dispatcher' => '#0078c8',
         'OxPHP worker' => '#6b4c00',
+        'Swoole' => '#000000',
         'FrankenPHP classic' => '#8f4e20',
         'PHP-FPM + Nginx' => '#ce2070',
         'Rapira classic' => '#3b2c85',
@@ -824,6 +825,7 @@ function buildRunPalette(array $runs): array
         'Rapira worker DB' => '#d95700',
         'Rapira dispatcher DB' => '#a50021',
         'OxPHP worker DB' => '#00538a',
+        'Swoole DB' => '#6600ff',
         'FrankenPHP classic DB' => '#9965a5',
         'PHP-FPM + Nginx DB' => '#d52b2b',
         'Rapira classic DB' => '#806000',
@@ -945,8 +947,8 @@ function renderHtmlReport(array $runs): string
     $palette = buildRunPalette($runs);
     $allRuns = $runs;
     $groups = [
-        'worker-home' => ['Worker no DB', false, ['FrankenPHP worker', 'RoadRunner', 'Rapira worker', 'Rapira dispatcher', 'OxPHP worker']],
-        'worker-db' => ['Worker DB', true, ['FrankenPHP worker', 'RoadRunner', 'Rapira worker', 'Rapira dispatcher', 'OxPHP worker']],
+        'worker-home' => ['Worker no DB', false, ['FrankenPHP worker', 'RoadRunner', 'Rapira worker', 'Rapira dispatcher', 'OxPHP worker', 'Swoole']],
+        'worker-db' => ['Worker DB', true, ['FrankenPHP worker', 'RoadRunner', 'Rapira worker', 'Rapira dispatcher', 'OxPHP worker', 'Swoole']],
         'non-worker-home' => ['Non-worker no DB', false, ['FrankenPHP classic', 'PHP-FPM + Nginx', 'Rapira classic', 'FreeUnit', 'OxPHP classic']],
         'non-worker-db' => ['Non-worker DB', true, ['FrankenPHP classic', 'PHP-FPM + Nginx', 'Rapira classic', 'FreeUnit', 'OxPHP classic']],
     ];
