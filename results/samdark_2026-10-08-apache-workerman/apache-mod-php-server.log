@@ -1,0 +1,3 @@
+[Thu Oct 08 08:24:11.726969 2026] [mpm_prefork:notice] [pid 1:tid 1] AH00163: Apache/2.4.68 (Debian) configured -- resuming normal operations
+[Thu Oct 08 08:24:11.727001 2026] [core:notice] [pid 1:tid 1] AH00094: Command line: 'apache2 -D FOREGROUND'
+[Thu Oct 08 08:24:13.728159 2026] [mpm_prefork:error] [pid 1:tid 1] AH00161: server reached MaxRequestWorkers setting, consider raising the MaxRequestWorkers setting

@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-08",
+  "started_at": "2026-10-08T08:24:06.524357+00:00",
+  "host": "Linux-7.0.0-34-generic-x86_64-with-glibc2.43",
+  "cpu": "Architecture:                            x86_64\nCPU op-mode(s):                          32-bit, 64-bit\nAddress sizes:                           48 bits physical, 48 bits virtual\nByte Order:                              Little Endian\nCPU(s):                                  32\nOn-line CPU(s) list:                     0-31\nVendor ID:                               AuthenticAMD\nModel name:                              AMD Ryzen 9 7950X 16-Core Processor\nCPU family:                              25\nModel:                                   97\nThread(s) per core:                      2\nCore(s) per socket:                      16\nSocket(s):                               1\nStepping:                                2\nFrequency boost:                         enabled\nCPU(s) scaling MHz:                      74%\nCPU max MHz:                             5883.1968\nCPU min MHz:                             425.2920\nBogoMIPS:                                8983.21\nFlags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good amd_lbr_v2 nopl xtopology nonstop_tsc cpuid extd_apicid aperfmperf rapl pni pclmulqdq monitor ssse3 fma cx16 sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs skinit wdt tce topoext perfctr_core perfctr_nb bpext perfctr_llc mwaitx cpuid_fault cpb cat_l3 cdp_l3 hw_pstate ssbd mba perfmon_v2 ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase bmi1 avx2 smep bmi2 erms invpcid cqm rdt_a avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves cqm_llc cqm_occup_llc cqm_mbm_total cqm_mbm_local user_shstk avx512_bf16 clzero irperf xsaveerptr rdpru wbnoinvd cppc arat npt lbrv svm_lock nrip_save tsc_scale vmcb_clean flushbyasid decodeassists pausefilter pfthreshold avic vgif x2avic v_spec_ctrl vnmi avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq rdpid overflow_recov succor smca fsrm flush_l1d amd_lbr_pmc_freeze\nVirtualization:                          AMD-V\nL1d cache:                               512 KiB (16 instances)\nL1i cache:                               512 KiB (16 instances)\nL2 cache:                                16 MiB (16 instances)\nL3 cache:                                64 MiB (2 instances)\nNUMA node(s):                            1\nNUMA node0 CPU(s):                       0-31\nVulnerability Gather data sampling:      Not affected\nVulnerability Ghostwrite:                Not affected\nVulnerability Indirect target selection: Not affected\nVulnerability Itlb multihit:             Not affected\nVulnerability L1tf:                      Not affected\nVulnerability Mds:                       Not affected\nVulnerability Meltdown:                  Not affected\nVulnerability Mmio stale data:           Not affected\nVulnerability Old microcode:             Not affected\nVulnerability Reg file data sampling:    Not affected\nVulnerability Retbleed:                  Not affected\nVulnerability Spec rstack overflow:      Mitigation; Safe RET\nVulnerability Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl\nVulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization\nVulnerability Spectre v2:                Mitigation; Enhanced / Automatic IBRS; IBPB conditional; STIBP always-on; PBRSB-eIBRS Not affected; BHI Not affected\nVulnerability Srbds:                     Not affected\nVulnerability Tsa:                       Mitigation; Clear CPU buffers\nVulnerability Tsx async abort:           Not affected\nVulnerability Vmscape:                   Mitigation; IBPB before exit to userspace",
+  "memory": "total        used        free      shared  buff/cache   available\nMem:            93Gi        45Gi       4.0Gi       9.7Gi        55Gi        48Gi\nSwap:          511Mi       433Mi        78Mi",
+  "command": [
+    "make",
+    "bench-all",
+    "RUNTIMES=apache-mod-php workerman",
+    "MODE=ramp",
+    "THREADS=32",
+    "CONNECTIONS=256",
+    "OUTPUT_ROOT=results/samdark_2026-10-08-apache-workerman"
+  ],
+  "php_version": "8.5.11",
+  "apache_version": "2.4.68",
+  "workerman_version": "5.2.2",
+  "event_version": "3.1.6",
+  "postgres_max_connections": 2000,
+  "composer_lock_sha256": "0831ece38c64b3a11b356293a150f8176052749608920c12ba5c39f0faf3f9e3",
+  "source_base_commit": "325d66b735c0514a51ef660917ff3dfc35397e1a",
+  "source_diff_sha256": "17d4e7b90ca1baff9a860e24d4628c5b2652722be28f28b2184064a2c3388ccf",
+  "docker_version": "29.8.1",
+  "background_containers": "standalone-minio_test-1\tquay.io/minio/minio\nstandalone-db_test-1\tdocker.twindo.io/system/docker/postgresql:latest\nspeedvegas-app-1\tspeedvegas-app\ndb\tmariadb:10\ndb-test\tmariadb:10\napip-main-minio_test-1\tquay.io/minio/minio\napip-main-db_test-1\tdocker.twindo.io/system/docker/postgresql:latest\nspeedvegas-nodejs-1\tnode:20-bullseye",
+  "system": {
+    "os": "Ubuntu 26.04.1 LTS (x86_64)",
+    "kernel": "Linux 7.0.0-34-generic",
+    "cpu": "AMD Ryzen 9 7950X, 16 cores / 32 threads",
+    "memory": "93 GiB usable RAM"
+  },
+  "report_notes": [
+    "Apache 2.4.68 with mod_php uses 20 prefork processes and disabled keepalive; Workerman 5.2.2 uses 20 synchronous persistent Yii workers with Event 3.1.6. Both recycle after 10,000 requests/connections. These are a separate October 8 session using the same PHP 8.5.11, PostgreSQL 2,000-connection limit and load settings as the October 5 and 7 runs. Other runtimes were not rerun.",
+    "The Apache database ramp and Workerman ramps include socket read errors. Workerman closes persistent connections when recycling workers. Raw error counts are retained and reduce successful RPS using the same calculation as the existing runs; neither runtime logged PHP application errors during measurement."
+  ],
+  "completed_at": "2026-10-08T08:51:39.568198+00:00",
+  "exit_code": 0,
+  "checks": {
+    "unit_tests": 33,
+    "assertions": 282,
+    "measured_stages": 52,
+    "smoke_commands": [
+      "make bench-all RUNTIMES=apache-mod-php MODE=steady RATE=100 DURATION=20s THREADS=2 CONNECTIONS=8 OUTPUT_ROOT=/tmp/yii3-apache-smoke",
+      "make bench-all RUNTIMES=workerman MODE=steady RATE=1000 DURATION=20s THREADS=2 CONNECTIONS=8 OUTPUT_ROOT=/tmp/yii3-workerman-smoke"
+    ]
+  }
+}

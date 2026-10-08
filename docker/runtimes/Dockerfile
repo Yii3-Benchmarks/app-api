@@ -68,6 +68,23 @@ COPY --from=composer /composer /usr/bin/composer
 RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 COPY docker/runtimes/php-production.ini /usr/local/etc/php/conf.d/zz-production.ini
 WORKDIR /app
+FROM php-cli-base AS workerman
+RUN install-php-extensions pcntl
+# Pin upstream source directly: PECL's release endpoint is not always available.
+ADD --checksum=sha256:4ac43b6ba60d762f530e941fb406e66cc17a089401c7f9a58b048a780edba44b \
+    https://bitbucket.org/osmanov/pecl-event/get/3.1.6.tar.gz /tmp/event.tar.gz
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libevent-dev libssl-dev \
+    && mkdir /tmp/event \
+    && tar -xzf /tmp/event.tar.gz -C /tmp/event --strip-components=1 \
+    && cd /tmp/event && phpize \
+    && ./configure --with-event-core --with-event-extra --with-event-openssl --enable-event-sockets \
+    && make -j"$(nproc)" && make install \
+    && docker-php-ext-enable --ini-name zz-event.ini event \
+    && rm -rf /tmp/event /tmp/event.tar.gz /var/lib/apt/lists/*
+STOPSIGNAL SIGQUIT
+CMD ["php", "worker-workerman.php", "start"]
+
 FROM php-cli-base AS swoole
 RUN install-php-extensions swoole-6.2.3
 CMD ["php", "worker-swoole.php"]
@@ -88,6 +105,24 @@ RUN set -eux; \
     install-php-extensions opcache mbstring intl pdo_pgsql
 COPY --from=composer /composer /usr/bin/composer
 COPY docker/runtimes/php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
+RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
+COPY docker/runtimes/php-production.ini /usr/local/etc/php/conf.d/zz-production.ini
+WORKDIR /app
+
+FROM php:8.5.11-apache-bookworm AS apache-mod-php
+COPY --from=php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/install-php-extensions
+RUN set -eux; \
+    for source in /etc/apt/sources.list /etc/apt/sources.list.d/debian.sources; do \
+        if [ -f "$source" ]; then \
+            sed -i 's|http://deb.debian.org|https://deb.debian.org|g; s|http://security.debian.org|https://security.debian.org|g' "$source"; \
+        fi; \
+    done; \
+    printf 'Acquire::Retries "5";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' > /etc/apt/apt.conf.d/80-retries; \
+    install-php-extensions opcache mbstring intl pdo_pgsql
+COPY --from=composer /composer /usr/bin/composer
+COPY docker/runtimes/apache.conf /etc/apache2/sites-available/000-default.conf
+COPY docker/runtimes/apache-prefork.conf /etc/apache2/mods-available/mpm_prefork.conf
+RUN a2enmod rewrite && echo "ServerName localhost" > /etc/apache2/conf-available/servername.conf && a2enconf servername
 RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 COPY docker/runtimes/php-production.ini /usr/local/etc/php/conf.d/zz-production.ini
 WORKDIR /app

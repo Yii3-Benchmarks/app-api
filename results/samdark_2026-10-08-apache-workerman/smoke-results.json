@@ -1,0 +1,70 @@
+{
+  "apache": {
+    "/tmp/yii3-apache-smoke/20261008T082007Z-Apache-+-mod_php-DB-postgres-orders-steady/summary.json": {
+      "schema": "wrkx-summary-v1",
+      "runs": [
+        {
+          "durationUs": 20003730,
+          "requests": 2002,
+          "responses": 2002,
+          "errors": 0,
+          "bytes": 28560532,
+          "latencyAvgUs": 3353.295,
+          "latencyP95Us": 4343,
+          "latencyP99Us": 4827,
+          "targetRate": 100
+        }
+      ]
+    },
+    "/tmp/yii3-apache-smoke/20261008T081935Z-Apache-+-mod_php-home-steady/summary.json": {
+      "schema": "wrkx-summary-v1",
+      "runs": [
+        {
+          "durationUs": 20002701,
+          "requests": 2002,
+          "responses": 2002,
+          "errors": 0,
+          "bytes": 478478,
+          "latencyAvgUs": 2311.25,
+          "latencyP95Us": 3115,
+          "latencyP99Us": 3493,
+          "targetRate": 100
+        }
+      ]
+    }
+  },
+  "workerman": {
+    "/tmp/yii3-workerman-smoke/20261008T082314Z-Workerman-DB-postgres-orders-steady/summary.json": {
+      "schema": "wrkx-summary-v1",
+      "runs": [
+        {
+          "durationUs": 20000887,
+          "requests": 19996,
+          "responses": 19996,
+          "errors": 8,
+          "bytes": 283983192,
+          "latencyAvgUs": 1649.862,
+          "latencyP95Us": 2487,
+          "latencyP99Us": 2965,
+          "targetRate": 1000
+        }
+      ]
+    },
+    "/tmp/yii3-workerman-smoke/20261008T082242Z-Workerman-home-steady/summary.json": {
+      "schema": "wrkx-summary-v1",
+      "runs": [
+        {
+          "durationUs": 20000324,
+          "requests": 19996,
+          "responses": 19996,
+          "errors": 5,
+          "bytes": 3499300,
+          "latencyAvgUs": 970.777,
+          "latencyP95Us": 1644,
+          "latencyP99Us": 1873,
+          "targetRate": 1000
+        }
+      ]
+    }
+  }
+}

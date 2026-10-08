@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_FILE="$ROOT_DIR/docker/benchmarks.compose.yml"
-RUNTIMES="${RUNTIMES:-frankenphp-classic frankenphp-worker roadrunner php-fpm freeunit rapira rapira-classic rapira-dispatcher oxphp-classic oxphp-worker swoole}"
+RUNTIMES="${RUNTIMES:-frankenphp-classic frankenphp-worker roadrunner php-fpm freeunit rapira rapira-classic rapira-dispatcher oxphp-classic oxphp-worker swoole apache-mod-php workerman}"
 TARGETS="${TARGETS:-home postgres-orders}"
 OUTPUT_ROOT="${OUTPUT_ROOT:-$ROOT_DIR/runtime/benchmarks/$(date -u +%Y%m%dT%H%M%SZ)-suite}"
 
@@ -15,7 +15,8 @@ dependencies_are_ready() {
             exit(1);
         }
         require $autoload;
-        exit(class_exists("Yiisoft\\Db\\Cache\\SchemaCache")
+        exit(class_exists("Workerman\\Worker")
+            && class_exists("Yiisoft\\Db\\Cache\\SchemaCache")
             && class_exists("Yiisoft\\Yii\\Runner\\Rapira\\RapiraApplicationRunner") ? 0 : 1);
     ' "$ROOT_DIR" 2>/dev/null
 }
@@ -45,6 +46,8 @@ runtime_label() {
         frankenphp-worker) echo "FrankenPHP worker" ;;
         oxphp-classic) echo "OxPHP classic" ;;
         oxphp-worker) echo "OxPHP worker" ;;
+        apache-mod-php) echo "Apache + mod_php" ;;
+        workerman) echo "Workerman" ;;
         swoole) echo "Swoole" ;;
         roadrunner) echo "RoadRunner" ;;
         php-fpm) echo "PHP-FPM + Nginx" ;;

@@ -1,0 +1,177 @@
+{
+  "apache-mod-php": {
+    "Id": "sha256:f48637ec6675328f65326109ab8c3d3be728edbe37e8551e6da84394fcfa1025",
+    "RepoTags": [
+      "yii3-benchmarks-apache-mod-php-apache-mod-php:latest"
+    ],
+    "RepoDigests": [
+      "yii3-benchmarks-apache-mod-php-apache-mod-php@sha256:f48637ec6675328f65326109ab8c3d3be728edbe37e8551e6da84394fcfa1025"
+    ],
+    "Comment": "buildkit.dockerfile.v0",
+    "Created": "2026-10-08T11:19:03.863784546+03:00",
+    "Config": {
+      "ExposedPorts": {
+        "80/tcp": {}
+      },
+      "Env": [
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "PHPIZE_DEPS=autoconf \t\tdpkg-dev \t\tfile \t\tg++ \t\tgcc \t\tlibc-dev \t\tmake \t\tpkg-config \t\tre2c",
+        "PHP_INI_DIR=/usr/local/etc/php",
+        "APACHE_CONFDIR=/etc/apache2",
+        "APACHE_ENVVARS=/etc/apache2/envvars",
+        "PHP_CFLAGS=-fstack-protector-strong -fpic -fpie -O2 -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64",
+        "PHP_CPPFLAGS=-fstack-protector-strong -fpic -fpie -O2 -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64",
+        "PHP_LDFLAGS=-Wl,-O1 -pie",
+        "GPG_KEYS=1198C0117593497A5EC5C199286AF1F9897469DC 49D9AF6BC72A80D6691719C8AA23F5BE9C7097D4 D95C03BC702BE9515344AE3374E44BC9067701A5",
+        "PHP_VERSION=8.5.11",
+        "PHP_URL=https://www.php.net/distributions/php-8.5.11.tar.xz",
+        "PHP_ASC_URL=https://www.php.net/distributions/php-8.5.11.tar.xz.asc",
+        "PHP_SHA256=d9be75c08e8c316f4c8f4194d8fbe1750a15f6a6d9d4e3fe72082abeeb800360"
+      ],
+      "Entrypoint": [
+        "docker-php-entrypoint"
+      ],
+      "Cmd": [
+        "apache2-foreground"
+      ],
+      "WorkingDir": "/app",
+      "Labels": {
+        "com.docker.compose.project": "yii3-benchmarks-apache-mod-php",
+        "com.docker.compose.service": "apache-mod-php",
+        "com.docker.compose.version": "5.5.1"
+      },
+      "StopSignal": "SIGWINCH"
+    },
+    "Architecture": "amd64",
+    "Os": "linux",
+    "Size": 757898867,
+    "RootFS": {
+      "Type": "layers",
+      "Layers": [
+        "sha256:e58989146fcec76699871403b9897b5c014af1ccd85f5a9300a215e7975525d7",
+        "sha256:db8fc85dea3ba5486f80b7ec2c41f09373d4e8118083bd80c40a76ed7c3528bb",
+        "sha256:d99c2cce3aa472e98952543f9bc7c837effbd00c267d304b36adb7fe75683554",
+        "sha256:3435080b9981048bf5aeed311ec8de2b2854d441e992e3f05b01509e8abc58e0",
+        "sha256:7f8e3a44056f1a2a2ddbb1b8f41c6ecaad1da87640f667b0d9ac9f45187f0c7d",
+        "sha256:a3ab0fcfdee2549081480c912f2d6aa03d22304378253bbf92599bc9c5dee554",
+        "sha256:0f308e45775467b84c3f44064a16fe30f9b0f8a80986ae615ba0b7ec62b8f639",
+        "sha256:3bfce2056e1e51b47c1aac1cdf750950293238befb0274b5e0a6581c62cabba3",
+        "sha256:f69ea5fbfc1d882f2f6fa0b63174ad908f2cfeaa9c1442f38a48ffd879f63c20",
+        "sha256:127826a2cfd3259cfc6fb74bd09fd65c1baa757137af8034e86155169a30be4c",
+        "sha256:ac64539472697854e98890216a2035217b095a58f5059daa36e30190ea4ac2ce",
+        "sha256:82a266452862e520db29b2e3efbad5ac04bec49ac9299faed1156d8648d834bb",
+        "sha256:bbb8532501de82b00fddd2fd604b2f483e224c7aba99183647a03949a554dd60",
+        "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+        "sha256:953ce31499def2c4ddfaa6fcb6eb3b6a6ac0336fbe9ca3ef75d38b105a47801e",
+        "sha256:fff5766daf0bb452abc7ba1cbd280baf9d651eb828c8b147c604353a2a9968b0",
+        "sha256:238625e3365ea9bcad21f8caa973a702ed03ebce42ab892f3ef3d87447e4e2df",
+        "sha256:b3b3dd1aab72b82aeb89e703a11b7c17f78b83c3c29a821ff3c10b8f65b94b78",
+        "sha256:96f412b09ed4a73fc925289abc47bda0fb4b2d003ddc17193ea19d34fc8738aa",
+        "sha256:7aa1bf3614eb82d24abaee4189ee1bd659e3a8463719d30126668c883bef91b3",
+        "sha256:53a2677474891463461bfdbf5d73c5ab895065ef3af3498adbeee1e460f76996",
+        "sha256:4740e1401dc65fa2977e08c2d75b532c68aa68e04cbe818e4ad884e2377cb07a",
+        "sha256:25b16e7166bff8d9e0faf0f1ac4b9a2342d6a9c716df617f83a5d4cbe489f6f7"
+      ]
+    },
+    "Metadata": {
+      "LastTagTime": "2026-10-08T08:24:08.318150869Z"
+    },
+    "Descriptor": {
+      "mediaType": "application/vnd.oci.image.index.v1+json",
+      "digest": "sha256:f48637ec6675328f65326109ab8c3d3be728edbe37e8551e6da84394fcfa1025",
+      "size": 856
+    },
+    "Identity": {
+      "Build": [
+        {
+          "Ref": "7bgr8x1p3p88t1w9uxpw8b05z",
+          "CreatedAt": "2026-10-08T11:24:08.336424775+03:00"
+        }
+      ]
+    }
+  },
+  "workerman": {
+    "Id": "sha256:3d9a03d9aa63333bfd9edd7233c5250c9df26679d8559ca5f61f55eda100a937",
+    "RepoTags": [
+      "yii3-benchmarks-workerman-workerman:latest"
+    ],
+    "RepoDigests": [
+      "yii3-benchmarks-workerman-workerman@sha256:3d9a03d9aa63333bfd9edd7233c5250c9df26679d8559ca5f61f55eda100a937"
+    ],
+    "Comment": "buildkit.dockerfile.v0",
+    "Created": "2026-10-08T11:19:39.187856395+03:00",
+    "Config": {
+      "Env": [
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "PHPIZE_DEPS=autoconf \t\tdpkg-dev \t\tfile \t\tg++ \t\tgcc \t\tlibc-dev \t\tmake \t\tpkg-config \t\tre2c",
+        "PHP_INI_DIR=/usr/local/etc/php",
+        "PHP_CFLAGS=-fstack-protector-strong -fpic -fpie -O2 -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64",
+        "PHP_CPPFLAGS=-fstack-protector-strong -fpic -fpie -O2 -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64",
+        "PHP_LDFLAGS=-Wl,-O1 -pie",
+        "GPG_KEYS=1198C0117593497A5EC5C199286AF1F9897469DC 49D9AF6BC72A80D6691719C8AA23F5BE9C7097D4 D95C03BC702BE9515344AE3374E44BC9067701A5",
+        "PHP_VERSION=8.5.11",
+        "PHP_URL=https://www.php.net/distributions/php-8.5.11.tar.xz",
+        "PHP_ASC_URL=https://www.php.net/distributions/php-8.5.11.tar.xz.asc",
+        "PHP_SHA256=d9be75c08e8c316f4c8f4194d8fbe1750a15f6a6d9d4e3fe72082abeeb800360"
+      ],
+      "Entrypoint": [
+        "docker-php-entrypoint"
+      ],
+      "Cmd": [
+        "php",
+        "worker-workerman.php",
+        "start"
+      ],
+      "WorkingDir": "/app",
+      "Labels": {
+        "com.docker.compose.project": "yii3-benchmarks-workerman",
+        "com.docker.compose.service": "workerman",
+        "com.docker.compose.version": "5.5.1"
+      },
+      "StopSignal": "SIGQUIT",
+      "ArgsEscaped": true
+    },
+    "Architecture": "amd64",
+    "Os": "linux",
+    "Size": 832730709,
+    "RootFS": {
+      "Type": "layers",
+      "Layers": [
+        "sha256:e58989146fcec76699871403b9897b5c014af1ccd85f5a9300a215e7975525d7",
+        "sha256:d3e816cf17cc6800f6826b461820681baed9fe77361286d5b2a1bcd1fcacdbde",
+        "sha256:664b223ae8ef5dca9abd03b2808598ca45d2a77193148fb33d9f0cb742c92159",
+        "sha256:06cfacc3f895fd3c69fff82c6950ca89275592e835e0d3d5a3fd4d6b2317b5d0",
+        "sha256:e7beaa099e5af5bf53b7905a5e33f65dfe52a2300881874e7e7e8e8934951fc7",
+        "sha256:a908e5b95b918d387fd27da7aabef718610ef94808b12770dc7b7cabfa4da362",
+        "sha256:1ca07bea4fb812325475dff76aaf0f6f5dd5d08e4fd26b4d6b8775b6b511293e",
+        "sha256:0c185ba72f906b4aac9b603b2a6805af87ad271dd9dbe07fd43ec10d86726aab",
+        "sha256:c4b1f34089520f16412f6e903782ef7b65917a6f340f0bdeb5c6f4094f277953",
+        "sha256:6f036fbd8941d628f8978a5167e51bab91c51efd15843b56d6831f0c7d923353",
+        "sha256:218b5e86ba29493bc0024129d36c610f0142591b58922299213a0f9b3621ebeb",
+        "sha256:e945fe6f590f70e2ac822aa3b76dc0e1bdb1a617f7b3622174fc458bdd8b0ca1",
+        "sha256:81900ac285c78998c04e99621bb08a1347bd5479d55aaf6437d22dc7d4f04673",
+        "sha256:fd1bcfa7631f45125a07ad6e640292625127b11cd159bfd8bb74e73cadb52621",
+        "sha256:6efb971d119f70a52f5de380e17cb2538aa98b68a129fcee816b9bea64d1c7a8",
+        "sha256:17f5e5e543634608f22617d33bef87e7eaef653c8851e4d5ea3232ac9d66b545",
+        "sha256:0f56bca34ab99e164337d45ed59e73f220f22d3e13dbdf733d36cb7679bb8a33",
+        "sha256:3b8c84ac35a1bc38052511d5c6292ec78a7db241d70f3a4558b96ec2556a1b3e"
+      ]
+    },
+    "Metadata": {
+      "LastTagTime": "2026-10-08T08:37:53.057894001Z"
+    },
+    "Descriptor": {
+      "mediaType": "application/vnd.oci.image.index.v1+json",
+      "digest": "sha256:3d9a03d9aa63333bfd9edd7233c5250c9df26679d8559ca5f61f55eda100a937",
+      "size": 856
+    },
+    "Identity": {
+      "Build": [
+        {
+          "Ref": "lna4x7ap585zywyb3szp735a2",
+          "CreatedAt": "2026-10-08T11:37:53.073822703+03:00"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Benchmark Report</title>
+  <style>
+    :root {
+      --bg: #f4f1ea;
+      --panel: #fffdf8;
+      --text: #1f2933;
+      --muted: #5c6b73;
+      --line: #d6d0c4;
+      --accent: #b56576;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+      background:
+        radial-gradient(circle at top left, rgba(181, 101, 118, 0.12), transparent 30%),
+        linear-gradient(180deg, #f8f4ec 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 28px 24px 48px;
+    }
+    h1, h2 {
+      margin: 0 0 12px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+    h1 {
+      font-size: 2.2rem;
+    }
+    h2 {
+      font-size: 1.25rem;
+    }
+    p {
+      margin: 0 0 8px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .path {
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: 0.9rem;
+      word-break: break-all;
+    }
+    .grid {
+      display: grid;
+      gap: 20px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(31, 41, 51, 0.08);
+      border-radius: 18px;
+      padding: 20px 22px;
+      box-shadow: 0 18px 42px rgba(31, 41, 51, 0.06);
+    }
+    .summary-table, .metadata-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .summary-table th,
+    .summary-table td,
+    .metadata-table th,
+    .metadata-table td {
+      border-top: 1px solid var(--line);
+      padding: 10px 8px;
+      text-align: left;
+      vertical-align: top;
+      font-size: 0.95rem;
+    }
+    .summary-table th,
+    .metadata-table th {
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      width: 15%;
+    }
+    .summary-table tbody tr:hover { background-color: rgba(37, 99, 235, 0.08); }
+    .summary-table th button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; text-align: left; }
+    .summary-table th button::after { content: ' ↕'; }
+    .summary-table th[aria-sort="ascending"] button::after { content: ' ↑'; }
+    .summary-table th[aria-sort="descending"] button::after { content: ' ↓'; }
+    .chart-panel {
+      overflow: hidden;
+    }
+    .chart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+    .chart-header h2 {
+      margin-bottom: 0;
+    }
+    .chart-wrap {
+      width: 100%;
+      overflow-x: hidden;
+    }
+    .chart {
+      width: 100%;
+      height: auto;
+      display: block;
+      background: linear-gradient(180deg, rgba(255,255,255,0.55), rgba(246,241,233,0.95));
+      border-radius: 14px;
+      border: 1px solid rgba(31, 41, 51, 0.08);
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 18px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .style-legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 12px 18px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    button.legend-item {
+      font: inherit;
+      color: inherit;
+      background: transparent;
+      border: 0;
+      border-radius: 4px;
+      padding: 4px;
+      cursor: pointer;
+    }
+    .legend-item.is-dimmed {
+      opacity: 0.3;
+    }
+    .legend-item.is-highlighted {
+      color: var(--text);
+      box-shadow: 0 0 0 2px currentColor;
+    }
+    .legend-item:focus-visible {
+      outline: 2px solid var(--text);
+      outline-offset: 3px;
+    }
+    .summary-run {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .style-legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .legend-swatch {
+      width: 12px;
+      height: 12px;
+      display: inline-block;
+      border-radius: 999px;
+    }
+    .style-legend-swatch {
+      width: 24px;
+      height: 8px;
+      display: inline-block;
+    }
+    .style-legend-target {
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .meta-grid {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    @media (max-width: 720px) {
+      .meta-grid { grid-template-columns: 1fr; }
+      main { padding: 20px 14px 36px; }
+      h1 { font-size: 1.8rem; }
+      .panel { padding: 16px; }
+      .chart-header { align-items: flex-start; flex-direction: column; }
+      .style-legend { justify-content: flex-start; }
+      .summary-table th, .summary-table td, .metadata-table th, .metadata-table td { padding: 8px 6px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="grid">
+    <section class="panel">
+      <h1>Benchmark Report</h1>
+      <p>Generated 2026-10-08 08:52:25 UTC. This report combines wrkx stage summaries with Docker CPU and memory samples.</p>
+      <p><strong>Test system.</strong> <strong>OS:</strong> Ubuntu 26.04.1 LTS (x86_64); <strong>Kernel:</strong> Linux 7.0.0-34-generic; <strong>CPU:</strong> AMD Ryzen 9 7950X, 16 cores / 32 threads; <strong>Memory:</strong> 93 GiB usable RAM.</p>
+      <p><strong>Run dates.</strong> 2026-10-08: Apache + mod_php, Workerman.</p>
+<details class="run-notes"><summary>Run notes</summary><p><strong>Run note (2026-10-08).</strong> Apache 2.4.68 with mod_php uses 20 prefork processes and disabled keepalive; Workerman 5.2.2 uses 20 synchronous persistent Yii workers with Event 3.1.6. Both recycle after 10,000 requests/connections. These are a separate October 8 session using the same PHP 8.5.11, PostgreSQL 2,000-connection limit and load settings as the October 5 and 7 runs. Other runtimes were not rerun.</p>
+      <p><strong>Run note (2026-10-08).</strong> The Apache database ramp and Workerman ramps include socket read errors. Workerman closes persistent connections when recycling workers. Raw error counts are retained and reduce successful RPS using the same calculation as the existing runs; neither runtime logged PHP application errors during measurement.</p></details>
+      <p>Charts show raw samples. For stage results, RPS cap marks the first stage with successful throughput more than 5% below target; per-second results use a sustained latency surge. The load generator can also limit throughput.</p>
+      <p>Hover over a chart legend label or focus it with Tab to highlight that run.</p>
+    </section>
+
+        <section class="panel">
+      <h2>Run Summary — Non-DB</h2>
+      <p>Normal latency averages samples before a detected latency surge or throughput cap, whichever comes first. Overloaded latency comes from the throughput-cap sample shown in the RPS columns. Runs may include different load levels in their normal averages, so these are not equal-load comparisons. Mean p95 averages the included sample percentiles, not pooled requests. — means no qualifying measurement.</p>
+      <details>
+        <summary>Calculation details</summary>
+        <p>For stage data, each sample represents one load stage. The first stage provides the latency baseline. A surge is detected when average latency reaches the largest of 20 ms, 4× baseline average latency, or baseline average latency + 12 ms. When baseline p95 is available, the stage must also have a p95 reaching the largest of 30 ms, 2.5× baseline p95, or baseline p95 + 15 ms. These thresholds are a heuristic, not a latency guarantee.</p>
+        <p>Normal averages exclude the first qualifying surge stage and all later stages, or stop earlier at the throughput cap. If the cap occurs in the first stage, no normal measurement is available. If no cap is reached, no overloaded measurement is available. For per-second data, the existing sustained latency-surge detector determines the cutoff, and averages use per-second samples.</p>
+      </details>
+      <table class="summary-table">
+        <thead>
+          <tr>
+            <th scope="col" aria-sort="none" data-sort-type="text"><button type="button">Run</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="text"><button type="button">Path</button></th>
+            <th scope="col" aria-sort="descending" data-sort-type="number"><button type="button">Successful RPS</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Target RPS</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Normal latency (avg)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Normal latency (mean p95)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Overloaded latency (avg)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Overloaded latency (p95)</button></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="summary-run"><span class="legend-swatch" style="background:#000077"></span>Workerman</span></td><td>/</td><td data-sort-value="124311.12762248">124311</td><td data-sort-value="150000">150000</td><td data-sort-value="1.3762454545455">1.38 ms</td><td data-sort-value="3.2636363636364">3.26 ms</td><td data-sort-value="3389.9983">3390.00 ms</td><td data-sort-value="5390.335">5390.34 ms</td></tr><tr><td><span class="summary-run"><span class="legend-swatch" style="background:#111111"></span>Apache + mod_php</span></td><td>/</td><td data-sort-value="8926.0758695312">8926</td><td data-sort-value="10000">10000</td><td data-sort-value="4.5978">4.60 ms</td><td data-sort-value="9.927">9.93 ms</td><td data-sort-value="1844.8178">1844.82 ms</td><td data-sort-value="3108.863">3108.86 ms</td></tr>
+        </tbody>
+      </table>
+    </section>    <section class="panel">
+      <h2>Run Summary — DB</h2>
+      <p>Normal latency averages samples before a detected latency surge or throughput cap, whichever comes first. Overloaded latency comes from the throughput-cap sample shown in the RPS columns. Runs may include different load levels in their normal averages, so these are not equal-load comparisons. Mean p95 averages the included sample percentiles, not pooled requests. — means no qualifying measurement.</p>
+      <details>
+        <summary>Calculation details</summary>
+        <p>For stage data, each sample represents one load stage. The first stage provides the latency baseline. A surge is detected when average latency reaches the largest of 20 ms, 4× baseline average latency, or baseline average latency + 12 ms. When baseline p95 is available, the stage must also have a p95 reaching the largest of 30 ms, 2.5× baseline p95, or baseline p95 + 15 ms. These thresholds are a heuristic, not a latency guarantee.</p>
+        <p>Normal averages exclude the first qualifying surge stage and all later stages, or stop earlier at the throughput cap. If the cap occurs in the first stage, no normal measurement is available. If no cap is reached, no overloaded measurement is available. For per-second data, the existing sustained latency-surge detector determines the cutoff, and averages use per-second samples.</p>
+      </details>
+      <table class="summary-table">
+        <thead>
+          <tr>
+            <th scope="col" aria-sort="none" data-sort-type="text"><button type="button">Run</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="text"><button type="button">Path</button></th>
+            <th scope="col" aria-sort="descending" data-sort-type="number"><button type="button">Successful RPS</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Target RPS</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Normal latency (avg)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Normal latency (mean p95)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Overloaded latency (avg)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Overloaded latency (p95)</button></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="summary-run"><span class="legend-swatch" style="background:#ff11ee"></span>Workerman DB</span></td><td>/postgres/orders</td><td data-sort-value="13500.976676472">13501</td><td data-sort-value="15000">15000</td><td data-sort-value="4.1773">4.18 ms</td><td data-sort-value="8.4083333333333">8.41 ms</td><td data-sort-value="1921.9283">1921.93 ms</td><td data-sort-value="4968.447">4968.45 ms</td></tr><tr><td><span class="summary-run"><span class="legend-swatch" style="background:#000011"></span>Apache + mod_php DB</span></td><td>/postgres/orders</td><td data-sort-value="2025.0214034229">2025</td><td data-sort-value="2500">2500</td><td data-sort-value="">—</td><td data-sort-value="">—</td><td data-sort-value="388.3848">388.38 ms</td><td data-sort-value="2306.047">2306.05 ms</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <h2>Worker no DB</h2><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Request Rate Per Second</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  successful
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="2 4" stroke-linecap="round"></line>
+  </svg>
+  target
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  errored
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-home-requests-per-second" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-home-requests-per-second" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Latency (ms)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  avg
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  p95
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-home-latency" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-home-latency" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP CPU (% of one core, 100% = 1 core)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-home-cpu-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-home-cpu-app" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP Memory (MiB)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-home-memory-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-home-memory-app" class="legend"></div>
+</section><h2>Worker DB</h2><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Request Rate Per Second</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  successful
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="2 4" stroke-linecap="round"></line>
+  </svg>
+  target
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  errored
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-db-requests-per-second" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-db-requests-per-second" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Latency (ms)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  avg
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  p95
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-db-latency" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-db-latency" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP CPU (% of one core, 100% = 1 core)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-db-cpu-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-db-cpu-app" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP Memory (MiB)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-db-memory-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-db-memory-app" class="legend"></div>
+</section><h2>Non-worker no DB</h2><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Request Rate Per Second</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  successful
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="2 4" stroke-linecap="round"></line>
+  </svg>
+  target
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  errored
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-non-worker-home-requests-per-second" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-non-worker-home-requests-per-second" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Latency (ms)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  avg
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  p95
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-non-worker-home-latency" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-non-worker-home-latency" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP CPU (% of one core, 100% = 1 core)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-non-worker-home-cpu-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-non-worker-home-cpu-app" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP Memory (MiB)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-non-worker-home-memory-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-non-worker-home-memory-app" class="legend"></div>
+</section><h2>Non-worker DB</h2><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Request Rate Per Second</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  successful
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="2 4" stroke-linecap="round"></line>
+  </svg>
+  target
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  errored
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-non-worker-db-requests-per-second" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-non-worker-db-requests-per-second" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Latency (ms)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  avg
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  p95
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-non-worker-db-latency" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-non-worker-db-latency" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP CPU (% of one core, 100% = 1 core)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-non-worker-db-cpu-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-non-worker-db-cpu-app" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP Memory (MiB)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-non-worker-db-memory-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-non-worker-db-memory-app" class="legend"></div>
+</section>
+
+    <section class="meta-grid">
+      <section class="panel">
+  <h2>Apache + mod_php</h2>
+  <p class="path">/home/samdark/src/yii3-benchmarks/app-api/results/samdark_2026-10-08-apache-workerman/20261008T082415Z-Apache-+-mod_php-home-ramp</p>
+  <table class="metadata-table">
+    <tr><th>BASE_URL</th><td>http://localhost:9991</td></tr><tr><th>TARGET_NAME</th><td>home</td></tr><tr><th>TARGET_PATH</th><td>/</td></tr><tr><th>BENCH_NAME</th><td>Apache + mod_php</td></tr><tr><th>MODE</th><td>ramp</td></tr><tr><th>CAPTURE_METRICS</th><td>1</td></tr><tr><th>RATE</th><td>10000</td></tr><tr><th>DURATION</th><td>160s</td></tr><tr><th>THREADS</th><td>32</td></tr><tr><th>CONNECTIONS</th><td>256</td></tr><tr><th>STAGES</th><td>[{&quot;target&quot;:2500,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:5000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:10000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:15000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:20000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:25000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:30000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:40000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:50000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:75000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:100000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:150000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:200000,&quot;duration&quot;:&quot;30s&quot;}]</td></tr><tr><th>COMPOSE_PROJECT_NAME</th><td>yii3-benchmarks-apache-mod-php</td></tr><tr><th>WRKX_REF</th><td>bec57539360771bedc2fc63a48e3746f1b7a9975</td></tr><tr><th>WARMUP_DURATION</th><td>10s</td></tr><tr><th>WARMUP_RATE</th><td>1000</td></tr>
+  </table>
+</section><section class="panel">
+  <h2>Apache + mod_php DB</h2>
+  <p class="path">/home/samdark/src/yii3-benchmarks/app-api/results/samdark_2026-10-08-apache-workerman/20261008T083103Z-Apache-+-mod_php-DB-postgres-orders-ramp</p>
+  <table class="metadata-table">
+    <tr><th>BASE_URL</th><td>http://localhost:9991</td></tr><tr><th>TARGET_NAME</th><td>postgres-orders</td></tr><tr><th>TARGET_PATH</th><td>/postgres/orders</td></tr><tr><th>BENCH_NAME</th><td>Apache + mod_php DB</td></tr><tr><th>MODE</th><td>ramp</td></tr><tr><th>CAPTURE_METRICS</th><td>1</td></tr><tr><th>RATE</th><td>10000</td></tr><tr><th>DURATION</th><td>160s</td></tr><tr><th>THREADS</th><td>32</td></tr><tr><th>CONNECTIONS</th><td>256</td></tr><tr><th>STAGES</th><td>[{&quot;target&quot;:2500,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:5000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:10000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:15000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:20000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:25000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:30000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:40000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:50000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:75000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:100000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:150000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:200000,&quot;duration&quot;:&quot;30s&quot;}]</td></tr><tr><th>COMPOSE_PROJECT_NAME</th><td>yii3-benchmarks-apache-mod-php</td></tr><tr><th>WRKX_REF</th><td>bec57539360771bedc2fc63a48e3746f1b7a9975</td></tr><tr><th>WARMUP_DURATION</th><td>10s</td></tr><tr><th>WARMUP_RATE</th><td>1000</td></tr>
+  </table>
+</section><section class="panel">
+  <h2>Workerman</h2>
+  <p class="path">/home/samdark/src/yii3-benchmarks/app-api/results/samdark_2026-10-08-apache-workerman/20261008T083800Z-Workerman-home-ramp</p>
+  <table class="metadata-table">
+    <tr><th>BASE_URL</th><td>http://localhost:9991</td></tr><tr><th>TARGET_NAME</th><td>home</td></tr><tr><th>TARGET_PATH</th><td>/</td></tr><tr><th>BENCH_NAME</th><td>Workerman</td></tr><tr><th>MODE</th><td>ramp</td></tr><tr><th>CAPTURE_METRICS</th><td>1</td></tr><tr><th>RATE</th><td>10000</td></tr><tr><th>DURATION</th><td>160s</td></tr><tr><th>THREADS</th><td>32</td></tr><tr><th>CONNECTIONS</th><td>256</td></tr><tr><th>STAGES</th><td>[{&quot;target&quot;:2500,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:5000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:10000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:15000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:20000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:25000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:30000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:40000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:50000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:75000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:100000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:150000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:200000,&quot;duration&quot;:&quot;30s&quot;}]</td></tr><tr><th>COMPOSE_PROJECT_NAME</th><td>yii3-benchmarks-workerman</td></tr><tr><th>WRKX_REF</th><td>bec57539360771bedc2fc63a48e3746f1b7a9975</td></tr><tr><th>WARMUP_DURATION</th><td>10s</td></tr><tr><th>WARMUP_RATE</th><td>1000</td></tr>
+  </table>
+</section><section class="panel">
+  <h2>Workerman DB</h2>
+  <p class="path">/home/samdark/src/yii3-benchmarks/app-api/results/samdark_2026-10-08-apache-workerman/20261008T084447Z-Workerman-DB-postgres-orders-ramp</p>
+  <table class="metadata-table">
+    <tr><th>BASE_URL</th><td>http://localhost:9991</td></tr><tr><th>TARGET_NAME</th><td>postgres-orders</td></tr><tr><th>TARGET_PATH</th><td>/postgres/orders</td></tr><tr><th>BENCH_NAME</th><td>Workerman DB</td></tr><tr><th>MODE</th><td>ramp</td></tr><tr><th>CAPTURE_METRICS</th><td>1</td></tr><tr><th>RATE</th><td>10000</td></tr><tr><th>DURATION</th><td>160s</td></tr><tr><th>THREADS</th><td>32</td></tr><tr><th>CONNECTIONS</th><td>256</td></tr><tr><th>STAGES</th><td>[{&quot;target&quot;:2500,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:5000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:10000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:15000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:20000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:25000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:30000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:40000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:50000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:75000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:100000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:150000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:200000,&quot;duration&quot;:&quot;30s&quot;}]</td></tr><tr><th>COMPOSE_PROJECT_NAME</th><td>yii3-benchmarks-workerman</td></tr><tr><th>WRKX_REF</th><td>bec57539360771bedc2fc63a48e3746f1b7a9975</td></tr><tr><th>WARMUP_DURATION</th><td>10s</td></tr><tr><th>WARMUP_RATE</th><td>1000</td></tr>
+  </table>
+</section>
+    </section>
+  </main>
+
+  <script>
+    const reportData = {"charts":[{"id":"worker-home-requests-per-second","title":"Request Rate Per Second","series":[{"label":"Workerman target","runLabel":"Workerman","color":"#000077","runIndex":2,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[2,4],"capSecond":330,"errorStartSecond":null},{"label":"Workerman successful","runLabel":"Workerman","color":"#000077","runIndex":2,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":2500.9381},{"x":30,"y":4991.2234},{"x":60,"y":9973.6982},{"x":90,"y":14960.1161},{"x":120,"y":19939.0821},{"x":150,"y":24945.9601},{"x":180,"y":29909.5469},{"x":210,"y":39912.6375},{"x":240,"y":49861.2991},{"x":270,"y":74836.1207},{"x":300,"y":99765.4008},{"x":330,"y":124311.1276},{"x":360,"y":125465.5722}],"showPoints":false,"dash":[],"capSecond":330,"errorStartSecond":null,"startMarker":true},{"label":"Workerman errored","runLabel":"Workerman","color":"#000077","runIndex":2,"affectsYAxis":false,"stepped":false,"points":[{"x":0,"y":0},{"x":30,"y":12.7071},{"x":60,"y":20.6988},{"x":90,"y":31.0317},{"x":120,"y":40.2302},{"x":150,"y":49.4849},{"x":180,"y":61.7606},{"x":210,"y":81.9549},{"x":240,"y":102.9019},{"x":270,"y":149.5786},{"x":300,"y":186.157},{"x":330,"y":218.2563},{"x":360,"y":217.8923}],"showPoints":false,"dash":[8,4],"capSecond":330,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"Workerman","runLabel":"Workerman","color":"#000077","runIndex":2,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":330,"errorStartSecond":null}],"styleLegend":[{"label":"successful","dash":[]},{"label":"target","dash":[2,4]},{"label":"errored","dash":[8,4]}],"format":"integer","smoothingWindow":0,"group":"Worker no DB"},{"id":"worker-home-latency","title":"Latency (ms)","series":[{"label":"Workerman avg","runLabel":"Workerman","color":"#000077","runIndex":2,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":0.9489},{"x":30,"y":1.0753},{"x":60,"y":1.0332},{"x":90,"y":1.0873},{"x":120,"y":1.0446},{"x":150,"y":0.9338},{"x":180,"y":1.2494},{"x":210,"y":1.0469},{"x":240,"y":1.1208},{"x":270,"y":1.307},{"x":300,"y":4.2915},{"x":330,"y":3389.9983},{"x":360,"y":7426.8654}],"showPoints":false,"dash":[],"capSecond":330,"errorStartSecond":null},{"label":"Workerman p95","runLabel":"Workerman","color":"#000077","runIndex":2,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":1.574},{"x":30,"y":1.837},{"x":60,"y":1.753},{"x":90,"y":1.903},{"x":120,"y":1.868},{"x":150,"y":1.609},{"x":180,"y":2.323},{"x":210,"y":1.856},{"x":240,"y":2.029},{"x":270,"y":2.317},{"x":300,"y":16.831},{"x":330,"y":5390.335},{"x":360,"y":10960.895}],"showPoints":false,"dash":[8,4],"capSecond":330,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"Workerman","runLabel":"Workerman","color":"#000077","runIndex":2,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":330,"errorStartSecond":null}],"styleLegend":[{"label":"avg","dash":[]},{"label":"p95","dash":[8,4]}],"format":"milliseconds-integer","smoothingWindow":0,"yMax":5390.335,"group":"Worker no DB"},{"id":"worker-home-cpu-app","title":"APP CPU (% of one core, 100% = 1 core)","series":[{"label":"Workerman","runLabel":"Workerman","color":"#000077","points":[{"x":0,"y":45.72},{"x":3,"y":42.35},{"x":6,"y":41.04},{"x":9,"y":42.29},{"x":12,"y":40.18},{"x":15,"y":40.46},{"x":18,"y":39.09},{"x":21,"y":41.57},{"x":24,"y":41.82},{"x":27,"y":43.67},{"x":30,"y":83.28},{"x":33,"y":87.78},{"x":36,"y":82.02},{"x":39,"y":86.26},{"x":42,"y":81.81},{"x":45,"y":79.63},{"x":48,"y":88},{"x":51,"y":86.75},{"x":54,"y":89.76},{"x":57,"y":88.49},{"x":60,"y":162.72},{"x":63,"y":162.16},{"x":66,"y":157.43},{"x":69,"y":160.69},{"x":72,"y":160.47},{"x":75,"y":161.23},{"x":78,"y":163.55},{"x":81,"y":162.6},{"x":84,"y":166.29},{"x":87,"y":167.02},{"x":90,"y":229.3},{"x":93,"y":228.1},{"x":96,"y":232.99},{"x":99,"y":224.56},{"x":102,"y":228.86},{"x":105,"y":224.11},{"x":108,"y":230.27},{"x":111,"y":225.45},{"x":114,"y":229.69},{"x":118,"y":225.11},{"x":121,"y":302.41},{"x":124,"y":295.76},{"x":127,"y":300.38},{"x":130,"y":300.38},{"x":133,"y":302.56},{"x":136,"y":311.86},{"x":139,"y":304.22},{"x":142,"y":303.52},{"x":145,"y":309.33},{"x":148,"y":294.57},{"x":151,"y":383.35},{"x":154,"y":368.96},{"x":157,"y":367.77},{"x":160,"y":376.71},{"x":163,"y":364.27},{"x":166,"y":379.4},{"x":169,"y":369.77},{"x":172,"y":380.53},{"x":175,"y":367.91},{"x":178,"y":365.71},{"x":181,"y":429.97},{"x":184,"y":441.44},{"x":187,"y":431.58},{"x":190,"y":433.65},{"x":193,"y":437.07},{"x":196,"y":438.85},{"x":199,"y":431.16},{"x":202,"y":429.25},{"x":205,"y":438.13},{"x":208,"y":432.07},{"x":211,"y":529.2},{"x":214,"y":578.54},{"x":217,"y":566.7},{"x":220,"y":575.25},{"x":223,"y":577.2},{"x":226,"y":565.21},{"x":229,"y":556.29},{"x":232,"y":569.16},{"x":235,"y":564.37},{"x":238,"y":561.91},{"x":241,"y":554.3},{"x":245,"y":698.02},{"x":248,"y":694.18},{"x":251,"y":707.94},{"x":254,"y":724.21},{"x":257,"y":694.2},{"x":260,"y":696.96},{"x":263,"y":685.9},{"x":266,"y":681.53},{"x":269,"y":689.8},{"x":272,"y":661.8},{"x":275,"y":1025.53},{"x":278,"y":1050.11},{"x":281,"y":1025.18},{"x":284,"y":1046.58},{"x":287,"y":1039.73},{"x":290,"y":1008.88},{"x":293,"y":1025.81},{"x":296,"y":1037.55},{"x":299,"y":1046.27},{"x":302,"y":884.56},{"x":305,"y":1445.24},{"x":308,"y":1398.94},{"x":311,"y":1419.35},{"x":314,"y":1390.1},{"x":317,"y":1423.39},{"x":320,"y":1439.37},{"x":323,"y":1417.76},{"x":326,"y":1391.51},{"x":329,"y":1418.48},{"x":332,"y":1080.37},{"x":335,"y":1760.71},{"x":338,"y":1725.7},{"x":341,"y":1781.66},{"x":344,"y":1811.38},{"x":348,"y":1823.91},{"x":351,"y":1810.87},{"x":354,"y":1770.96},{"x":357,"y":1781.68},{"x":360,"y":1816.42},{"x":363,"y":1794.12},{"x":366,"y":1815.51},{"x":369,"y":1799.62},{"x":372,"y":1763.17},{"x":375,"y":1789.82},{"x":378,"y":1798.07},{"x":381,"y":1823.26},{"x":384,"y":1823.5},{"x":387,"y":1773.69},{"x":390,"y":1803.37}],"capSecond":330,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"Workerman","runLabel":"Workerman","color":"#000077","runIndex":2,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":330,"errorStartSecond":null}],"format":"percent-integer","smoothingWindow":0,"group":"Worker no DB"},{"id":"worker-home-memory-app","title":"APP Memory (MiB)","series":[{"label":"Workerman","runLabel":"Workerman","color":"#000077","points":[{"x":0,"y":79.03},{"x":3,"y":79.25},{"x":6,"y":79.55},{"x":9,"y":78.68},{"x":12,"y":77.85},{"x":15,"y":78.74},{"x":18,"y":79.87},{"x":21,"y":78.25},{"x":24,"y":78.27},{"x":27,"y":78.44},{"x":30,"y":77.18},{"x":33,"y":77.68},{"x":36,"y":77.4},{"x":39,"y":75.56},{"x":42,"y":75.38},{"x":45,"y":74.56},{"x":48,"y":75.09},{"x":51,"y":75.32},{"x":54,"y":73.73},{"x":57,"y":73.37},{"x":60,"y":73.57},{"x":63,"y":72.03},{"x":66,"y":72.29},{"x":69,"y":71.5},{"x":72,"y":71.67},{"x":75,"y":70.81},{"x":78,"y":71.82},{"x":81,"y":72.23},{"x":84,"y":72.02},{"x":87,"y":72.36},{"x":90,"y":71.08},{"x":93,"y":71.05},{"x":96,"y":72.04},{"x":99,"y":71.79},{"x":102,"y":70.07},{"x":105,"y":71.19},{"x":108,"y":70.85},{"x":111,"y":72.55},{"x":114,"y":71.85},{"x":118,"y":72.83},{"x":121,"y":71.25},{"x":124,"y":71.18},{"x":127,"y":72.29},{"x":130,"y":72.41},{"x":133,"y":72.74},{"x":136,"y":72.48},{"x":139,"y":71.55},{"x":142,"y":72.79},{"x":145,"y":71.85},{"x":148,"y":72.4},{"x":151,"y":71.37},{"x":154,"y":71.66},{"x":157,"y":72.27},{"x":160,"y":71.54},{"x":163,"y":70.63},{"x":166,"y":72.5},{"x":169,"y":71.7},{"x":172,"y":71.58},{"x":175,"y":72.41},{"x":178,"y":70.83},{"x":181,"y":72.02},{"x":184,"y":72.2},{"x":187,"y":72.02},{"x":190,"y":72.24},{"x":193,"y":72.62},{"x":196,"y":71.09},{"x":199,"y":71.34},{"x":202,"y":72.88},{"x":205,"y":72.26},{"x":208,"y":71.88},{"x":211,"y":72.32},{"x":214,"y":72.34},{"x":217,"y":71.75},{"x":220,"y":71.95},{"x":223,"y":71.85},{"x":226,"y":72.98},{"x":229,"y":71.67},{"x":232,"y":72.24},{"x":235,"y":72.48},{"x":238,"y":69.68},{"x":241,"y":72.03},{"x":245,"y":72.12},{"x":248,"y":72.41},{"x":251,"y":72.06},{"x":254,"y":70.55},{"x":257,"y":71.25},{"x":260,"y":72.4},{"x":263,"y":70.98},{"x":266,"y":71.75},{"x":269,"y":70.63},{"x":272,"y":66.14},{"x":275,"y":72.61},{"x":278,"y":71.79},{"x":281,"y":72.73},{"x":284,"y":72.66},{"x":287,"y":72.34},{"x":290,"y":72.68},{"x":293,"y":72.11},{"x":296,"y":71.91},{"x":299,"y":73.18},{"x":302,"y":72.49},{"x":305,"y":72.21},{"x":308,"y":71},{"x":311,"y":71.69},{"x":314,"y":72.7},{"x":317,"y":73.7},{"x":320,"y":73.08},{"x":323,"y":72.89},{"x":326,"y":73.46},{"x":329,"y":73.69},{"x":332,"y":72.77},{"x":335,"y":72.71},{"x":338,"y":71.2},{"x":341,"y":73.12},{"x":344,"y":73.66},{"x":348,"y":73.12},{"x":351,"y":72.85},{"x":354,"y":70.93},{"x":357,"y":73.12},{"x":360,"y":72.82},{"x":363,"y":69.41},{"x":366,"y":73.45},{"x":369,"y":72.52},{"x":372,"y":73.62},{"x":375,"y":73.25},{"x":378,"y":73.37},{"x":381,"y":73.46},{"x":384,"y":72.49},{"x":387,"y":72.98},{"x":390,"y":73.68}],"capSecond":330,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"Workerman","runLabel":"Workerman","color":"#000077","runIndex":2,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":330,"errorStartSecond":null}],"format":"integer","group":"Worker no DB"},{"id":"worker-db-requests-per-second","title":"Request Rate Per Second","series":[{"label":"Workerman DB target","runLabel":"Workerman DB","color":"#ff11ee","runIndex":3,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[2,4],"capSecond":90,"errorStartSecond":null},{"label":"Workerman DB successful","runLabel":"Workerman DB","color":"#ff11ee","runIndex":3,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":2496.7465},{"x":30,"y":4994.3567},{"x":60,"y":9982.4466},{"x":90,"y":13500.9767},{"x":120,"y":13410.833},{"x":150,"y":13482.6097},{"x":180,"y":13439.2902},{"x":210,"y":13485.7442},{"x":240,"y":13203.5404},{"x":270,"y":13377.3917},{"x":300,"y":13540.1727},{"x":330,"y":13387.9944},{"x":360,"y":13509.4891}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":null,"startMarker":true},{"label":"Workerman DB errored","runLabel":"Workerman DB","color":"#ff11ee","runIndex":3,"affectsYAxis":false,"stepped":false,"points":[{"x":0,"y":4.0658},{"x":30,"y":7.367},{"x":60,"y":17.5434},{"x":90,"y":20.8073},{"x":120,"y":20.7823},{"x":150,"y":20.5311},{"x":180,"y":21.4774},{"x":210,"y":20.936},{"x":240,"y":21.0453},{"x":270,"y":21.075},{"x":300,"y":21.441},{"x":330,"y":20.9409},{"x":360,"y":21.8389}],"showPoints":false,"dash":[8,4],"capSecond":90,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"Workerman DB","runLabel":"Workerman DB","color":"#ff11ee","runIndex":3,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":null}],"styleLegend":[{"label":"successful","dash":[]},{"label":"target","dash":[2,4]},{"label":"errored","dash":[8,4]}],"format":"integer","smoothingWindow":0,"group":"Worker DB"},{"id":"worker-db-latency","title":"Latency (ms)","series":[{"label":"Workerman DB avg","runLabel":"Workerman DB","color":"#ff11ee","runIndex":3,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":3.918},{"x":30,"y":3.3699},{"x":60,"y":5.244},{"x":90,"y":1921.9283},{"x":120,"y":6373.0459},{"x":150,"y":9040.6802},{"x":180,"y":10970.7762},{"x":210,"y":13096.3987},{"x":240,"y":14514.5397},{"x":270,"y":16375.082},{"x":300,"y":17240.0149},{"x":330,"y":18168.8676},{"x":360,"y":18652.0575}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":null},{"label":"Workerman DB p95","runLabel":"Workerman DB","color":"#ff11ee","runIndex":3,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":8.031},{"x":30,"y":7.011},{"x":60,"y":10.183},{"x":90,"y":4968.447},{"x":120,"y":11149.311},{"x":150,"y":14270.463},{"x":180,"y":16654.335},{"x":210,"y":19447.807},{"x":240,"y":21348.351},{"x":270,"y":23789.567},{"x":300,"y":25018.367},{"x":330,"y":26329.087},{"x":360,"y":26968.063}],"showPoints":false,"dash":[8,4],"capSecond":90,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"Workerman DB","runLabel":"Workerman DB","color":"#ff11ee","runIndex":3,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":null}],"styleLegend":[{"label":"avg","dash":[]},{"label":"p95","dash":[8,4]}],"format":"milliseconds-integer","smoothingWindow":0,"yMax":4968.447,"group":"Worker DB"},{"id":"worker-db-cpu-app","title":"APP CPU (% of one core, 100% = 1 core)","series":[{"label":"Workerman DB","runLabel":"Workerman DB","color":"#ff11ee","points":[{"x":0,"y":98.38},{"x":3,"y":96.39},{"x":6,"y":90.42},{"x":9,"y":94.59},{"x":12,"y":90.84},{"x":15,"y":94.14},{"x":18,"y":90.71},{"x":21,"y":92.81},{"x":24,"y":90.05},{"x":27,"y":94.23},{"x":30,"y":189.32},{"x":33,"y":184.71},{"x":36,"y":188.63},{"x":39,"y":178.8},{"x":42,"y":184.53},{"x":45,"y":186.82},{"x":48,"y":182.1},{"x":51,"y":182.67},{"x":54,"y":180.98},{"x":57,"y":180.96},{"x":60,"y":396.08},{"x":63,"y":379.41},{"x":66,"y":370.24},{"x":69,"y":375.26},{"x":72,"y":376.44},{"x":75,"y":382.93},{"x":78,"y":379.81},{"x":81,"y":369.53},{"x":84,"y":378.47},{"x":87,"y":370.73},{"x":90,"y":558.05},{"x":93,"y":539.91},{"x":96,"y":542.45},{"x":99,"y":552.29},{"x":102,"y":537.72},{"x":105,"y":542.7},{"x":109,"y":525.76},{"x":112,"y":549.32},{"x":115,"y":555.06},{"x":118,"y":557.92},{"x":121,"y":553.55},{"x":124,"y":545.91},{"x":127,"y":537.57},{"x":130,"y":542.47},{"x":133,"y":563.55},{"x":136,"y":552.05},{"x":139,"y":557.82},{"x":142,"y":552.64},{"x":145,"y":558.31},{"x":148,"y":557.09},{"x":151,"y":564.89},{"x":154,"y":569.2},{"x":157,"y":560.27},{"x":160,"y":559.32},{"x":163,"y":552.47},{"x":166,"y":554.33},{"x":169,"y":556.24},{"x":172,"y":555.68},{"x":175,"y":554.79},{"x":178,"y":554.67},{"x":181,"y":345.85},{"x":184,"y":536.53},{"x":187,"y":559.48},{"x":189,"y":546.16},{"x":192,"y":548.99},{"x":195,"y":551.89},{"x":198,"y":551.33},{"x":201,"y":554.49},{"x":204,"y":557.55},{"x":208,"y":558.19},{"x":211,"y":364.74},{"x":214,"y":555.91},{"x":217,"y":551.98},{"x":220,"y":560.79},{"x":223,"y":555.17},{"x":226,"y":553.53},{"x":229,"y":556.15},{"x":232,"y":557.44},{"x":235,"y":558.06},{"x":238,"y":555.28},{"x":241,"y":348.01},{"x":244,"y":562.96},{"x":247,"y":560.27},{"x":250,"y":555.13},{"x":253,"y":552.15},{"x":256,"y":552.96},{"x":259,"y":554.46},{"x":262,"y":529.68},{"x":265,"y":551},{"x":268,"y":549.25},{"x":271,"y":342.92},{"x":274,"y":541.3},{"x":277,"y":560.97},{"x":280,"y":561.09},{"x":283,"y":551.53},{"x":286,"y":556.11},{"x":289,"y":556.66},{"x":292,"y":555.66},{"x":295,"y":556.66},{"x":298,"y":551.51},{"x":301,"y":357.17},{"x":305,"y":542.59},{"x":308,"y":561.65},{"x":311,"y":557.84},{"x":314,"y":557.37},{"x":317,"y":549.26},{"x":320,"y":549.19},{"x":323,"y":549.47},{"x":326,"y":546.64},{"x":329,"y":555.31},{"x":332,"y":554.35},{"x":335,"y":559.65},{"x":338,"y":555.81},{"x":341,"y":551.2},{"x":344,"y":558.37},{"x":347,"y":554.23},{"x":350,"y":554.71},{"x":353,"y":533.74},{"x":356,"y":551.39},{"x":359,"y":557.48},{"x":362,"y":360.22},{"x":365,"y":556.21},{"x":368,"y":559.74},{"x":371,"y":558.66},{"x":374,"y":556.18},{"x":377,"y":553.55},{"x":380,"y":553.08},{"x":383,"y":555.44},{"x":386,"y":554.55},{"x":389,"y":555.14}],"capSecond":90,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"Workerman DB","runLabel":"Workerman DB","color":"#ff11ee","runIndex":3,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":null}],"format":"percent-integer","smoothingWindow":0,"group":"Worker DB"},{"id":"worker-db-memory-app","title":"APP Memory (MiB)","series":[{"label":"Workerman DB","runLabel":"Workerman DB","color":"#ff11ee","points":[{"x":0,"y":80.88},{"x":3,"y":80.84},{"x":6,"y":80.81},{"x":9,"y":80.17},{"x":12,"y":80.33},{"x":15,"y":80.1},{"x":18,"y":80.81},{"x":21,"y":79.77},{"x":24,"y":81.23},{"x":27,"y":79.93},{"x":30,"y":80.53},{"x":33,"y":79.5},{"x":36,"y":79.41},{"x":39,"y":79.31},{"x":42,"y":80.01},{"x":45,"y":79.08},{"x":48,"y":80.21},{"x":51,"y":79.46},{"x":54,"y":79.11},{"x":57,"y":79.29},{"x":60,"y":79.72},{"x":63,"y":80},{"x":66,"y":79.24},{"x":69,"y":79.86},{"x":72,"y":80.21},{"x":75,"y":80.11},{"x":78,"y":79.5},{"x":81,"y":79.66},{"x":84,"y":79.07},{"x":87,"y":80.24},{"x":90,"y":81.8},{"x":93,"y":80.91},{"x":96,"y":80.71},{"x":99,"y":81.49},{"x":102,"y":81.11},{"x":105,"y":81.25},{"x":109,"y":80.88},{"x":112,"y":80.67},{"x":115,"y":81.25},{"x":118,"y":81.09},{"x":121,"y":81.98},{"x":124,"y":81.79},{"x":127,"y":81.21},{"x":130,"y":81.19},{"x":133,"y":81.95},{"x":136,"y":81.22},{"x":139,"y":82.1},{"x":142,"y":81.18},{"x":145,"y":82.08},{"x":148,"y":81.92},{"x":151,"y":81.16},{"x":154,"y":81.07},{"x":157,"y":81.49},{"x":160,"y":80.82},{"x":163,"y":81.47},{"x":166,"y":81.02},{"x":169,"y":80.78},{"x":172,"y":81.6},{"x":175,"y":81.8},{"x":178,"y":81.71},{"x":181,"y":81.84},{"x":184,"y":80.41},{"x":187,"y":81.57},{"x":189,"y":80.41},{"x":192,"y":81.19},{"x":195,"y":81.15},{"x":198,"y":81.56},{"x":201,"y":81.64},{"x":204,"y":81.04},{"x":208,"y":80.14},{"x":211,"y":80.91},{"x":214,"y":81.81},{"x":217,"y":81.58},{"x":220,"y":81.75},{"x":223,"y":81.22},{"x":226,"y":81.3},{"x":229,"y":81.93},{"x":232,"y":81.52},{"x":235,"y":81.44},{"x":238,"y":81.58},{"x":241,"y":81.04},{"x":244,"y":81.04},{"x":247,"y":80.9},{"x":250,"y":81.17},{"x":253,"y":81.42},{"x":256,"y":81.33},{"x":259,"y":81.45},{"x":262,"y":80.54},{"x":265,"y":82.19},{"x":268,"y":81.66},{"x":271,"y":81.96},{"x":274,"y":81.5},{"x":277,"y":82.03},{"x":280,"y":81.23},{"x":283,"y":81.09},{"x":286,"y":81.86},{"x":289,"y":82.01},{"x":292,"y":81.64},{"x":295,"y":80.7},{"x":298,"y":81.14},{"x":301,"y":81.51},{"x":305,"y":80.71},{"x":308,"y":80.99},{"x":311,"y":81.25},{"x":314,"y":81.47},{"x":317,"y":80.56},{"x":320,"y":81.5},{"x":323,"y":82.04},{"x":326,"y":81.43},{"x":329,"y":81.75},{"x":332,"y":81.21},{"x":335,"y":81.98},{"x":338,"y":83.87},{"x":341,"y":81.7},{"x":344,"y":82.14},{"x":347,"y":81.57},{"x":350,"y":80.75},{"x":353,"y":81.17},{"x":356,"y":81.7},{"x":359,"y":80.41},{"x":362,"y":81.86},{"x":365,"y":81.24},{"x":368,"y":80.8},{"x":371,"y":80.93},{"x":374,"y":81.55},{"x":377,"y":82.07},{"x":380,"y":82.16},{"x":383,"y":81.24},{"x":386,"y":80.94},{"x":389,"y":81.62}],"capSecond":90,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"Workerman DB","runLabel":"Workerman DB","color":"#ff11ee","runIndex":3,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":null}],"format":"integer","group":"Worker DB"},{"id":"non-worker-home-requests-per-second","title":"Request Rate Per Second","series":[{"label":"Apache + mod_php target","runLabel":"Apache + mod_php","color":"#111111","runIndex":0,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[2,4],"capSecond":60,"errorStartSecond":null},{"label":"Apache + mod_php successful","runLabel":"Apache + mod_php","color":"#111111","runIndex":0,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":2497.3859},{"x":30,"y":4960.779},{"x":60,"y":8926.0759},{"x":90,"y":9340.2383},{"x":120,"y":8697.8115},{"x":150,"y":9234.4706},{"x":180,"y":9116.514},{"x":210,"y":8810.1311},{"x":240,"y":8963.8233},{"x":270,"y":9092.4896},{"x":300,"y":9024.8704},{"x":330,"y":9241.451},{"x":360,"y":9153.1181}],"showPoints":false,"dash":[],"capSecond":60,"errorStartSecond":null,"startMarker":true},{"label":"Apache + mod_php errored","runLabel":"Apache + mod_php","color":"#111111","runIndex":0,"affectsYAxis":false,"stepped":false,"points":[{"x":0,"y":0},{"x":30,"y":0},{"x":60,"y":0},{"x":90,"y":0},{"x":120,"y":0},{"x":150,"y":0},{"x":180,"y":0},{"x":210,"y":0},{"x":240,"y":0},{"x":270,"y":0},{"x":300,"y":0},{"x":330,"y":0},{"x":360,"y":0}],"showPoints":false,"dash":[8,4],"capSecond":60,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"Apache + mod_php","runLabel":"Apache + mod_php","color":"#111111","runIndex":0,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":60,"errorStartSecond":null}],"styleLegend":[{"label":"successful","dash":[]},{"label":"target","dash":[2,4]},{"label":"errored","dash":[8,4]}],"format":"integer","smoothingWindow":0,"group":"Non-worker no DB"},{"id":"non-worker-home-latency","title":"Latency (ms)","series":[{"label":"Apache + mod_php avg","runLabel":"Apache + mod_php","color":"#111111","runIndex":0,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":4.5978},{"x":30,"y":595.488},{"x":60,"y":1844.8178},{"x":90,"y":7664.478},{"x":120,"y":10747.7989},{"x":150,"y":12643.9197},{"x":180,"y":13918.4307},{"x":210,"y":15363.885},{"x":240,"y":16367.6646},{"x":270,"y":17637.2939},{"x":300,"y":18138.7391},{"x":330,"y":18773.2548},{"x":360,"y":19127.5968}],"showPoints":false,"dash":[],"capSecond":60,"errorStartSecond":null},{"label":"Apache + mod_php p95","runLabel":"Apache + mod_php","color":"#111111","runIndex":0,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":9.927},{"x":30,"y":2619.391},{"x":60,"y":3108.863},{"x":90,"y":10903.551},{"x":120,"y":16392.191},{"x":150,"y":18284.543},{"x":180,"y":20135.935},{"x":210,"y":22642.687},{"x":240,"y":23822.335},{"x":270,"y":25477.119},{"x":300,"y":26394.623},{"x":330,"y":27213.823},{"x":360,"y":27688.959}],"showPoints":false,"dash":[8,4],"capSecond":60,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"Apache + mod_php","runLabel":"Apache + mod_php","color":"#111111","runIndex":0,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":60,"errorStartSecond":null}],"styleLegend":[{"label":"avg","dash":[]},{"label":"p95","dash":[8,4]}],"format":"milliseconds-integer","smoothingWindow":0,"yMax":3108.863,"group":"Non-worker no DB"},{"id":"non-worker-home-cpu-app","title":"APP CPU (% of one core, 100% = 1 core)","series":[{"label":"Apache + mod_php","runLabel":"Apache + mod_php","color":"#111111","points":[{"x":0,"y":341.75},{"x":3,"y":403.38},{"x":6,"y":414.03},{"x":9,"y":410.17},{"x":12,"y":415.93},{"x":15,"y":417.57},{"x":18,"y":407.65},{"x":21,"y":414.57},{"x":24,"y":416.09},{"x":27,"y":425.61},{"x":30,"y":559.66},{"x":33,"y":850.49},{"x":36,"y":830.33},{"x":39,"y":842.4},{"x":42,"y":836.79},{"x":45,"y":846.12},{"x":48,"y":855.47},{"x":51,"y":853.21},{"x":54,"y":233.68},{"x":57,"y":1725.55},{"x":60,"y":1809.93},{"x":63,"y":1806.81},{"x":66,"y":1818.57},{"x":69,"y":1798.66},{"x":72,"y":1724.18},{"x":75,"y":1606.5},{"x":78,"y":651.16},{"x":81,"y":1685.64},{"x":84,"y":1792.08},{"x":87,"y":1815.53},{"x":90,"y":1786.82},{"x":93,"y":1799.83},{"x":96,"y":1830.98},{"x":99,"y":1595.17},{"x":102,"y":1683.26},{"x":105,"y":1786.52},{"x":109,"y":1788.89},{"x":112,"y":1822.01},{"x":115,"y":1810.36},{"x":118,"y":1720.98},{"x":121,"y":1715.61},{"x":124,"y":986.15},{"x":127,"y":1801.84},{"x":130,"y":1827.05},{"x":133,"y":1801.83},{"x":136,"y":1794.08},{"x":139,"y":1734.51},{"x":142,"y":1748.59},{"x":145,"y":1369.17},{"x":148,"y":1116.09},{"x":151,"y":1776.73},{"x":154,"y":1768.64},{"x":157,"y":1815.13},{"x":160,"y":1736.27},{"x":163,"y":1755.28},{"x":166,"y":1748.64},{"x":169,"y":1537.68},{"x":172,"y":1827.33},{"x":175,"y":1791.84},{"x":178,"y":1807.51},{"x":181,"y":1641.68},{"x":184,"y":1745.64},{"x":187,"y":1664.28},{"x":190,"y":1684.49},{"x":193,"y":1625.63},{"x":196,"y":1778.34},{"x":199,"y":1787.76},{"x":202,"y":1792.56},{"x":205,"y":1749.56},{"x":208,"y":1644.53},{"x":212,"y":1669.32},{"x":215,"y":1098.25},{"x":218,"y":1431.6},{"x":221,"y":1812.22},{"x":224,"y":1802.81},{"x":227,"y":1819.87},{"x":230,"y":1727.54},{"x":233,"y":1682.54},{"x":236,"y":1704.72},{"x":239,"y":1212.28},{"x":242,"y":1557.99},{"x":245,"y":1803.06},{"x":248,"y":1706.83},{"x":251,"y":1711.12},{"x":254,"y":1630.56},{"x":257,"y":1742.46},{"x":260,"y":1603.72},{"x":263,"y":1314.75},{"x":266,"y":1801.84},{"x":269,"y":1632.85},{"x":272,"y":1266.11},{"x":275,"y":1640.8},{"x":278,"y":1729.42},{"x":281,"y":1651.91},{"x":284,"y":1657.5},{"x":287,"y":1418.08},{"x":290,"y":1765.98},{"x":293,"y":1820.83},{"x":296,"y":1708.58},{"x":299,"y":1777.62},{"x":302,"y":1123.02},{"x":305,"y":1773.42},{"x":308,"y":1710.07},{"x":311,"y":1767.88},{"x":315,"y":1733.3},{"x":318,"y":1799.71},{"x":321,"y":1638.35},{"x":324,"y":1764.97},{"x":327,"y":1643.89},{"x":330,"y":1679.61},{"x":333,"y":1028.53},{"x":336,"y":1602.92},{"x":339,"y":1734.86},{"x":342,"y":1776.78},{"x":345,"y":1759.38},{"x":348,"y":1697.1},{"x":351,"y":1749.31},{"x":354,"y":1454.56},{"x":357,"y":1777.55},{"x":360,"y":1678.82},{"x":363,"y":1009.37},{"x":366,"y":1629.16},{"x":369,"y":1686.2},{"x":372,"y":1747.34},{"x":375,"y":1599.08},{"x":378,"y":1817.2},{"x":381,"y":1735.92},{"x":384,"y":1772.88},{"x":387,"y":1627.72},{"x":390,"y":1719.88}],"capSecond":60,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"Apache + mod_php","runLabel":"Apache + mod_php","color":"#111111","runIndex":0,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":60,"errorStartSecond":null}],"format":"percent-integer","smoothingWindow":0,"group":"Non-worker no DB"},{"id":"non-worker-home-memory-app","title":"APP Memory (MiB)","series":[{"label":"Apache + mod_php","runLabel":"Apache + mod_php","color":"#111111","points":[{"x":0,"y":58.84},{"x":3,"y":58.36},{"x":6,"y":58.37},{"x":9,"y":57.66},{"x":12,"y":57.85},{"x":15,"y":58.27},{"x":18,"y":57.61},{"x":21,"y":57.63},{"x":24,"y":58.64},{"x":27,"y":58.17},{"x":30,"y":58.52},{"x":33,"y":58.48},{"x":36,"y":58.92},{"x":39,"y":58.92},{"x":42,"y":58.58},{"x":45,"y":58.08},{"x":48,"y":58.81},{"x":51,"y":54.78},{"x":54,"y":29.19},{"x":57,"y":56.41},{"x":60,"y":56.86},{"x":63,"y":56.86},{"x":66,"y":55.81},{"x":69,"y":57.18},{"x":72,"y":54.33},{"x":75,"y":52.08},{"x":78,"y":32.34},{"x":81,"y":56.59},{"x":84,"y":56.41},{"x":87,"y":57.52},{"x":90,"y":56.77},{"x":93,"y":54.8},{"x":96,"y":56.82},{"x":99,"y":50.32},{"x":102,"y":56.62},{"x":105,"y":72.4},{"x":109,"y":56.73},{"x":112,"y":56.24},{"x":115,"y":55.61},{"x":118,"y":55.77},{"x":121,"y":53.98},{"x":124,"y":40.67},{"x":127,"y":56.4},{"x":130,"y":57.32},{"x":133,"y":56.52},{"x":136,"y":56.83},{"x":139,"y":53.92},{"x":142,"y":55.06},{"x":145,"y":38.07},{"x":148,"y":47.84},{"x":151,"y":57.63},{"x":154,"y":57.58},{"x":157,"y":58.12},{"x":160,"y":57.31},{"x":163,"y":55.54},{"x":166,"y":55.58},{"x":169,"y":51.19},{"x":172,"y":56.68},{"x":175,"y":56.88},{"x":178,"y":56.81},{"x":181,"y":54.31},{"x":184,"y":55.67},{"x":187,"y":54.56},{"x":190,"y":53.6},{"x":193,"y":53.89},{"x":196,"y":55.64},{"x":199,"y":57.09},{"x":202,"y":55.05},{"x":205,"y":55.43},{"x":208,"y":52.85},{"x":212,"y":55.94},{"x":215,"y":44.33},{"x":218,"y":57.41},{"x":221,"y":57.37},{"x":224,"y":55.39},{"x":227,"y":57.47},{"x":230,"y":54.99},{"x":233,"y":54.75},{"x":236,"y":53.8},{"x":239,"y":51.24},{"x":242,"y":57.03},{"x":245,"y":55.83},{"x":248,"y":57.31},{"x":251,"y":55.04},{"x":254,"y":54.88},{"x":257,"y":56.5},{"x":260,"y":51.57},{"x":263,"y":49.97},{"x":266,"y":57.1},{"x":269,"y":53.54},{"x":272,"y":55.7},{"x":275,"y":54.07},{"x":278,"y":55.43},{"x":281,"y":54.1},{"x":284,"y":53.32},{"x":287,"y":49.87},{"x":290,"y":56.2},{"x":293,"y":54.81},{"x":296,"y":53.01},{"x":299,"y":55.77},{"x":302,"y":56.62},{"x":305,"y":55.35},{"x":308,"y":55.09},{"x":311,"y":55.12},{"x":315,"y":57.66},{"x":318,"y":55.88},{"x":321,"y":54.54},{"x":324,"y":55.22},{"x":327,"y":53.91},{"x":330,"y":48.18},{"x":333,"y":56.65},{"x":336,"y":52.31},{"x":339,"y":56},{"x":342,"y":55.99},{"x":345,"y":57.01},{"x":348,"y":56.73},{"x":351,"y":55.69},{"x":354,"y":55.93},{"x":357,"y":56.77},{"x":360,"y":57.25},{"x":363,"y":57.2},{"x":366,"y":56.3},{"x":369,"y":54.8},{"x":372,"y":55.89},{"x":375,"y":49.2},{"x":378,"y":57.13},{"x":381,"y":56.49},{"x":384,"y":55.88},{"x":387,"y":53.22},{"x":390,"y":55.55}],"capSecond":60,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"Apache + mod_php","runLabel":"Apache + mod_php","color":"#111111","runIndex":0,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":60,"errorStartSecond":null}],"format":"integer","group":"Non-worker no DB"},{"id":"non-worker-db-requests-per-second","title":"Request Rate Per Second","series":[{"label":"Apache + mod_php DB target","runLabel":"Apache + mod_php DB","color":"#000011","runIndex":1,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[2,4],"capSecond":0,"errorStartSecond":0},{"label":"Apache + mod_php DB successful","runLabel":"Apache + mod_php DB","color":"#000011","runIndex":1,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":2025.0214},{"x":30,"y":444.1227},{"x":60,"y":2967.4777},{"x":90,"y":782.2383},{"x":120,"y":3281.8562},{"x":150,"y":823.8797},{"x":180,"y":2969.6519},{"x":210,"y":1223.3813},{"x":240,"y":2623.2767},{"x":270,"y":1704.9984},{"x":300,"y":2198.3702},{"x":330,"y":2124.4258},{"x":360,"y":1941.8836}],"showPoints":false,"dash":[],"capSecond":0,"errorStartSecond":0,"startMarker":true},{"label":"Apache + mod_php DB errored","runLabel":"Apache + mod_php DB","color":"#000011","runIndex":1,"affectsYAxis":false,"stepped":false,"points":[{"x":0,"y":227.7795},{"x":30,"y":1096.583},{"x":60,"y":287.799},{"x":90,"y":943.9671},{"x":120,"y":229.2593},{"x":150,"y":888.6786},{"x":180,"y":302.6257},{"x":210,"y":748.2966},{"x":240,"y":381.6923},{"x":270,"y":586.4061},{"x":300,"y":481.3085},{"x":330,"y":455.8188},{"x":360,"y":536.4701}],"showPoints":false,"dash":[8,4],"capSecond":0,"errorStartSecond":0}],"xAxisTargetSeries":[{"label":"Apache + mod_php DB","runLabel":"Apache + mod_php DB","color":"#000011","runIndex":1,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":0,"errorStartSecond":0}],"styleLegend":[{"label":"successful","dash":[]},{"label":"target","dash":[2,4]},{"label":"errored","dash":[8,4]}],"format":"integer","smoothingWindow":0,"group":"Non-worker DB"},{"id":"non-worker-db-latency","title":"Latency (ms)","series":[{"label":"Apache + mod_php DB avg","runLabel":"Apache + mod_php DB","color":"#000011","runIndex":1,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":388.3848},{"x":30,"y":16370.9956},{"x":60,"y":12362.9493},{"x":90,"y":18695.4142},{"x":120,"y":16797.4188},{"x":150,"y":19432.0349},{"x":180,"y":18830.118},{"x":210,"y":19971.8392},{"x":240,"y":20093.7221},{"x":270,"y":20457.1016},{"x":300,"y":20445.4995},{"x":330,"y":20035.7441},{"x":360,"y":19884.3944}],"showPoints":false,"dash":[],"capSecond":0,"errorStartSecond":0},{"label":"Apache + mod_php DB p95","runLabel":"Apache + mod_php DB","color":"#000011","runIndex":1,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":2306.047},{"x":30,"y":20856.831},{"x":60,"y":18563.071},{"x":90,"y":25903.103},{"x":120,"y":23543.807},{"x":150,"y":26771.455},{"x":180,"y":25903.103},{"x":210,"y":27443.199},{"x":240,"y":27459.583},{"x":270,"y":28098.559},{"x":300,"y":28377.087},{"x":330,"y":28508.159},{"x":360,"y":28213.247}],"showPoints":false,"dash":[8,4],"capSecond":0,"errorStartSecond":0}],"xAxisTargetSeries":[{"label":"Apache + mod_php DB","runLabel":"Apache + mod_php DB","color":"#000011","runIndex":1,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":0,"errorStartSecond":0}],"styleLegend":[{"label":"avg","dash":[]},{"label":"p95","dash":[8,4]}],"format":"milliseconds-integer","smoothingWindow":0,"yMax":2306.047,"group":"Non-worker DB"},{"id":"non-worker-db-cpu-app","title":"APP CPU (% of one core, 100% = 1 core)","series":[{"label":"Apache + mod_php DB","runLabel":"Apache + mod_php DB","color":"#000011","points":[{"x":0,"y":516.43},{"x":3,"y":575.63},{"x":6,"y":539.63},{"x":9,"y":553.73},{"x":12,"y":555.43},{"x":15,"y":555.28},{"x":18,"y":581.62},{"x":21,"y":559.22},{"x":25,"y":252.7},{"x":28,"y":424.43},{"x":31,"y":147.11},{"x":34,"y":113.46},{"x":37,"y":188.15},{"x":40,"y":284.82},{"x":43,"y":329.99},{"x":46,"y":370.4},{"x":49,"y":299.78},{"x":52,"y":410.64},{"x":55,"y":1092.79},{"x":58,"y":557.16},{"x":61,"y":147.98},{"x":64,"y":1035.41},{"x":67,"y":957.23},{"x":71,"y":939.39},{"x":74,"y":944.92},{"x":77,"y":976.7},{"x":80,"y":934.29},{"x":83,"y":500.44},{"x":86,"y":421.14},{"x":89,"y":459.73},{"x":92,"y":410.51},{"x":95,"y":344.38},{"x":98,"y":274.48},{"x":101,"y":367.43},{"x":104,"y":416.7},{"x":107,"y":432.73},{"x":110,"y":396.62},{"x":113,"y":420.85},{"x":116,"y":1015.6},{"x":120,"y":524.84},{"x":123,"y":379.15},{"x":126,"y":596.82},{"x":129,"y":993.21},{"x":132,"y":450.75},{"x":135,"y":973.55},{"x":138,"y":980.6},{"x":141,"y":989.57},{"x":144,"y":960.87},{"x":147,"y":967.89},{"x":150,"y":524.3},{"x":153,"y":455.78},{"x":156,"y":253.43},{"x":159,"y":382.58},{"x":162,"y":359.1},{"x":165,"y":399.78},{"x":169,"y":326.97},{"x":172,"y":350.33},{"x":175,"y":388.17},{"x":178,"y":1129.97},{"x":181,"y":370.1},{"x":184,"y":367.44},{"x":187,"y":705.37},{"x":190,"y":1065.81},{"x":193,"y":361.31},{"x":196,"y":461.37},{"x":199,"y":930.79},{"x":202,"y":1005.06},{"x":205,"y":938.06},{"x":208,"y":927.79},{"x":211,"y":592.71},{"x":215,"y":761.91},{"x":218,"y":319.33},{"x":221,"y":381.04},{"x":224,"y":385.86},{"x":227,"y":388.13},{"x":230,"y":334.43},{"x":233,"y":316.68},{"x":236,"y":406.54},{"x":239,"y":1106.81},{"x":242,"y":146.81},{"x":245,"y":413.46},{"x":248,"y":752.42},{"x":251,"y":1002.69},{"x":254,"y":393.12},{"x":258,"y":401.88},{"x":261,"y":915.87},{"x":264,"y":913.1},{"x":267,"y":945.26},{"x":270,"y":932.45},{"x":273,"y":609.82},{"x":276,"y":958.92},{"x":279,"y":933.48},{"x":282,"y":374.02},{"x":285,"y":387.4},{"x":288,"y":389.51},{"x":291,"y":315.05},{"x":294,"y":401.64},{"x":297,"y":447.81},{"x":300,"y":933.9},{"x":303,"y":310.45},{"x":306,"y":633.66},{"x":310,"y":1154.7},{"x":313,"y":860.55},{"x":316,"y":357.56},{"x":319,"y":415.22},{"x":322,"y":720.27},{"x":325,"y":756.69},{"x":328,"y":595.55},{"x":331,"y":939.84},{"x":334,"y":944.1},{"x":337,"y":724.55},{"x":340,"y":966.5},{"x":343,"y":914.5},{"x":346,"y":428.13},{"x":349,"y":346.77},{"x":352,"y":315.69},{"x":356,"y":379.07},{"x":359,"y":460.05},{"x":362,"y":871.43},{"x":365,"y":143.3},{"x":368,"y":750.4},{"x":371,"y":1116.03},{"x":374,"y":793.48},{"x":377,"y":371.24},{"x":380,"y":795.38},{"x":383,"y":931.04},{"x":386,"y":698.09},{"x":389,"y":389.29},{"x":392,"y":662.04}],"capSecond":0,"errorStartSecond":0}],"xAxisTargetSeries":[{"label":"Apache + mod_php DB","runLabel":"Apache + mod_php DB","color":"#000011","runIndex":1,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":0,"errorStartSecond":0}],"format":"percent-integer","smoothingWindow":0,"group":"Non-worker DB"},{"id":"non-worker-db-memory-app","title":"APP Memory (MiB)","series":[{"label":"Apache + mod_php DB","runLabel":"Apache + mod_php DB","color":"#000011","points":[{"x":0,"y":67.73},{"x":3,"y":68.65},{"x":6,"y":57.56},{"x":9,"y":63.24},{"x":12,"y":67.82},{"x":15,"y":67.79},{"x":18,"y":67.88},{"x":21,"y":68.25},{"x":25,"y":68.64},{"x":28,"y":68.55},{"x":31,"y":68.93},{"x":34,"y":66.14},{"x":37,"y":65.46},{"x":40,"y":68.1},{"x":43,"y":67.45},{"x":46,"y":68.82},{"x":49,"y":67.29},{"x":52,"y":68.83},{"x":55,"y":67.98},{"x":58,"y":65.27},{"x":61,"y":69.86},{"x":64,"y":67.98},{"x":67,"y":68.09},{"x":71,"y":66.09},{"x":74,"y":68.04},{"x":77,"y":65.42},{"x":80,"y":63.37},{"x":83,"y":67.85},{"x":86,"y":66.58},{"x":89,"y":69.16},{"x":92,"y":68.73},{"x":95,"y":67.12},{"x":98,"y":64.55},{"x":101,"y":68.68},{"x":104,"y":68.3},{"x":107,"y":67.53},{"x":110,"y":68.71},{"x":113,"y":68.57},{"x":116,"y":68.73},{"x":120,"y":67.61},{"x":123,"y":66.5},{"x":126,"y":69.16},{"x":129,"y":65.83},{"x":132,"y":68.33},{"x":135,"y":67.8},{"x":138,"y":68.41},{"x":141,"y":68.28},{"x":144,"y":63.18},{"x":147,"y":67.36},{"x":150,"y":67.18},{"x":153,"y":68.55},{"x":156,"y":67.97},{"x":159,"y":68.83},{"x":162,"y":65.81},{"x":165,"y":67.23},{"x":169,"y":68.02},{"x":172,"y":65.67},{"x":175,"y":69},{"x":178,"y":68.02},{"x":181,"y":64.68},{"x":184,"y":68.88},{"x":187,"y":69.2},{"x":190,"y":67.72},{"x":193,"y":68.14},{"x":196,"y":68.66},{"x":199,"y":66.29},{"x":202,"y":67.71},{"x":205,"y":67.95},{"x":208,"y":68.14},{"x":211,"y":68.14},{"x":215,"y":68.37},{"x":218,"y":68.64},{"x":221,"y":66.27},{"x":224,"y":66.45},{"x":227,"y":66.69},{"x":230,"y":68.28},{"x":233,"y":68.98},{"x":236,"y":67.23},{"x":239,"y":68.05},{"x":242,"y":69.73},{"x":245,"y":67.08},{"x":248,"y":68.71},{"x":251,"y":68.11},{"x":254,"y":68.57},{"x":258,"y":63.75},{"x":261,"y":66.27},{"x":264,"y":68.1},{"x":267,"y":67.68},{"x":270,"y":65.64},{"x":273,"y":66.32},{"x":276,"y":68.1},{"x":279,"y":68.52},{"x":282,"y":68.59},{"x":285,"y":68.78},{"x":288,"y":66.97},{"x":291,"y":65.82},{"x":294,"y":68.14},{"x":297,"y":69.25},{"x":300,"y":68.27},{"x":303,"y":61.38},{"x":306,"y":66.73},{"x":310,"y":68.16},{"x":313,"y":66.7},{"x":316,"y":68.93},{"x":319,"y":67.71},{"x":322,"y":63.37},{"x":325,"y":68.59},{"x":328,"y":67.18},{"x":331,"y":84.19},{"x":334,"y":62.82},{"x":337,"y":68.15},{"x":340,"y":68.16},{"x":343,"y":67.76},{"x":346,"y":68.57},{"x":349,"y":66.39},{"x":352,"y":66.88},{"x":356,"y":67.89},{"x":359,"y":68.44},{"x":362,"y":69.21},{"x":365,"y":67.12},{"x":368,"y":69},{"x":371,"y":66.67},{"x":374,"y":66.28},{"x":377,"y":68.91},{"x":380,"y":67.11},{"x":383,"y":64.83},{"x":386,"y":67.81},{"x":389,"y":69.4},{"x":392,"y":68.87}],"capSecond":0,"errorStartSecond":0}],"xAxisTargetSeries":[{"label":"Apache + mod_php DB","runLabel":"Apache + mod_php DB","color":"#000011","runIndex":1,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":0,"errorStartSecond":0}],"format":"integer","group":"Non-worker DB"}]};
+    const X_AXIS_TICK_DIVISIONS = 10;
+
+    function getGlobalXAxisDomain() {
+      const xValues = [];
+
+      reportData.charts.forEach((chart) => {
+        (chart.series || []).forEach((item) => {
+          (item.points || []).forEach((point) => {
+            xValues.push(point.x);
+          });
+        });
+
+        (chart.xAxisTargetSeries || []).forEach((item) => {
+          (item.points || []).forEach((point) => {
+            xValues.push(point.x);
+          });
+        });
+      });
+
+      if (xValues.length === 0) {
+        return { min: 0, max: 1 };
+      }
+
+      return {
+        min: Math.min(...xValues),
+        max: Math.max(...xValues),
+      };
+    }
+
+    const globalXAxisDomain = getGlobalXAxisDomain();
+
+    function formatValue(value, format) {
+      const fixed = (number, digits) => Number(number).toFixed(digits);
+      const trimZeros = (text) => text.replace(/\.?0+$/, '');
+
+      if (format === 'integer') {
+        return String(Math.round(value));
+      }
+      if (format === 'percent') {
+        return fixed(value, 2) + '%';
+      }
+      if (format === 'percent-integer') {
+        return Math.round(value) + '%';
+      }
+      if (format === 'milliseconds-integer') {
+        return String(Math.round(value));
+      }
+      if (format === 'milliseconds') {
+        return fixed(value, 2);
+      }
+      return trimZeros(fixed(value, 2));
+    }
+
+    function formatElapsedSeconds(totalSeconds) {
+      const seconds = Math.max(0, Math.round(totalSeconds));
+      const minutes = Math.floor(seconds / 60);
+      const remainderSeconds = seconds % 60;
+
+      if (minutes === 0) {
+        return seconds + 's';
+      }
+
+      if (remainderSeconds === 0) {
+        return minutes + 'm';
+      }
+
+      return minutes + 'm ' + remainderSeconds + 's';
+    }
+
+    function sampledPointValue(points, xValue) {
+      if (!points || points.length === 0) {
+        return null;
+      }
+
+      const target = Math.max(0, Math.round(xValue));
+      let currentValue = points[0].y;
+
+      for (let index = 0; index < points.length; index++) {
+        const point = points[index];
+        if (point.x > target) {
+          break;
+        }
+        currentValue = point.y;
+      }
+
+      return currentValue;
+    }
+
+    function movingAverageSeries(points, windowSize) {
+      if (!points || points.length === 0 || windowSize <= 1) {
+        return points || [];
+      }
+
+      const result = [];
+      let sum = 0;
+      const values = [];
+
+      points.forEach((point, index) => {
+        const value = Number(point.y || 0);
+        values.push(value);
+        sum += value;
+
+        if (values.length > windowSize) {
+          sum -= values.shift();
+        }
+
+        result.push({
+          x: point.x,
+          y: sum / values.length,
+        });
+      });
+
+      return result;
+    }
+
+    function formatTargetTickLabel(chart, xValue) {
+      // Finished runs must not keep contributing their last target to later stages.
+      const targetSeries = (chart.xAxisTargetSeries || []).filter((item) =>
+        item.points.length > 1 && xValue >= item.points[0].x && xValue < item.points[item.points.length - 1].x
+      );
+      if (targetSeries.length === 0) {
+        return '';
+      }
+
+      const values = targetSeries.map((item) => sampledPointValue(item.points, xValue));
+      if (values.some((value) => value === null)) {
+        return '';
+      }
+
+      const roundedValues = values.map((value) => Math.round(value));
+      const firstValue = roundedValues[0];
+      const sameAcrossRuns = roundedValues.every((value) => value === firstValue);
+
+      if (!sameAcrossRuns) {
+        return '';
+      }
+
+      return 'T ' + String(firstValue);
+    }
+
+    function drawChart(canvasId, legendId, chart) {
+      const canvas = document.getElementById(canvasId);
+      const legend = document.getElementById(legendId);
+      if (!canvas || !legend) {
+        return;
+      }
+
+      const series = chart.series.filter((item) => item.points.length > 0);
+      if (series.length === 0) {
+        legend.textContent = 'No data available.';
+        return;
+      }
+
+      const smoothingWindow = Math.max(0, Math.round(Number(chart.smoothingWindow || 0)));
+      const displaySeries = series.map((item) => ({
+        ...item,
+        displayPoints: smoothingWindow > 1 ? movingAverageSeries(item.points, smoothingWindow) : item.points,
+      }));
+
+      const dpr = window.devicePixelRatio || 1;
+      const cssWidth = canvas.clientWidth || canvas.width;
+      const cssHeight = canvas.clientHeight || canvas.height;
+      canvas.width = cssWidth * dpr;
+      canvas.height = cssHeight * dpr;
+
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, cssWidth, cssHeight);
+
+      const margin = { top: 18, right: 24, bottom: 52, left: 64 };
+      const width = cssWidth - margin.left - margin.right;
+      const height = cssHeight - margin.top - margin.bottom;
+
+      const yValues = displaySeries
+        .filter((item) => item.affectsYAxis !== false)
+        .flatMap((item) => item.displayPoints.map((point) => point.y));
+      const xMin = globalXAxisDomain.min;
+      const xMax = globalXAxisDomain.max;
+      const rawYMax = Math.max(...yValues);
+      const configuredYMax = Number(chart.yMax || 0);
+      const yMax = configuredYMax > 0 ? configuredYMax : (rawYMax > 0 ? rawYMax * 1.08 : 1);
+
+      ctx.strokeStyle = 'rgba(31, 41, 51, 0.14)';
+      ctx.lineWidth = 1;
+      ctx.fillStyle = '#5c6b73';
+      ctx.font = '12px Menlo, Consolas, monospace';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'right';
+
+      for (let i = 0; i <= 5; i++) {
+        const y = margin.top + (height / 5) * i;
+        ctx.beginPath();
+        ctx.moveTo(margin.left, y);
+        ctx.lineTo(margin.left + width, y);
+        ctx.stroke();
+
+        const value = yMax - (yMax / 5) * i;
+        ctx.fillText(formatValue(value, chart.format), margin.left - 10, y);
+      }
+
+      ctx.textBaseline = 'top';
+      ctx.textAlign = 'center';
+      ctx.font = '12px Menlo, Consolas, monospace';
+      const stageTicks = [...new Set((chart.xAxisTargetSeries || [])
+        .flatMap((item) => item.points.slice(0, -1).map((point) => point.x)))].sort((a, b) => a - b);
+      const ticks = stageTicks.length > 1 ? stageTicks : Array.from(
+        { length: X_AXIS_TICK_DIVISIONS + 1 },
+        (_, i) => xMin + ((xMax - xMin) / X_AXIS_TICK_DIVISIONS) * i
+      );
+      for (const value of ticks) {
+        const x = margin.left + ((value - xMin) / Math.max(1, xMax - xMin)) * width;
+        ctx.beginPath();
+        ctx.moveTo(x, margin.top);
+        ctx.lineTo(x, margin.top + height);
+        ctx.stroke();
+
+        ctx.fillText(formatElapsedSeconds(value), x, margin.top + height + 10);
+
+        const targetLabel = formatTargetTickLabel(chart, value);
+        if (targetLabel !== '') {
+          ctx.fillText(targetLabel, x, margin.top + height + 24);
+        }
+      }
+
+      ctx.strokeStyle = '#1f2933';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(margin.left, margin.top);
+      ctx.lineTo(margin.left, margin.top + height);
+      ctx.lineTo(margin.left + width, margin.top + height);
+      ctx.stroke();
+
+      const toCanvasX = (x) => margin.left + ((x - xMin) / Math.max(1, xMax - xMin)) * width;
+      const toCanvasY = (y) => margin.top + height - (y / yMax) * height;
+      const startMarkerSeries = displaySeries.filter((item) => item.startMarker);
+
+      const highlightedRun = legend.dataset.highlightedRun || null;
+      const isHighlighted = (item) => (item.runLabel || item.label) === highlightedRun;
+      const opacity = (item) => highlightedRun && !isHighlighted(item) ? 0.12 : 1;
+      // Draw the highlighted run last so overlapping lines cannot hide it.
+      const orderedSeries = [...displaySeries].sort((a, b) => Number(isHighlighted(a)) - Number(isHighlighted(b)));
+
+      // Target and error rates may exceed the scale based on successful responses.
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(margin.left, margin.top, width, height);
+      ctx.clip();
+
+      orderedSeries.forEach((item) => {
+        if (smoothingWindow > 1) {
+          drawLine(ctx, toCanvasX, toCanvasY, item.points, item.color, item.dash, 1.2, 0.22 * opacity(item));
+        }
+
+        drawLine(ctx, toCanvasX, toCanvasY, item.displayPoints, item.color, item.dash, isHighlighted(item) ? 4 : 2.2, opacity(item), item.stepped);
+
+        ctx.save();
+        ctx.globalAlpha = opacity(item);
+        if (chart.showPoints || item.showPoints) {
+          ctx.fillStyle = item.color;
+          item.displayPoints.forEach((point) => {
+            const x = toCanvasX(point.x);
+            const y = toCanvasY(point.y);
+            ctx.beginPath();
+            ctx.arc(x, y, 2.2, 0, Math.PI * 2);
+            ctx.fill();
+          });
+        }
+        ctx.restore();
+      });
+
+      orderedSeries.forEach((item) => {
+        ctx.save();
+        ctx.globalAlpha = opacity(item);
+        drawMarker(ctx, toCanvasX, toCanvasY, item.displayPoints, item.capSecond, item.color, 'circle');
+        drawMarker(ctx, toCanvasX, toCanvasY, item.displayPoints, item.errorStartSecond, item.color, 'cross');
+        ctx.restore();
+      });
+
+      startMarkerSeries.forEach((item, markerIndex) => {
+        ctx.save();
+        ctx.globalAlpha = opacity(item);
+        drawStartMarker(
+          ctx,
+          toCanvasX,
+          toCanvasY,
+          item.displayPoints,
+          item.color,
+          markerIndex,
+          startMarkerSeries.length,
+        );
+        ctx.restore();
+      });
+
+      ctx.restore();
+
+      const runs = [];
+      const seenRuns = new Set();
+      series.forEach((item) => {
+        const key = (item.runLabel || item.label) + '|' + item.color;
+        if (seenRuns.has(key)) {
+          return;
+        }
+        seenRuns.add(key);
+        runs.push({
+          label: item.runLabel || item.label,
+          color: item.color,
+        });
+      });
+
+      if (legend.childElementCount === 0) {
+        let hoveredRun = null;
+        let focusedRun = null;
+        const updateHighlight = () => {
+          legend.dataset.highlightedRun = hoveredRun || focusedRun || '';
+          drawChart(canvasId, legendId, chart);
+        };
+
+        runs.sort((a, b) => a.label.localeCompare(b.label, 'en', { sensitivity: 'base' }));
+        runs.forEach((item) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'legend-item';
+          button.dataset.runLabel = item.label;
+          const swatch = document.createElement('span');
+          swatch.className = 'legend-swatch';
+          swatch.style.background = item.color;
+          swatch.setAttribute('aria-hidden', 'true');
+          button.append(swatch, document.createTextNode(item.label));
+          button.addEventListener('mouseenter', () => {
+            hoveredRun = item.label;
+            updateHighlight();
+          });
+          button.addEventListener('mouseleave', () => {
+            hoveredRun = null;
+            updateHighlight();
+          });
+          button.addEventListener('focus', () => {
+            focusedRun = item.label;
+            updateHighlight();
+          });
+          button.addEventListener('blur', () => {
+            focusedRun = null;
+            updateHighlight();
+          });
+          legend.append(button);
+        });
+      }
+
+      legend.querySelectorAll('.legend-item').forEach((button) => {
+        button.classList.toggle('is-highlighted', button.dataset.runLabel === highlightedRun);
+        button.classList.toggle('is-dimmed', highlightedRun !== null && button.dataset.runLabel !== highlightedRun);
+      });
+    }
+
+    function render() {
+      reportData.charts.forEach((chart) => {
+        drawChart('chart-' + chart.id, 'legend-' + chart.id, chart);
+      });
+    }
+
+    function drawLine(ctx, toCanvasX, toCanvasY, points, color, dash, lineWidth, alpha, stepped = false) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lineWidth;
+      ctx.globalAlpha = alpha;
+      if (dash && dash.length > 0) {
+        ctx.setLineDash(dash);
+      } else {
+        ctx.setLineDash([]);
+      }
+
+      points.forEach((point, index) => {
+        const x = toCanvasX(point.x);
+        const y = toCanvasY(point.y);
+        if (index === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          if (stepped) {
+            ctx.lineTo(x, toCanvasY(points[index - 1].y));
+          }
+          ctx.lineTo(x, y);
+        }
+      });
+
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawMarker(ctx, toCanvasX, toCanvasY, points, second, color, markerType) {
+      if (second === null || second === undefined) {
+        return;
+      }
+
+      const yValue = sampledPointValue(points, second);
+      if (yValue === null) {
+        return;
+      }
+
+      const x = toCanvasX(second);
+      const y = toCanvasY(yValue);
+
+      ctx.save();
+      ctx.setLineDash([]);
+      ctx.lineCap = 'round';
+
+      if (markerType === 'circle') {
+        ctx.strokeStyle = '#fffdf8';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+        return;
+      }
+
+      ctx.strokeStyle = '#fffdf8';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(x - 5, y - 5);
+      ctx.lineTo(x + 5, y + 5);
+      ctx.moveTo(x + 5, y - 5);
+      ctx.lineTo(x - 5, y + 5);
+      ctx.stroke();
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(x - 5, y - 5);
+      ctx.lineTo(x + 5, y + 5);
+      ctx.moveTo(x + 5, y - 5);
+      ctx.lineTo(x - 5, y + 5);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawStartMarker(ctx, toCanvasX, toCanvasY, points, color, markerIndex, markerCount) {
+      if (!points || points.length === 0) {
+        return;
+      }
+
+      const firstPoint = points[0];
+      const baseX = toCanvasX(firstPoint.x);
+      const y = toCanvasY(firstPoint.y);
+      const offset = ((markerIndex - ((markerCount - 1) / 2)) * 5);
+      const x = baseX + offset;
+
+      ctx.save();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#fffdf8';
+      ctx.beginPath();
+      ctx.arc(x, y, 4.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(x, y, 3.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    document.querySelectorAll('.summary-table').forEach((table) => {
+      table.querySelectorAll('thead th').forEach((header, column) => {
+        header.querySelector('button').addEventListener('click', () => {
+          const ascending = header.getAttribute('aria-sort') !== 'ascending';
+          table.querySelectorAll('thead th').forEach((item) => item.setAttribute('aria-sort', 'none'));
+          header.setAttribute('aria-sort', ascending ? 'ascending' : 'descending');
+          const rows = Array.from(table.tBodies[0].rows);
+          const numeric = header.dataset.sortType === 'number';
+          rows.sort((a, b) => {
+            const value = (row) => row.cells[column].dataset.sortValue ?? row.cells[column].textContent.trim();
+            const left = value(a), right = value(b);
+            // Missing measurements stay last in either direction.
+            if (left === '' || right === '') return (left === '') - (right === '');
+            const order = numeric ? Number(left) - Number(right) : left.localeCompare(right);
+            return ascending ? order : -order;
+          });
+          table.tBodies[0].append(...rows);
+        });
+      });
+    });
+
+    window.addEventListener('resize', render);
+    render();
+  </script>
+</body>
+</html>

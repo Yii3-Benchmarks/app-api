@@ -9,12 +9,14 @@ on the host, Docker version, CPU scheduling, runtime configuration, request rate
 made on the same machine with the same settings and minimal background activity.
 
 The [published benchmark report](https://yii3-benchmarks.github.io/app-api/) combines the October 5, 2026
-full rerun of ten runtimes with the October 7 Swoole 6.2.3 measurements. Both sessions used PHP 8.5.11,
-OPcache file override, PostgreSQL's 2,000-connection limit, and the same load settings on the same host.
-They are separate measurement sessions; the other runtimes were not rerun when Swoole was added.
-Raw results and run context are in `results/samdark_2026-10-05-pg2000/` and
-`results/samdark_2026-10-07-swoole/`; the combined report is saved as `results/report.html`. The earlier
-200-connection run remains in `results/samdark_2026-10-05/` for comparison; older measurements remain in Git history.
+full rerun of ten runtimes, the October 7 Swoole measurements, and the October 8 Apache + mod_php and
+Workerman measurements. All sessions used PHP 8.5.11, OPcache file override, PostgreSQL's
+2,000-connection limit, and the same load settings on the same host. They are separate measurement
+sessions; existing runtimes were not rerun when the additions were measured.
+Raw results and run context are in `results/samdark_2026-10-05-pg2000/`,
+`results/samdark_2026-10-07-swoole/`, and `results/samdark_2026-10-08-apache-workerman/`;
+the combined report is saved as `results/report.html`. The earlier 200-connection run remains in
+`results/samdark_2026-10-05/` for comparison; older measurements remain in Git history.
 
 ## What is included
 
@@ -24,6 +26,8 @@ Raw results and run context are in `results/samdark_2026-10-05-pg2000/` and
 | `frankenphp-worker` | FrankenPHP | A persistent Yii worker |
 | `oxphp-classic` | OxPHP | A normal PHP application bootstrap for each request |
 | `oxphp-worker` | OxPHP | A persistent Yii worker with per-request state reset |
+| `apache-mod-php` | Apache + mod_php | A normal PHP application bootstrap in each prefork process |
+| `workerman` | Workerman | A persistent Yii worker using the Event loop |
 | `swoole` | Swoole | A persistent Yii worker with coroutine request handling disabled |
 | `roadrunner` | RoadRunner | A persistent Yii worker managed by RoadRunner |
 | `php-fpm` | PHP-FPM + Nginx | Traditional FastCGI processes behind Nginx |
@@ -44,7 +48,7 @@ The runtime configs use a production-oriented benchmark baseline:
   for web and CLI SAPIs, JIT is disabled, errors go to stderr, and PHP memory is limited to 256 MiB.
 - OPcache timestamp validation is disabled. **Restart the runtime after changing PHP files**, including
   files in the mounted source tree. The benchmark suite rebuilds and restarts each runtime automatically.
-- FPM, FreeUnit, Rapira, OxPHP, Swoole and FrankenPHP workers recycle after 10,000 requests; RoadRunner uses its
+- FPM, FreeUnit, Rapira, OxPHP, Swoole, Workerman, Apache and FrankenPHP workers recycle after 10,000 requests; RoadRunner uses its
   memory supervisor. API body limits are 8 MiB, and request/queue timeouts are configured where supported.
 - HTTP readiness checks gate benchmark startup. Containers have a 45-second shutdown grace period,
   bounded Docker logs, and an increased open-file limit. Nginx access logging is disabled to match the
@@ -66,6 +70,8 @@ Server releases checked on 2026-09-22 are pinned in the benchmark Dockerfile and
 | --- | --- |
 | PHP / PHP-FPM | [8.5.11](https://www.php.net/downloads.php) (updated 2026-10-05) |
 | FrankenPHP | [1.13.0](https://github.com/php/frankenphp/releases/tag/v1.13.0) (updated 2026-10-05) |
+| Apache / mod_php | 2.4.68 / PHP 8.5.11 (added 2026-10-08) |
+| Workerman / Event | [5.2.2](https://github.com/walkor/workerman/releases/tag/v5.2.2) / [3.1.6](https://pecl.php.net/package/event/3.1.6) (added 2026-10-08) |
 | Swoole | [6.2.3](https://github.com/swoole/swoole-src/releases/tag/v6.2.3) (added 2026-10-07) |
 | RoadRunner | [2025.1.15](https://github.com/roadrunner-server/roadrunner/releases/tag/v2025.1.15) |
 | FreeUnit | [1.37.0](https://docs.freeunit.org/news/2026/unit-1.37.0-released/) (updated 2026-10-05) |
@@ -93,6 +99,23 @@ Run only the Swoole benchmarks with:
 
 ```sh
 make bench-all RUNTIMES=swoole MODE=ramp THREADS=32 CONNECTIONS=256
+```
+
+Apache uses the official PHP 8.5.11 Apache image with mod_php and a fixed 20-process prefork pool.
+Keepalive is disabled so the 256 benchmark connections cannot reserve the 20 request processes;
+access logging is disabled, and processes recycle after 10,000 connections. All non-file paths
+route to the shared `public/index.php` front controller.
+
+Workerman [5.2.2](https://github.com/walkor/workerman/releases/tag/v5.2.2) uses 20 persistent workers
+with the PECL Event 3.1.6 loop. Each worker boots Yii after forking, handles requests synchronously,
+resets container state after each response, and recycles after 10,000 requests. `worker-workerman.php`
+and `src/WorkermanRequestFactory.php` adapt the benchmark's GET endpoints; uploads and static-file
+serving are outside this adapter's scope. The shared CLI PHP time limit is not a wall-clock deadline.
+
+Run both additions with:
+
+```sh
+make bench-all RUNTIMES="apache-mod-php workerman" MODE=ramp THREADS=32 CONNECTIONS=256
 ```
 
 Two endpoints are benchmarked:
@@ -220,7 +243,7 @@ The default mode is `ramp`. Configuration is passed as Make variables or environ
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `RUNTIME` | `frankenphp-classic` | Runtime used by `make bench` and `make bench-db` |
-| `RUNTIMES` | all ten runtimes | Space-separated runtimes used by `make bench-all` |
+| `RUNTIMES` | all thirteen runtimes | Space-separated runtimes used by `make bench-all` |
 | `TARGETS` | `home postgres-orders` | Space-separated endpoint keys for the suite script |
 | `MODE` | `ramp` | `steady` for one rate or `ramp` for sequential rate stages |
 | `RATE` | `10000` | Requests per second in steady mode |
@@ -267,7 +290,7 @@ make bench-report INPUT="runtime/benchmarks/<run-1> runtime/benchmarks/<run-2>"
 Rebuild the published comparison from the recorded full runs:
 
 ```shell
-make bench-report INPUT="results/samdark_2026-10-05-pg2000 results/samdark_2026-10-07-swoole" OUTPUT=results/report.html
+make bench-report INPUT="results/samdark_2026-10-05-pg2000 results/samdark_2026-10-07-swoole results/samdark_2026-10-08-apache-workerman" OUTPUT=results/report.html
 ```
 
 Raw wrkx output and exact run settings are retained next to the compact data. Include them when reporting unexpected
@@ -289,6 +312,7 @@ worker-oxphp.php                OxPHP persistent worker entry point
 worker-frankenphp.php           FrankenPHP persistent worker entry point
 worker-roadrunner.php           RoadRunner persistent worker entry point
 worker-swoole.php               Swoole persistent worker entry point
+worker-workerman.php            Workerman persistent worker entry point
 worker-rapira.php               Rapira entry point for all three modes
 ```
 
