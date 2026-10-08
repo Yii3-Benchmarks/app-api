@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Benchmark Report</title>
+  <style>
+    :root {
+      --bg: #f4f1ea;
+      --panel: #fffdf8;
+      --text: #1f2933;
+      --muted: #5c6b73;
+      --line: #d6d0c4;
+      --accent: #b56576;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+      background:
+        radial-gradient(circle at top left, rgba(181, 101, 118, 0.12), transparent 30%),
+        linear-gradient(180deg, #f8f4ec 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 28px 24px 48px;
+    }
+    h1, h2 {
+      margin: 0 0 12px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+    h1 {
+      font-size: 2.2rem;
+    }
+    h2 {
+      font-size: 1.25rem;
+    }
+    p {
+      margin: 0 0 8px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .path {
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: 0.9rem;
+      word-break: break-all;
+    }
+    .grid {
+      display: grid;
+      gap: 20px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(31, 41, 51, 0.08);
+      border-radius: 18px;
+      padding: 20px 22px;
+      box-shadow: 0 18px 42px rgba(31, 41, 51, 0.06);
+    }
+    .summary-table, .metadata-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .summary-table th,
+    .summary-table td,
+    .metadata-table th,
+    .metadata-table td {
+      border-top: 1px solid var(--line);
+      padding: 10px 8px;
+      text-align: left;
+      vertical-align: top;
+      font-size: 0.95rem;
+    }
+    .summary-table th,
+    .metadata-table th {
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      width: 15%;
+    }
+    .summary-table tbody tr:hover { background-color: rgba(37, 99, 235, 0.08); }
+    .summary-table th button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; text-align: left; }
+    .summary-table th button::after { content: ' ↕'; }
+    .summary-table th[aria-sort="ascending"] button::after { content: ' ↑'; }
+    .summary-table th[aria-sort="descending"] button::after { content: ' ↓'; }
+    .chart-panel {
+      overflow: hidden;
+    }
+    .chart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+    .chart-header h2 {
+      margin-bottom: 0;
+    }
+    .chart-wrap {
+      width: 100%;
+      overflow-x: hidden;
+    }
+    .chart {
+      width: 100%;
+      height: auto;
+      display: block;
+      background: linear-gradient(180deg, rgba(255,255,255,0.55), rgba(246,241,233,0.95));
+      border-radius: 14px;
+      border: 1px solid rgba(31, 41, 51, 0.08);
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 18px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .style-legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 12px 18px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    button.legend-item {
+      font: inherit;
+      color: inherit;
+      background: transparent;
+      border: 0;
+      border-radius: 4px;
+      padding: 4px;
+      cursor: pointer;
+    }
+    .legend-item.is-dimmed {
+      opacity: 0.3;
+    }
+    .legend-item.is-highlighted {
+      color: var(--text);
+      box-shadow: 0 0 0 2px currentColor;
+    }
+    .legend-item:focus-visible {
+      outline: 2px solid var(--text);
+      outline-offset: 3px;
+    }
+    .summary-run {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .style-legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .legend-swatch {
+      width: 12px;
+      height: 12px;
+      display: inline-block;
+      border-radius: 999px;
+    }
+    .style-legend-swatch {
+      width: 24px;
+      height: 8px;
+      display: inline-block;
+    }
+    .style-legend-target {
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .meta-grid {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    @media (max-width: 720px) {
+      .meta-grid { grid-template-columns: 1fr; }
+      main { padding: 20px 14px 36px; }
+      h1 { font-size: 1.8rem; }
+      .panel { padding: 16px; }
+      .chart-header { align-items: flex-start; flex-direction: column; }
+      .style-legend { justify-content: flex-start; }
+      .summary-table th, .summary-table td, .metadata-table th, .metadata-table td { padding: 8px 6px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="grid">
+    <section class="panel">
+      <h1>Benchmark Report</h1>
+      <p>Generated 2026-10-08 13:43:44 UTC. This report combines wrkx stage summaries with Docker CPU and memory samples.</p>
+      <p><strong>Test system.</strong> <strong>OS:</strong> Ubuntu 26.04.1 LTS (x86_64); <strong>Kernel:</strong> Linux 7.0.0-34-generic; <strong>CPU:</strong> AMD Ryzen 9 7950X, 16 cores / 32 threads; <strong>Memory:</strong> 93 GiB usable RAM.</p>
+      <p><strong>Run dates.</strong> 2026-10-08: ReactPHP, Amp.</p>
+<details class="run-notes"><summary>Run notes</summary><p><strong>Run note (2026-10-08).</strong> React HTTP 1.11.1 uses a return-type-only PSR-7 v2 compatibility patch isolated to its Docker image; Amp HTTP Server is 3.4.6 with Revolt 1.0.9. Both use 20 Supervisor-managed PHP processes, SO_REUSEPORT, TCP_NODELAY, Event 3.1.6, and recycling after 10,000 requests. Yii and PDO handling remains synchronous, with per-request state reset and native request concurrency limited to one per process. This separate October 8 session uses the same PHP 8.5.11 and load settings as the earlier measurements; existing runtimes were not rerun.</p>
+      <p><strong>Run note (2026-10-08).</strong> Both runtimes recorded socket read errors while recycling workers. Amp also recorded non-success HTTP responses; its native graceful shutdown can send 503 responses to queued requests. All recorded errors are retained and reduce successful RPS using the existing report calculation. No PHP application errors were logged during measurement.</p></details>
+      <p>Charts show raw samples. For stage results, RPS cap marks the first stage with successful throughput more than 5% below target; per-second results use a sustained latency surge. The load generator can also limit throughput.</p>
+      <p>Hover over a chart legend label or focus it with Tab to highlight that run.</p>
+    </section>
+
+        <section class="panel">
+      <h2>Run Summary — Non-DB</h2>
+      <p>Normal latency averages samples before a detected latency surge or throughput cap, whichever comes first. Overloaded latency comes from the throughput-cap sample shown in the RPS columns. Runs may include different load levels in their normal averages, so these are not equal-load comparisons. Mean p95 averages the included sample percentiles, not pooled requests. — means no qualifying measurement.</p>
+      <details>
+        <summary>Calculation details</summary>
+        <p>For stage data, each sample represents one load stage. The first stage provides the latency baseline. A surge is detected when average latency reaches the largest of 20 ms, 4× baseline average latency, or baseline average latency + 12 ms. When baseline p95 is available, the stage must also have a p95 reaching the largest of 30 ms, 2.5× baseline p95, or baseline p95 + 15 ms. These thresholds are a heuristic, not a latency guarantee.</p>
+        <p>Normal averages exclude the first qualifying surge stage and all later stages, or stop earlier at the throughput cap. If the cap occurs in the first stage, no normal measurement is available. If no cap is reached, no overloaded measurement is available. For per-second data, the existing sustained latency-surge detector determines the cutoff, and averages use per-second samples.</p>
+      </details>
+      <table class="summary-table">
+        <thead>
+          <tr>
+            <th scope="col" aria-sort="none" data-sort-type="text"><button type="button">Run</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="text"><button type="button">Path</button></th>
+            <th scope="col" aria-sort="descending" data-sort-type="number"><button type="button">Successful RPS</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Target RPS</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Normal latency (avg)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Normal latency (mean p95)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Overloaded latency (avg)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Overloaded latency (p95)</button></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="summary-run"><span class="legend-swatch" style="background:#002200"></span>ReactPHP</span></td><td>/</td><td data-sort-value="84440.553256984">84441</td><td data-sort-value="100000">100000</td><td data-sort-value="1.3816">1.38 ms</td><td data-sort-value="2.4361111111111">2.44 ms</td><td data-sort-value="3054.7463">3054.75 ms</td><td data-sort-value="6139.903">6139.90 ms</td></tr><tr><td><span class="summary-run"><span class="legend-swatch" style="background:#660055"></span>Amp</span></td><td>/</td><td data-sort-value="55372.545050753">55373</td><td data-sort-value="75000">75000</td><td data-sort-value="1.7383714285714">1.74 ms</td><td data-sort-value="3.2407142857143">3.24 ms</td><td data-sort-value="4938.9474">4938.95 ms</td><td data-sort-value="9641.983">9641.98 ms</td></tr>
+        </tbody>
+      </table>
+    </section>    <section class="panel">
+      <h2>Run Summary — DB</h2>
+      <p>Normal latency averages samples before a detected latency surge or throughput cap, whichever comes first. Overloaded latency comes from the throughput-cap sample shown in the RPS columns. Runs may include different load levels in their normal averages, so these are not equal-load comparisons. Mean p95 averages the included sample percentiles, not pooled requests. — means no qualifying measurement.</p>
+      <details>
+        <summary>Calculation details</summary>
+        <p>For stage data, each sample represents one load stage. The first stage provides the latency baseline. A surge is detected when average latency reaches the largest of 20 ms, 4× baseline average latency, or baseline average latency + 12 ms. When baseline p95 is available, the stage must also have a p95 reaching the largest of 30 ms, 2.5× baseline p95, or baseline p95 + 15 ms. These thresholds are a heuristic, not a latency guarantee.</p>
+        <p>Normal averages exclude the first qualifying surge stage and all later stages, or stop earlier at the throughput cap. If the cap occurs in the first stage, no normal measurement is available. If no cap is reached, no overloaded measurement is available. For per-second data, the existing sustained latency-surge detector determines the cutoff, and averages use per-second samples.</p>
+      </details>
+      <table class="summary-table">
+        <thead>
+          <tr>
+            <th scope="col" aria-sort="none" data-sort-type="text"><button type="button">Run</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="text"><button type="button">Path</button></th>
+            <th scope="col" aria-sort="descending" data-sort-type="number"><button type="button">Successful RPS</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Target RPS</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Normal latency (avg)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Normal latency (mean p95)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Overloaded latency (avg)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Overloaded latency (p95)</button></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="summary-run"><span class="legend-swatch" style="background:#000001"></span>ReactPHP DB</span></td><td>/postgres/orders</td><td data-sort-value="10946.026847748">10946</td><td data-sort-value="15000">15000</td><td data-sort-value="6.94525">6.95 ms</td><td data-sort-value="15.411">15.41 ms</td><td data-sort-value="5147.3083">5147.31 ms</td><td data-sort-value="10960.895">10960.90 ms</td></tr><tr><td><span class="summary-run"><span class="legend-swatch" style="background:#009900"></span>Amp DB</span></td><td>/postgres/orders</td><td data-sort-value="8540.7396802062">8541</td><td data-sort-value="10000">10000</td><td data-sort-value="7.3886">7.39 ms</td><td data-sort-value="17.183">17.18 ms</td><td data-sort-value="1897.8032">1897.80 ms</td><td data-sort-value="6262.783">6262.78 ms</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <h2>Worker no DB</h2><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Request Rate Per Second</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  successful
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="2 4" stroke-linecap="round"></line>
+  </svg>
+  target
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  errored
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-home-requests-per-second" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-home-requests-per-second" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Latency (ms)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  avg
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  p95
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-home-latency" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-home-latency" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP CPU (% of one core, 100% = 1 core)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-home-cpu-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-home-cpu-app" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP Memory (MiB)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-home-memory-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-home-memory-app" class="legend"></div>
+</section><h2>Worker DB</h2><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Request Rate Per Second</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  successful
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="2 4" stroke-linecap="round"></line>
+  </svg>
+  target
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  errored
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-db-requests-per-second" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-db-requests-per-second" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Latency (ms)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  avg
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  p95
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-db-latency" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-db-latency" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP CPU (% of one core, 100% = 1 core)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-db-cpu-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-db-cpu-app" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP Memory (MiB)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <line x1="8" y1="2" x2="16" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+    <line x1="16" y1="2" x2="8" y2="10" stroke="#1f2933" stroke-width="2" stroke-linecap="round"></line>
+  </svg>
+  Errors start
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-db-memory-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-db-memory-app" class="legend"></div>
+</section>
+
+    <section class="meta-grid">
+      <section class="panel">
+  <h2>Amp</h2>
+  <p class="path">/home/samdark/src/yii3-benchmarks/app-api/results/samdark_2026-10-08-reactphp-amphp/20261008T132858Z-Amp-home-ramp</p>
+  <table class="metadata-table">
+    <tr><th>BASE_URL</th><td>http://localhost:9991</td></tr><tr><th>TARGET_NAME</th><td>home</td></tr><tr><th>TARGET_PATH</th><td>/</td></tr><tr><th>BENCH_NAME</th><td>Amp</td></tr><tr><th>MODE</th><td>ramp</td></tr><tr><th>CAPTURE_METRICS</th><td>1</td></tr><tr><th>RATE</th><td>10000</td></tr><tr><th>DURATION</th><td>160s</td></tr><tr><th>THREADS</th><td>32</td></tr><tr><th>CONNECTIONS</th><td>256</td></tr><tr><th>STAGES</th><td>[{&quot;target&quot;:2500,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:5000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:10000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:15000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:20000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:25000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:30000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:40000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:50000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:75000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:100000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:150000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:200000,&quot;duration&quot;:&quot;30s&quot;}]</td></tr><tr><th>COMPOSE_PROJECT_NAME</th><td>yii3-benchmarks-amphp</td></tr><tr><th>WRKX_REF</th><td>bec57539360771bedc2fc63a48e3746f1b7a9975</td></tr><tr><th>WARMUP_DURATION</th><td>10s</td></tr><tr><th>WARMUP_RATE</th><td>1000</td></tr>
+  </table>
+</section><section class="panel">
+  <h2>Amp DB</h2>
+  <p class="path">/home/samdark/src/yii3-benchmarks/app-api/results/samdark_2026-10-08-reactphp-amphp/20261008T133545Z-Amp-DB-postgres-orders-ramp</p>
+  <table class="metadata-table">
+    <tr><th>BASE_URL</th><td>http://localhost:9991</td></tr><tr><th>TARGET_NAME</th><td>postgres-orders</td></tr><tr><th>TARGET_PATH</th><td>/postgres/orders</td></tr><tr><th>BENCH_NAME</th><td>Amp DB</td></tr><tr><th>MODE</th><td>ramp</td></tr><tr><th>CAPTURE_METRICS</th><td>1</td></tr><tr><th>RATE</th><td>10000</td></tr><tr><th>DURATION</th><td>160s</td></tr><tr><th>THREADS</th><td>32</td></tr><tr><th>CONNECTIONS</th><td>256</td></tr><tr><th>STAGES</th><td>[{&quot;target&quot;:2500,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:5000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:10000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:15000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:20000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:25000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:30000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:40000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:50000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:75000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:100000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:150000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:200000,&quot;duration&quot;:&quot;30s&quot;}]</td></tr><tr><th>COMPOSE_PROJECT_NAME</th><td>yii3-benchmarks-amphp</td></tr><tr><th>WRKX_REF</th><td>bec57539360771bedc2fc63a48e3746f1b7a9975</td></tr><tr><th>WARMUP_DURATION</th><td>10s</td></tr><tr><th>WARMUP_RATE</th><td>1000</td></tr>
+  </table>
+</section><section class="panel">
+  <h2>ReactPHP</h2>
+  <p class="path">/home/samdark/src/yii3-benchmarks/app-api/results/samdark_2026-10-08-reactphp-amphp/20261008T131514Z-ReactPHP-home-ramp</p>
+  <table class="metadata-table">
+    <tr><th>BASE_URL</th><td>http://localhost:9991</td></tr><tr><th>TARGET_NAME</th><td>home</td></tr><tr><th>TARGET_PATH</th><td>/</td></tr><tr><th>BENCH_NAME</th><td>ReactPHP</td></tr><tr><th>MODE</th><td>ramp</td></tr><tr><th>CAPTURE_METRICS</th><td>1</td></tr><tr><th>RATE</th><td>10000</td></tr><tr><th>DURATION</th><td>160s</td></tr><tr><th>THREADS</th><td>32</td></tr><tr><th>CONNECTIONS</th><td>256</td></tr><tr><th>STAGES</th><td>[{&quot;target&quot;:2500,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:5000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:10000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:15000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:20000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:25000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:30000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:40000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:50000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:75000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:100000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:150000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:200000,&quot;duration&quot;:&quot;30s&quot;}]</td></tr><tr><th>COMPOSE_PROJECT_NAME</th><td>yii3-benchmarks-reactphp</td></tr><tr><th>WRKX_REF</th><td>bec57539360771bedc2fc63a48e3746f1b7a9975</td></tr><tr><th>WARMUP_DURATION</th><td>10s</td></tr><tr><th>WARMUP_RATE</th><td>1000</td></tr>
+  </table>
+</section><section class="panel">
+  <h2>ReactPHP DB</h2>
+  <p class="path">/home/samdark/src/yii3-benchmarks/app-api/results/samdark_2026-10-08-reactphp-amphp/20261008T132201Z-ReactPHP-DB-postgres-orders-ramp</p>
+  <table class="metadata-table">
+    <tr><th>BASE_URL</th><td>http://localhost:9991</td></tr><tr><th>TARGET_NAME</th><td>postgres-orders</td></tr><tr><th>TARGET_PATH</th><td>/postgres/orders</td></tr><tr><th>BENCH_NAME</th><td>ReactPHP DB</td></tr><tr><th>MODE</th><td>ramp</td></tr><tr><th>CAPTURE_METRICS</th><td>1</td></tr><tr><th>RATE</th><td>10000</td></tr><tr><th>DURATION</th><td>160s</td></tr><tr><th>THREADS</th><td>32</td></tr><tr><th>CONNECTIONS</th><td>256</td></tr><tr><th>STAGES</th><td>[{&quot;target&quot;:2500,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:5000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:10000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:15000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:20000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:25000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:30000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:40000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:50000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:75000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:100000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:150000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:200000,&quot;duration&quot;:&quot;30s&quot;}]</td></tr><tr><th>COMPOSE_PROJECT_NAME</th><td>yii3-benchmarks-reactphp</td></tr><tr><th>WRKX_REF</th><td>bec57539360771bedc2fc63a48e3746f1b7a9975</td></tr><tr><th>WARMUP_DURATION</th><td>10s</td></tr><tr><th>WARMUP_RATE</th><td>1000</td></tr>
+  </table>
+</section>
+    </section>
+  </main>
+
+  <script>
+    const reportData = {"charts":[{"id":"worker-home-requests-per-second","title":"Request Rate Per Second","series":[{"label":"ReactPHP target","runLabel":"ReactPHP","color":"#002200","runIndex":0,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[2,4],"capSecond":300,"errorStartSecond":null},{"label":"Amp target","runLabel":"Amp","color":"#660055","runIndex":2,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[2,4],"capSecond":270,"errorStartSecond":90},{"label":"ReactPHP successful","runLabel":"ReactPHP","color":"#002200","runIndex":0,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":2500.9103},{"x":30,"y":4986.6779},{"x":60,"y":9972.1791},{"x":90,"y":14955.1815},{"x":120,"y":19936.0091},{"x":150,"y":24927.4818},{"x":180,"y":29899.8027},{"x":210,"y":39865.8692},{"x":240,"y":49826.6312},{"x":270,"y":74385.3731},{"x":300,"y":84440.5533},{"x":330,"y":85477.0079},{"x":360,"y":85276.7495}],"showPoints":false,"dash":[],"capSecond":300,"errorStartSecond":null,"startMarker":true},{"label":"Amp successful","runLabel":"Amp","color":"#660055","runIndex":2,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":2500.9398},{"x":30,"y":4972.8097},{"x":60,"y":9956.9149},{"x":90,"y":14911.1083},{"x":120,"y":19892.577},{"x":150,"y":24841.9193},{"x":180,"y":29832.5759},{"x":210,"y":39728.9722},{"x":240,"y":49233.6895},{"x":270,"y":55372.5451},{"x":300,"y":55753.104},{"x":330,"y":56234.7332},{"x":360,"y":55867.2353}],"showPoints":false,"dash":[],"capSecond":270,"errorStartSecond":90,"startMarker":true},{"label":"ReactPHP errored","runLabel":"ReactPHP","color":"#002200","runIndex":0,"affectsYAxis":false,"stepped":false,"points":[{"x":0,"y":0},{"x":30,"y":16.171},{"x":60,"y":22.23},{"x":90,"y":37.2004},{"x":120,"y":52.8619},{"x":150,"y":66.2599},{"x":180,"y":79.1994},{"x":210,"y":109.67},{"x":240,"y":136.371},{"x":270,"y":205.0165},{"x":300,"y":232.5222},{"x":330,"y":235.6491},{"x":360,"y":235.3281}],"showPoints":false,"dash":[8,4],"capSecond":300,"errorStartSecond":null},{"label":"Amp errored","runLabel":"Amp","color":"#660055","runIndex":2,"affectsYAxis":false,"stepped":false,"points":[{"x":0,"y":0},{"x":30,"y":31.0144},{"x":60,"y":43.7483},{"x":90,"y":77.6542},{"x":120,"y":106.646},{"x":150,"y":133.49},{"x":180,"y":165.497},{"x":210,"y":218.5611},{"x":240,"y":263.5519},{"x":270,"y":296.0503},{"x":300,"y":307.6312},{"x":330,"y":301.5224},{"x":360,"y":294.714}],"showPoints":false,"dash":[8,4],"capSecond":270,"errorStartSecond":90}],"xAxisTargetSeries":[{"label":"ReactPHP","runLabel":"ReactPHP","color":"#002200","runIndex":0,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":300,"errorStartSecond":null},{"label":"Amp","runLabel":"Amp","color":"#660055","runIndex":2,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":270,"errorStartSecond":90}],"styleLegend":[{"label":"successful","dash":[]},{"label":"target","dash":[2,4]},{"label":"errored","dash":[8,4]}],"format":"integer","smoothingWindow":0,"group":"Worker no DB"},{"id":"worker-home-latency","title":"Latency (ms)","series":[{"label":"ReactPHP avg","runLabel":"ReactPHP","color":"#002200","runIndex":0,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":1.1826},{"x":30,"y":1.1165},{"x":60,"y":1.3001},{"x":90,"y":1.1971},{"x":120,"y":1.2006},{"x":150,"y":1.2899},{"x":180,"y":1.42},{"x":210,"y":1.432},{"x":240,"y":2.2956},{"x":270,"y":125.3612},{"x":300,"y":3054.7463},{"x":330,"y":8523.5406},{"x":360,"y":11377.3382}],"showPoints":false,"dash":[],"capSecond":300,"errorStartSecond":null},{"label":"Amp avg","runLabel":"Amp","color":"#660055","runIndex":2,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":1.4476},{"x":30,"y":1.5656},{"x":60,"y":1.3433},{"x":90,"y":1.9256},{"x":120,"y":1.4092},{"x":150,"y":1.7467},{"x":180,"y":2.7306},{"x":210,"y":38.764},{"x":240,"y":355.7185},{"x":270,"y":4938.9474},{"x":300,"y":8632.7786},{"x":330,"y":12303.8108},{"x":360,"y":14278.3019}],"showPoints":false,"dash":[],"capSecond":270,"errorStartSecond":90},{"label":"ReactPHP p95","runLabel":"ReactPHP","color":"#002200","runIndex":0,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":1.924},{"x":30,"y":1.85},{"x":60,"y":2.275},{"x":90,"y":2.087},{"x":120,"y":2.059},{"x":150,"y":2.297},{"x":180,"y":2.531},{"x":210,"y":2.639},{"x":240,"y":4.263},{"x":270,"y":527.871},{"x":300,"y":6139.903},{"x":330,"y":12959.743},{"x":360,"y":16891.903}],"showPoints":false,"dash":[8,4],"capSecond":300,"errorStartSecond":null},{"label":"Amp p95","runLabel":"Amp","color":"#660055","runIndex":2,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":2.453},{"x":30,"y":2.723},{"x":60,"y":2.289},{"x":90,"y":3.937},{"x":120,"y":2.527},{"x":150,"y":3.509},{"x":180,"y":5.247},{"x":210,"y":218.367},{"x":240,"y":1420.287},{"x":270,"y":9641.983},{"x":300,"y":13787.135},{"x":330,"y":18513.919},{"x":360,"y":21037.055}],"showPoints":false,"dash":[8,4],"capSecond":270,"errorStartSecond":90}],"xAxisTargetSeries":[{"label":"ReactPHP","runLabel":"ReactPHP","color":"#002200","runIndex":0,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":300,"errorStartSecond":null},{"label":"Amp","runLabel":"Amp","color":"#660055","runIndex":2,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":270,"errorStartSecond":90}],"styleLegend":[{"label":"avg","dash":[]},{"label":"p95","dash":[8,4]}],"format":"milliseconds-integer","smoothingWindow":0,"yMax":9641.983,"group":"Worker no DB"},{"id":"worker-home-cpu-app","title":"APP CPU (% of one core, 100% = 1 core)","series":[{"label":"ReactPHP","runLabel":"ReactPHP","color":"#002200","points":[{"x":0,"y":60.99},{"x":3,"y":64.45},{"x":6,"y":63.7},{"x":9,"y":62.9},{"x":12,"y":60.53},{"x":15,"y":64.14},{"x":18,"y":62.2},{"x":21,"y":62.63},{"x":24,"y":60.26},{"x":27,"y":65.63},{"x":30,"y":117.49},{"x":33,"y":123.15},{"x":37,"y":118.54},{"x":40,"y":125.38},{"x":43,"y":115.44},{"x":46,"y":125.22},{"x":49,"y":130.13},{"x":52,"y":143.69},{"x":55,"y":136.82},{"x":58,"y":116.03},{"x":61,"y":227.83},{"x":64,"y":223.18},{"x":67,"y":221.98},{"x":70,"y":231.07},{"x":73,"y":231.51},{"x":76,"y":219.12},{"x":79,"y":229.5},{"x":82,"y":207.89},{"x":85,"y":207.82},{"x":88,"y":232.81},{"x":91,"y":333.27},{"x":94,"y":321.74},{"x":97,"y":338.86},{"x":100,"y":328.77},{"x":103,"y":308.57},{"x":106,"y":324.36},{"x":109,"y":314.79},{"x":112,"y":326.05},{"x":115,"y":313.89},{"x":118,"y":308.49},{"x":121,"y":432.99},{"x":124,"y":443.78},{"x":127,"y":413},{"x":130,"y":399.47},{"x":133,"y":424.11},{"x":136,"y":425.91},{"x":139,"y":425.78},{"x":142,"y":424.58},{"x":145,"y":413.87},{"x":148,"y":415.25},{"x":151,"y":532.19},{"x":154,"y":518.2},{"x":157,"y":517.08},{"x":160,"y":517.91},{"x":163,"y":517.04},{"x":166,"y":532.56},{"x":169,"y":500.76},{"x":172,"y":516.89},{"x":176,"y":510.87},{"x":179,"y":511.79},{"x":182,"y":634.74},{"x":185,"y":624.34},{"x":188,"y":625.42},{"x":191,"y":608.35},{"x":194,"y":624.99},{"x":197,"y":628.66},{"x":200,"y":608.13},{"x":203,"y":613.26},{"x":206,"y":604.49},{"x":209,"y":607.29},{"x":212,"y":777.93},{"x":215,"y":863.37},{"x":218,"y":826.46},{"x":221,"y":849.38},{"x":224,"y":860.61},{"x":227,"y":839.99},{"x":230,"y":834.61},{"x":233,"y":840.17},{"x":236,"y":820.33},{"x":239,"y":829.67},{"x":242,"y":861.56},{"x":245,"y":1007.1},{"x":248,"y":1034.38},{"x":251,"y":1008.48},{"x":254,"y":1031.27},{"x":257,"y":1008.79},{"x":260,"y":1005.86},{"x":263,"y":1013.68},{"x":266,"y":1036.52},{"x":269,"y":1008.58},{"x":272,"y":953.32},{"x":275,"y":1510.91},{"x":278,"y":1513.56},{"x":281,"y":1547.52},{"x":284,"y":1615.62},{"x":287,"y":1547.87},{"x":290,"y":1553.71},{"x":293,"y":1461.93},{"x":297,"y":1466.75},{"x":300,"y":1548.67},{"x":303,"y":1135.23},{"x":306,"y":1653.43},{"x":309,"y":1743.78},{"x":312,"y":1746.02},{"x":315,"y":1673.73},{"x":318,"y":1685.47},{"x":321,"y":1759.41},{"x":324,"y":1788.65},{"x":327,"y":1739.9},{"x":330,"y":1702.88},{"x":333,"y":1093.35},{"x":336,"y":1726},{"x":339,"y":1770.12},{"x":342,"y":1754.1},{"x":345,"y":1737.39},{"x":348,"y":1691.98},{"x":351,"y":1736.02},{"x":354,"y":1756.96},{"x":357,"y":1788.09},{"x":360,"y":1761.41},{"x":363,"y":1149.96},{"x":366,"y":1743.67},{"x":369,"y":1760.86},{"x":372,"y":1765.89},{"x":375,"y":1740.99},{"x":378,"y":1775.42},{"x":381,"y":1779.14},{"x":385,"y":1787.98},{"x":388,"y":1782.5},{"x":391,"y":1715.58}],"capSecond":300,"errorStartSecond":null},{"label":"Amp","runLabel":"Amp","color":"#660055","points":[{"x":0,"y":95.4},{"x":3,"y":92.48},{"x":6,"y":91.57},{"x":9,"y":94.1},{"x":12,"y":91.72},{"x":15,"y":93.31},{"x":18,"y":90.12},{"x":21,"y":94.91},{"x":24,"y":94.28},{"x":27,"y":93.79},{"x":30,"y":178.97},{"x":33,"y":193.04},{"x":36,"y":182.77},{"x":39,"y":175.82},{"x":43,"y":180.68},{"x":46,"y":182.44},{"x":49,"y":186.03},{"x":52,"y":189.19},{"x":55,"y":185.78},{"x":58,"y":163.17},{"x":61,"y":208.52},{"x":64,"y":342.67},{"x":67,"y":334.51},{"x":70,"y":345.39},{"x":73,"y":333.08},{"x":76,"y":332.45},{"x":79,"y":335.26},{"x":82,"y":331.4},{"x":85,"y":329.6},{"x":88,"y":329.52},{"x":91,"y":493.18},{"x":94,"y":510.11},{"x":97,"y":464.12},{"x":100,"y":475.82},{"x":103,"y":461.24},{"x":106,"y":466.04},{"x":109,"y":462.6},{"x":112,"y":467.8},{"x":115,"y":472.98},{"x":118,"y":476.93},{"x":121,"y":664.81},{"x":124,"y":657.96},{"x":127,"y":666.26},{"x":130,"y":644.76},{"x":133,"y":665.54},{"x":136,"y":655.56},{"x":139,"y":652.2},{"x":142,"y":651.51},{"x":145,"y":645.43},{"x":148,"y":655.87},{"x":151,"y":824.85},{"x":154,"y":829.98},{"x":157,"y":798.6},{"x":160,"y":822.38},{"x":163,"y":777.6},{"x":166,"y":812.38},{"x":169,"y":812.99},{"x":172,"y":797.08},{"x":175,"y":843.27},{"x":179,"y":800.34},{"x":182,"y":1002.69},{"x":185,"y":994.86},{"x":188,"y":1007.58},{"x":191,"y":972.43},{"x":194,"y":961.35},{"x":197,"y":977.71},{"x":200,"y":963.51},{"x":203,"y":991.41},{"x":206,"y":977.29},{"x":209,"y":1015.11},{"x":212,"y":1224.53},{"x":215,"y":1280.18},{"x":218,"y":1337.49},{"x":221,"y":1260.45},{"x":224,"y":1317.63},{"x":227,"y":1347.54},{"x":230,"y":1362.96},{"x":233,"y":1286.59},{"x":236,"y":1275.04},{"x":239,"y":1238.9},{"x":242,"y":1273.39},{"x":245,"y":1500.21},{"x":248,"y":1422.72},{"x":251,"y":1548.67},{"x":254,"y":1649.95},{"x":257,"y":1692.84},{"x":260,"y":1460.84},{"x":263,"y":1668.67},{"x":266,"y":1603.09},{"x":269,"y":1613.15},{"x":272,"y":1255.66},{"x":275,"y":1828.58},{"x":278,"y":1803.09},{"x":280,"y":1757.07},{"x":284,"y":1799.74},{"x":287,"y":1759.56},{"x":290,"y":1800.87},{"x":293,"y":1755.9},{"x":296,"y":1779.04},{"x":299,"y":1700.05},{"x":302,"y":1473.29},{"x":305,"y":1685.75},{"x":308,"y":1818.48},{"x":311,"y":1800.39},{"x":314,"y":1825.92},{"x":317,"y":1775.37},{"x":320,"y":1755.21},{"x":323,"y":1814.32},{"x":326,"y":1835.47},{"x":329,"y":1774.35},{"x":332,"y":1464.65},{"x":335,"y":1811.56},{"x":338,"y":1781.74},{"x":341,"y":1815.58},{"x":344,"y":1832.73},{"x":347,"y":1756.34},{"x":350,"y":1849.87},{"x":353,"y":1830.38},{"x":356,"y":1820.41},{"x":359,"y":1722.05},{"x":362,"y":1412.27},{"x":365,"y":1795.56},{"x":369,"y":1808},{"x":372,"y":1769.77},{"x":375,"y":1824.73},{"x":378,"y":1778.39},{"x":381,"y":1832.39},{"x":384,"y":1767.02},{"x":387,"y":1777.63},{"x":390,"y":1833.23}],"capSecond":270,"errorStartSecond":90}],"xAxisTargetSeries":[{"label":"ReactPHP","runLabel":"ReactPHP","color":"#002200","runIndex":0,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":300,"errorStartSecond":null},{"label":"Amp","runLabel":"Amp","color":"#660055","runIndex":2,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":270,"errorStartSecond":90}],"format":"percent-integer","smoothingWindow":0,"group":"Worker no DB"},{"id":"worker-home-memory-app","title":"APP Memory (MiB)","series":[{"label":"ReactPHP","runLabel":"ReactPHP","color":"#002200","points":[{"x":0,"y":483.9},{"x":3,"y":486.3},{"x":6,"y":485.6},{"x":9,"y":486.2},{"x":12,"y":484.7},{"x":15,"y":486.3},{"x":18,"y":486},{"x":21,"y":485.3},{"x":24,"y":485.4},{"x":27,"y":485.6},{"x":30,"y":486.4},{"x":33,"y":486.1},{"x":37,"y":485.2},{"x":40,"y":486.4},{"x":43,"y":484},{"x":46,"y":463.7},{"x":49,"y":459.7},{"x":52,"y":457.8},{"x":55,"y":461.2},{"x":58,"y":462.2},{"x":61,"y":486.7},{"x":64,"y":485.9},{"x":67,"y":463.4},{"x":70,"y":461.9},{"x":73,"y":459.1},{"x":76,"y":461.2},{"x":79,"y":458.9},{"x":82,"y":480.2},{"x":85,"y":480},{"x":88,"y":459},{"x":91,"y":461.1},{"x":94,"y":482.4},{"x":97,"y":459},{"x":100,"y":460.7},{"x":103,"y":463},{"x":106,"y":460},{"x":109,"y":477.5},{"x":112,"y":460.8},{"x":115,"y":463.5},{"x":118,"y":460.1},{"x":121,"y":461.4},{"x":124,"y":455.2},{"x":127,"y":445.9},{"x":130,"y":481.8},{"x":133,"y":460.9},{"x":136,"y":461.4},{"x":139,"y":459.7},{"x":142,"y":461.3},{"x":145,"y":461.2},{"x":148,"y":462.2},{"x":151,"y":460.9},{"x":154,"y":460.4},{"x":157,"y":467.1},{"x":160,"y":461.7},{"x":163,"y":459.7},{"x":166,"y":461.7},{"x":169,"y":461.8},{"x":172,"y":461.1},{"x":176,"y":459.9},{"x":179,"y":461.5},{"x":182,"y":463.7},{"x":185,"y":456.2},{"x":188,"y":461},{"x":191,"y":461.1},{"x":194,"y":460.9},{"x":197,"y":462},{"x":200,"y":460},{"x":203,"y":461.4},{"x":206,"y":460.8},{"x":209,"y":459.3},{"x":212,"y":461.1},{"x":215,"y":461.3},{"x":218,"y":438.8},{"x":221,"y":461.6},{"x":224,"y":459.6},{"x":227,"y":461.4},{"x":230,"y":461.4},{"x":233,"y":455.4},{"x":236,"y":461.8},{"x":239,"y":461.5},{"x":242,"y":461.6},{"x":245,"y":459.9},{"x":248,"y":458.4},{"x":251,"y":455.4},{"x":254,"y":458},{"x":257,"y":461.5},{"x":260,"y":458.4},{"x":263,"y":460.2},{"x":266,"y":460.9},{"x":269,"y":461.5},{"x":272,"y":455.6},{"x":275,"y":459.2},{"x":278,"y":458.6},{"x":281,"y":458.1},{"x":284,"y":439.6},{"x":287,"y":458.9},{"x":290,"y":438.8},{"x":293,"y":459},{"x":297,"y":457.2},{"x":300,"y":440.6},{"x":303,"y":461},{"x":306,"y":456.3},{"x":309,"y":442.8},{"x":312,"y":456.2},{"x":315,"y":446.7},{"x":318,"y":461.9},{"x":321,"y":461.8},{"x":324,"y":459.1},{"x":327,"y":458.3},{"x":330,"y":459},{"x":333,"y":458.8},{"x":336,"y":459.4},{"x":339,"y":459.4},{"x":342,"y":455},{"x":345,"y":456.9},{"x":348,"y":457.3},{"x":351,"y":452.6},{"x":354,"y":456.9},{"x":357,"y":451.1},{"x":360,"y":430.9},{"x":363,"y":455.8},{"x":366,"y":419.6},{"x":369,"y":435.8},{"x":372,"y":458.7},{"x":375,"y":461.9},{"x":378,"y":461},{"x":381,"y":444.6},{"x":385,"y":461.2},{"x":388,"y":455.6},{"x":391,"y":458.2}],"capSecond":300,"errorStartSecond":null},{"label":"Amp","runLabel":"Amp","color":"#660055","points":[{"x":0,"y":528.1},{"x":3,"y":528.6},{"x":6,"y":528},{"x":9,"y":528.3},{"x":12,"y":528.2},{"x":15,"y":527.7},{"x":18,"y":528},{"x":21,"y":528.4},{"x":24,"y":528.6},{"x":27,"y":529},{"x":30,"y":527.9},{"x":33,"y":528.5},{"x":36,"y":529.1},{"x":39,"y":528.5},{"x":43,"y":529.2},{"x":46,"y":503.2},{"x":49,"y":501},{"x":52,"y":496.6},{"x":55,"y":501.8},{"x":58,"y":521.6},{"x":61,"y":529.9},{"x":64,"y":530.1},{"x":67,"y":529.9},{"x":70,"y":530},{"x":73,"y":498.6},{"x":76,"y":519.5},{"x":79,"y":501.9},{"x":82,"y":522.9},{"x":85,"y":524.3},{"x":88,"y":521.9},{"x":91,"y":500.1},{"x":94,"y":496.7},{"x":97,"y":520.4},{"x":100,"y":497.8},{"x":103,"y":521.6},{"x":106,"y":495},{"x":109,"y":499},{"x":112,"y":500.7},{"x":115,"y":478.9},{"x":118,"y":501.3},{"x":121,"y":523.3},{"x":124,"y":501.5},{"x":127,"y":501.4},{"x":130,"y":522.3},{"x":133,"y":495},{"x":136,"y":501.3},{"x":139,"y":498.2},{"x":142,"y":501.5},{"x":145,"y":501},{"x":148,"y":501.8},{"x":151,"y":501.5},{"x":154,"y":494.5},{"x":157,"y":504.5},{"x":160,"y":496.8},{"x":163,"y":520.2},{"x":166,"y":477.6},{"x":169,"y":502.7},{"x":172,"y":479},{"x":175,"y":500.8},{"x":179,"y":500.5},{"x":182,"y":500.9},{"x":185,"y":498},{"x":188,"y":501.6},{"x":191,"y":498},{"x":194,"y":501.2},{"x":197,"y":501.5},{"x":200,"y":496.6},{"x":203,"y":502.1},{"x":206,"y":501.5},{"x":209,"y":501.3},{"x":212,"y":497.3},{"x":215,"y":501.8},{"x":218,"y":501.1},{"x":221,"y":498.9},{"x":224,"y":497.7},{"x":227,"y":494.9},{"x":230,"y":498.8},{"x":233,"y":482.8},{"x":236,"y":480},{"x":239,"y":494.9},{"x":242,"y":502},{"x":245,"y":498.6},{"x":248,"y":501.3},{"x":251,"y":502},{"x":254,"y":498.3},{"x":257,"y":473.5},{"x":260,"y":502.2},{"x":263,"y":464.8},{"x":266,"y":498.1},{"x":269,"y":498.5},{"x":272,"y":489.2},{"x":275,"y":501.7},{"x":278,"y":494.9},{"x":280,"y":495.5},{"x":284,"y":460.6},{"x":287,"y":498.2},{"x":290,"y":494.7},{"x":293,"y":499.1},{"x":296,"y":473.1},{"x":299,"y":496.5},{"x":302,"y":488.8},{"x":305,"y":498.1},{"x":308,"y":495.4},{"x":311,"y":479.9},{"x":314,"y":488.3},{"x":317,"y":502},{"x":320,"y":486.9},{"x":323,"y":494},{"x":326,"y":496.9},{"x":329,"y":476.8},{"x":332,"y":488.8},{"x":335,"y":493.4},{"x":338,"y":498.1},{"x":341,"y":484.9},{"x":344,"y":457.5},{"x":347,"y":491.1},{"x":350,"y":502.7},{"x":353,"y":494.9},{"x":356,"y":496.9},{"x":359,"y":495.3},{"x":362,"y":485.8},{"x":365,"y":498.6},{"x":369,"y":498.5},{"x":372,"y":494.7},{"x":375,"y":500.8},{"x":378,"y":502.9},{"x":381,"y":498.4},{"x":384,"y":491.1},{"x":387,"y":472.9},{"x":390,"y":501.8}],"capSecond":270,"errorStartSecond":90}],"xAxisTargetSeries":[{"label":"ReactPHP","runLabel":"ReactPHP","color":"#002200","runIndex":0,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":300,"errorStartSecond":null},{"label":"Amp","runLabel":"Amp","color":"#660055","runIndex":2,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":270,"errorStartSecond":90}],"format":"integer","group":"Worker no DB"},{"id":"worker-db-requests-per-second","title":"Request Rate Per Second","series":[{"label":"ReactPHP DB target","runLabel":"ReactPHP DB","color":"#000001","runIndex":1,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[2,4],"capSecond":90,"errorStartSecond":null},{"label":"Amp DB target","runLabel":"Amp DB","color":"#009900","runIndex":3,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[2,4],"capSecond":60,"errorStartSecond":null},{"label":"ReactPHP DB successful","runLabel":"ReactPHP DB","color":"#000001","runIndex":1,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":2496.1046},{"x":30,"y":4987.2897},{"x":60,"y":9768.8503},{"x":90,"y":10946.0268},{"x":120,"y":11532.9364},{"x":150,"y":11543.2346},{"x":180,"y":11481.7556},{"x":210,"y":11609.2041},{"x":240,"y":11668.7468},{"x":270,"y":11566.8481},{"x":300,"y":11604.576},{"x":330,"y":11538.7415},{"x":360,"y":11583.424}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":null,"startMarker":true},{"label":"Amp DB successful","runLabel":"Amp DB","color":"#009900","runIndex":3,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":2487.9058},{"x":30,"y":4980.6158},{"x":60,"y":8540.7397},{"x":90,"y":9355.5796},{"x":120,"y":9454.8705},{"x":150,"y":9533.208},{"x":180,"y":9661.4965},{"x":210,"y":9609.0473},{"x":240,"y":9538.2622},{"x":270,"y":9576.533},{"x":300,"y":9675.3769},{"x":330,"y":9630.3855},{"x":360,"y":9581.0483}],"showPoints":false,"dash":[],"capSecond":60,"errorStartSecond":null,"startMarker":true},{"label":"ReactPHP DB errored","runLabel":"ReactPHP DB","color":"#000001","runIndex":1,"affectsYAxis":false,"stepped":false,"points":[{"x":0,"y":4.7657},{"x":30,"y":12.9306},{"x":60,"y":21.5635},{"x":90,"y":28.5623},{"x":120,"y":27.8634},{"x":150,"y":26.6889},{"x":180,"y":28.8964},{"x":210,"y":28.5622},{"x":240,"y":24.3731},{"x":270,"y":27.8936},{"x":300,"y":25.9969},{"x":330,"y":27.6449},{"x":360,"y":26.8639}],"showPoints":false,"dash":[8,4],"capSecond":90,"errorStartSecond":null},{"label":"Amp DB errored","runLabel":"Amp DB","color":"#009900","runIndex":3,"affectsYAxis":false,"stepped":false,"points":[{"x":0,"y":12.9643},{"x":30,"y":20.1973},{"x":60,"y":22.8622},{"x":90,"y":33.1275},{"x":120,"y":33.6391},{"x":150,"y":31.7508},{"x":180,"y":32.5111},{"x":210,"y":33.5443},{"x":240,"y":31.8467},{"x":270,"y":33.2402},{"x":300,"y":31.0776},{"x":330,"y":33.9976},{"x":360,"y":34.4713}],"showPoints":false,"dash":[8,4],"capSecond":60,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"ReactPHP DB","runLabel":"ReactPHP DB","color":"#000001","runIndex":1,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":null},{"label":"Amp DB","runLabel":"Amp DB","color":"#009900","runIndex":3,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":60,"errorStartSecond":null}],"styleLegend":[{"label":"successful","dash":[]},{"label":"target","dash":[2,4]},{"label":"errored","dash":[8,4]}],"format":"integer","smoothingWindow":0,"group":"Worker DB"},{"id":"worker-db-latency","title":"Latency (ms)","series":[{"label":"ReactPHP DB avg","runLabel":"ReactPHP DB","color":"#000001","runIndex":1,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":7.1816},{"x":30,"y":6.7089},{"x":60,"y":530.2816},{"x":90,"y":5147.3083},{"x":120,"y":7788.437},{"x":150,"y":10142.9052},{"x":180,"y":11734.5928},{"x":210,"y":13278.3365},{"x":240,"y":14815.6866},{"x":270,"y":16508.5959},{"x":300,"y":17384.8982},{"x":330,"y":18327.0124},{"x":360,"y":18705.0314}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":null},{"label":"Amp DB avg","runLabel":"Amp DB","color":"#009900","runIndex":3,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":8.1959},{"x":30,"y":6.5813},{"x":60,"y":1897.8032},{"x":90,"y":6897.1428},{"x":120,"y":9754.063},{"x":150,"y":11665.8807},{"x":180,"y":12765.6802},{"x":210,"y":14646.6347},{"x":240,"y":15484.5282},{"x":270,"y":17141.4882},{"x":300,"y":17796.0321},{"x":330,"y":18497.142},{"x":360,"y":18956.923}],"showPoints":false,"dash":[],"capSecond":60,"errorStartSecond":null},{"label":"ReactPHP DB p95","runLabel":"ReactPHP DB","color":"#000001","runIndex":1,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":15.399},{"x":30,"y":15.423},{"x":60,"y":2654.207},{"x":90,"y":10960.895},{"x":120,"y":14458.879},{"x":150,"y":17072.127},{"x":180,"y":19070.975},{"x":210,"y":21512.191},{"x":240,"y":22872.063},{"x":270,"y":24952.831},{"x":300,"y":25706.495},{"x":330,"y":26722.303},{"x":360,"y":27164.671}],"showPoints":false,"dash":[8,4],"capSecond":90,"errorStartSecond":null},{"label":"Amp DB p95","runLabel":"Amp DB","color":"#009900","runIndex":3,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":18.815},{"x":30,"y":15.551},{"x":60,"y":6262.783},{"x":90,"y":14409.727},{"x":120,"y":17825.791},{"x":150,"y":19644.415},{"x":180,"y":20676.607},{"x":210,"y":22757.375},{"x":240,"y":23920.639},{"x":270,"y":25460.735},{"x":300,"y":25903.103},{"x":330,"y":27115.519},{"x":360,"y":27541.503}],"showPoints":false,"dash":[8,4],"capSecond":60,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"ReactPHP DB","runLabel":"ReactPHP DB","color":"#000001","runIndex":1,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":null},{"label":"Amp DB","runLabel":"Amp DB","color":"#009900","runIndex":3,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":60,"errorStartSecond":null}],"styleLegend":[{"label":"avg","dash":[]},{"label":"p95","dash":[8,4]}],"format":"milliseconds-integer","smoothingWindow":0,"yMax":10960.895,"group":"Worker DB"},{"id":"worker-db-cpu-app","title":"APP CPU (% of one core, 100% = 1 core)","series":[{"label":"ReactPHP DB","runLabel":"ReactPHP DB","color":"#000001","points":[{"x":0,"y":139.76},{"x":3,"y":128.5},{"x":6,"y":125.04},{"x":9,"y":130.8},{"x":12,"y":123.48},{"x":15,"y":123.35},{"x":18,"y":123.88},{"x":21,"y":120.39},{"x":24,"y":116.51},{"x":27,"y":120.36},{"x":30,"y":288.82},{"x":33,"y":258.03},{"x":36,"y":251.08},{"x":39,"y":239.22},{"x":43,"y":249.92},{"x":46,"y":233.13},{"x":49,"y":240.81},{"x":52,"y":255.28},{"x":55,"y":263.41},{"x":58,"y":249.35},{"x":61,"y":529.65},{"x":64,"y":501.89},{"x":67,"y":478.28},{"x":70,"y":467.92},{"x":73,"y":509.92},{"x":76,"y":492.85},{"x":79,"y":458.45},{"x":82,"y":451.06},{"x":85,"y":509.08},{"x":88,"y":499.37},{"x":91,"y":626.65},{"x":94,"y":550.21},{"x":97,"y":449.91},{"x":100,"y":490.61},{"x":103,"y":617.51},{"x":106,"y":533.79},{"x":109,"y":512.65},{"x":112,"y":539.22},{"x":115,"y":623.07},{"x":118,"y":602.28},{"x":121,"y":680.93},{"x":124,"y":648.52},{"x":127,"y":589.37},{"x":130,"y":587.57},{"x":133,"y":585.31},{"x":136,"y":583.79},{"x":139,"y":567.41},{"x":142,"y":570.03},{"x":145,"y":630.85},{"x":148,"y":625.82},{"x":151,"y":623.68},{"x":155,"y":609},{"x":158,"y":612.95},{"x":161,"y":596.57},{"x":164,"y":594.27},{"x":167,"y":616.54},{"x":170,"y":578.33},{"x":173,"y":577.34},{"x":176,"y":591.57},{"x":179,"y":607.98},{"x":182,"y":594.77},{"x":185,"y":574.46},{"x":188,"y":568.35},{"x":191,"y":606.98},{"x":194,"y":597.86},{"x":197,"y":612.98},{"x":200,"y":608.53},{"x":203,"y":578.98},{"x":206,"y":611.31},{"x":209,"y":630.15},{"x":212,"y":652.41},{"x":215,"y":616.21},{"x":218,"y":602.08},{"x":221,"y":625.46},{"x":224,"y":638.08},{"x":227,"y":628},{"x":230,"y":652.26},{"x":233,"y":644.33},{"x":236,"y":633.44},{"x":239,"y":595.94},{"x":242,"y":656.94},{"x":245,"y":603.07},{"x":248,"y":658.96},{"x":251,"y":619.47},{"x":254,"y":628.35},{"x":258,"y":594.84},{"x":261,"y":653.47},{"x":264,"y":643.73},{"x":267,"y":605.82},{"x":270,"y":645.09},{"x":273,"y":683.02},{"x":276,"y":579.11},{"x":279,"y":614.58},{"x":282,"y":646.41},{"x":285,"y":624.32},{"x":288,"y":629.05},{"x":291,"y":628.08},{"x":294,"y":614.47},{"x":297,"y":623.1},{"x":300,"y":615.03},{"x":303,"y":682.78},{"x":306,"y":640.5},{"x":309,"y":616.95},{"x":312,"y":607.38},{"x":315,"y":612.88},{"x":318,"y":627.72},{"x":321,"y":598.42},{"x":324,"y":611.45},{"x":327,"y":603.14},{"x":330,"y":617.87},{"x":333,"y":579.72},{"x":336,"y":586.72},{"x":339,"y":613.02},{"x":342,"y":621.67},{"x":345,"y":609.27},{"x":348,"y":628.07},{"x":351,"y":616.12},{"x":354,"y":632.39},{"x":357,"y":605.67},{"x":361,"y":613.62},{"x":364,"y":441.02},{"x":367,"y":625.77},{"x":370,"y":624.66},{"x":373,"y":615.61},{"x":376,"y":604.03},{"x":379,"y":651.56},{"x":382,"y":638.78},{"x":385,"y":623.38},{"x":388,"y":611.46},{"x":391,"y":596.41}],"capSecond":90,"errorStartSecond":null},{"label":"Amp DB","runLabel":"Amp DB","color":"#009900","points":[{"x":0,"y":207.28},{"x":3,"y":200.24},{"x":6,"y":189.82},{"x":9,"y":195.54},{"x":12,"y":187.8},{"x":15,"y":192.3},{"x":18,"y":186.68},{"x":21,"y":178.54},{"x":24,"y":176.23},{"x":27,"y":186.89},{"x":30,"y":399.73},{"x":33,"y":388.94},{"x":36,"y":379.46},{"x":39,"y":385.92},{"x":42,"y":390.4},{"x":46,"y":401.03},{"x":49,"y":365.05},{"x":52,"y":365.47},{"x":55,"y":368.15},{"x":58,"y":381.12},{"x":61,"y":767.06},{"x":64,"y":714.03},{"x":67,"y":675.54},{"x":70,"y":674.19},{"x":73,"y":672.63},{"x":76,"y":738.31},{"x":79,"y":529.99},{"x":82,"y":633.87},{"x":85,"y":530.97},{"x":88,"y":527.28},{"x":91,"y":819.19},{"x":94,"y":627.76},{"x":97,"y":660.57},{"x":100,"y":742.16},{"x":103,"y":730.64},{"x":106,"y":807.45},{"x":109,"y":801.41},{"x":112,"y":775.61},{"x":115,"y":809.55},{"x":118,"y":802.52},{"x":121,"y":782.56},{"x":124,"y":690.84},{"x":127,"y":762.52},{"x":130,"y":761.15},{"x":133,"y":744.75},{"x":136,"y":798.21},{"x":139,"y":837.05},{"x":142,"y":799.09},{"x":145,"y":782.45},{"x":148,"y":805.33},{"x":151,"y":520.66},{"x":155,"y":736.38},{"x":158,"y":703.77},{"x":161,"y":722.64},{"x":164,"y":798.53},{"x":167,"y":818.4},{"x":170,"y":795.8},{"x":173,"y":807.45},{"x":176,"y":771.09},{"x":179,"y":801.13},{"x":182,"y":528.53},{"x":185,"y":793.77},{"x":188,"y":833.72},{"x":191,"y":827.86},{"x":194,"y":763.62},{"x":197,"y":805.87},{"x":200,"y":803.49},{"x":203,"y":789.65},{"x":206,"y":752.92},{"x":209,"y":784.22},{"x":212,"y":555.32},{"x":215,"y":832.14},{"x":218,"y":717.77},{"x":221,"y":758.64},{"x":224,"y":798.75},{"x":227,"y":801.57},{"x":230,"y":799.23},{"x":233,"y":844.73},{"x":236,"y":813.44},{"x":239,"y":795.95},{"x":242,"y":782.05},{"x":245,"y":753.34},{"x":248,"y":753.19},{"x":252,"y":755.62},{"x":255,"y":833.01},{"x":258,"y":795.64},{"x":261,"y":817.85},{"x":264,"y":794.21},{"x":267,"y":798.24},{"x":270,"y":805.18},{"x":273,"y":523.85},{"x":276,"y":803.88},{"x":279,"y":820.37},{"x":282,"y":820.7},{"x":285,"y":793.32},{"x":288,"y":788.27},{"x":291,"y":819.26},{"x":294,"y":821.72},{"x":297,"y":798.73},{"x":300,"y":799.41},{"x":303,"y":847.12},{"x":306,"y":821.93},{"x":309,"y":754.17},{"x":312,"y":803.47},{"x":315,"y":846.51},{"x":318,"y":816.3},{"x":321,"y":833.74},{"x":324,"y":797.83},{"x":327,"y":814.84},{"x":330,"y":763.55},{"x":333,"y":850.6},{"x":336,"y":754.03},{"x":339,"y":768.94},{"x":342,"y":835.78},{"x":345,"y":817.06},{"x":348,"y":801.7},{"x":352,"y":805.29},{"x":355,"y":800.04},{"x":358,"y":791.63},{"x":361,"y":796.07},{"x":364,"y":851.18},{"x":367,"y":847.3},{"x":370,"y":694.15},{"x":373,"y":755.91},{"x":376,"y":798.47},{"x":379,"y":750.02},{"x":382,"y":802.27},{"x":385,"y":765.18},{"x":388,"y":792.03},{"x":391,"y":804.87}],"capSecond":60,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"ReactPHP DB","runLabel":"ReactPHP DB","color":"#000001","runIndex":1,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":null},{"label":"Amp DB","runLabel":"Amp DB","color":"#009900","runIndex":3,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":60,"errorStartSecond":null}],"format":"percent-integer","smoothingWindow":0,"group":"Worker DB"},{"id":"worker-db-memory-app","title":"APP Memory (MiB)","series":[{"label":"ReactPHP DB","runLabel":"ReactPHP DB","color":"#000001","points":[{"x":0,"y":524.7},{"x":3,"y":505.3},{"x":6,"y":524.7},{"x":9,"y":525.9},{"x":12,"y":525},{"x":15,"y":500.3},{"x":18,"y":496.1},{"x":21,"y":517.8},{"x":24,"y":521.3},{"x":27,"y":520.1},{"x":30,"y":521.6},{"x":33,"y":502},{"x":36,"y":518.3},{"x":39,"y":520.9},{"x":43,"y":500.2},{"x":46,"y":525},{"x":49,"y":525.1},{"x":52,"y":500.3},{"x":55,"y":499.4},{"x":58,"y":520.5},{"x":61,"y":505.4},{"x":64,"y":521.6},{"x":67,"y":522.2},{"x":70,"y":505.1},{"x":73,"y":523.5},{"x":76,"y":497},{"x":79,"y":505.6},{"x":82,"y":527},{"x":85,"y":505.5},{"x":88,"y":483.8},{"x":91,"y":498.6},{"x":94,"y":519.8},{"x":97,"y":523.8},{"x":100,"y":506.5},{"x":103,"y":502.9},{"x":106,"y":514.9},{"x":109,"y":515.4},{"x":112,"y":523.5},{"x":115,"y":502.7},{"x":118,"y":498.6},{"x":121,"y":533.7},{"x":124,"y":529.7},{"x":127,"y":494.3},{"x":130,"y":499.4},{"x":133,"y":498.1},{"x":136,"y":498.1},{"x":139,"y":519.5},{"x":142,"y":519.4},{"x":145,"y":502.5},{"x":148,"y":498.2},{"x":151,"y":503.2},{"x":155,"y":524.4},{"x":158,"y":524.3},{"x":161,"y":501.1},{"x":164,"y":493.8},{"x":167,"y":522},{"x":170,"y":523.1},{"x":173,"y":523.4},{"x":176,"y":498.3},{"x":179,"y":502.4},{"x":182,"y":499.2},{"x":185,"y":520},{"x":188,"y":520.2},{"x":191,"y":499.2},{"x":194,"y":502.4},{"x":197,"y":523.5},{"x":200,"y":523},{"x":203,"y":523.5},{"x":206,"y":523.1},{"x":209,"y":497.9},{"x":212,"y":528.8},{"x":215,"y":523.8},{"x":218,"y":524.1},{"x":221,"y":523.5},{"x":224,"y":502.3},{"x":227,"y":502.8},{"x":230,"y":527.6},{"x":233,"y":528.1},{"x":236,"y":499},{"x":239,"y":493.5},{"x":242,"y":503},{"x":245,"y":503},{"x":248,"y":528},{"x":251,"y":503},{"x":254,"y":501.7},{"x":258,"y":498.6},{"x":261,"y":507.2},{"x":264,"y":528.6},{"x":267,"y":523.5},{"x":270,"y":503},{"x":273,"y":498.3},{"x":276,"y":503.8},{"x":279,"y":523.6},{"x":282,"y":506.7},{"x":285,"y":503.3},{"x":288,"y":502.7},{"x":291,"y":502.9},{"x":294,"y":523.9},{"x":297,"y":502.7},{"x":300,"y":501.8},{"x":303,"y":495},{"x":306,"y":492.8},{"x":309,"y":502.3},{"x":312,"y":524.1},{"x":315,"y":503.2},{"x":318,"y":503.1},{"x":321,"y":498.6},{"x":324,"y":523.2},{"x":327,"y":523.6},{"x":330,"y":507.7},{"x":333,"y":503.1},{"x":336,"y":502.4},{"x":339,"y":499.2},{"x":342,"y":482.9},{"x":345,"y":523.9},{"x":348,"y":476.1},{"x":351,"y":522.8},{"x":354,"y":502.1},{"x":357,"y":523.9},{"x":361,"y":523.6},{"x":364,"y":492.6},{"x":367,"y":501.6},{"x":370,"y":502.7},{"x":373,"y":523.2},{"x":376,"y":502.8},{"x":379,"y":502.1},{"x":382,"y":502.3},{"x":385,"y":502.3},{"x":388,"y":523.4},{"x":391,"y":518.5}],"capSecond":90,"errorStartSecond":null},{"label":"Amp DB","runLabel":"Amp DB","color":"#009900","points":[{"x":0,"y":548},{"x":3,"y":574.3},{"x":6,"y":573.8},{"x":9,"y":569.8},{"x":12,"y":573.3},{"x":15,"y":567.4},{"x":18,"y":546.2},{"x":21,"y":567.5},{"x":24,"y":572.1},{"x":27,"y":573.5},{"x":30,"y":582.3},{"x":33,"y":582.6},{"x":36,"y":582.7},{"x":39,"y":582.7},{"x":42,"y":548.6},{"x":46,"y":547.6},{"x":49,"y":545.6},{"x":52,"y":566.9},{"x":55,"y":555.1},{"x":58,"y":539.5},{"x":61,"y":544.3},{"x":64,"y":556},{"x":67,"y":577.6},{"x":70,"y":577.3},{"x":73,"y":578},{"x":76,"y":550.9},{"x":79,"y":567.4},{"x":82,"y":572.4},{"x":85,"y":572.7},{"x":88,"y":571.4},{"x":91,"y":554.1},{"x":94,"y":562.1},{"x":97,"y":567.9},{"x":100,"y":550.5},{"x":103,"y":578.1},{"x":106,"y":556.1},{"x":109,"y":571.9},{"x":112,"y":532},{"x":115,"y":551},{"x":118,"y":572.4},{"x":121,"y":547.7},{"x":124,"y":540.5},{"x":127,"y":556.7},{"x":130,"y":551.2},{"x":133,"y":551.4},{"x":136,"y":573.2},{"x":139,"y":550.7},{"x":142,"y":572.2},{"x":145,"y":551.1},{"x":148,"y":551.5},{"x":151,"y":581.2},{"x":155,"y":552.6},{"x":158,"y":557.7},{"x":161,"y":572.2},{"x":164,"y":537.9},{"x":167,"y":556.1},{"x":170,"y":572.7},{"x":173,"y":556.5},{"x":176,"y":545},{"x":179,"y":572.2},{"x":182,"y":559.4},{"x":185,"y":551.3},{"x":188,"y":556.1},{"x":191,"y":577.8},{"x":194,"y":553.7},{"x":197,"y":551.2},{"x":200,"y":551.7},{"x":203,"y":544},{"x":206,"y":568.1},{"x":209,"y":572.3},{"x":212,"y":588.7},{"x":215,"y":551.7},{"x":218,"y":550.7},{"x":221,"y":529},{"x":224,"y":572.9},{"x":227,"y":573.7},{"x":230,"y":545.1},{"x":233,"y":578.4},{"x":236,"y":555.6},{"x":239,"y":572.3},{"x":242,"y":547.2},{"x":245,"y":567.2},{"x":248,"y":566.5},{"x":252,"y":523},{"x":255,"y":558.4},{"x":258,"y":573.2},{"x":261,"y":551.2},{"x":264,"y":572.2},{"x":267,"y":550.8},{"x":270,"y":551.5},{"x":273,"y":550.8},{"x":276,"y":574.4},{"x":279,"y":550.7},{"x":282,"y":551.8},{"x":285,"y":573.2},{"x":288,"y":573.6},{"x":291,"y":556.9},{"x":294,"y":550.3},{"x":297,"y":550.9},{"x":300,"y":574},{"x":303,"y":583},{"x":306,"y":531.7},{"x":309,"y":567.7},{"x":312,"y":572.2},{"x":315,"y":577.8},{"x":318,"y":550.8},{"x":321,"y":551.7},{"x":324,"y":572.8},{"x":327,"y":551.5},{"x":330,"y":551.8},{"x":333,"y":582},{"x":336,"y":567.1},{"x":339,"y":551.6},{"x":342,"y":556.2},{"x":345,"y":550.9},{"x":348,"y":550.4},{"x":352,"y":551.1},{"x":355,"y":550.2},{"x":358,"y":572.4},{"x":361,"y":572.4},{"x":364,"y":588.5},{"x":367,"y":580.3},{"x":370,"y":562.8},{"x":373,"y":545.4},{"x":376,"y":572},{"x":379,"y":567.6},{"x":382,"y":552.3},{"x":385,"y":550.8},{"x":388,"y":573},{"x":391,"y":548.2}],"capSecond":60,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"ReactPHP DB","runLabel":"ReactPHP DB","color":"#000001","runIndex":1,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":null},{"label":"Amp DB","runLabel":"Amp DB","color":"#009900","runIndex":3,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":60,"errorStartSecond":null}],"format":"integer","group":"Worker DB"}]};
+    const X_AXIS_TICK_DIVISIONS = 10;
+
+    function getGlobalXAxisDomain() {
+      const xValues = [];
+
+      reportData.charts.forEach((chart) => {
+        (chart.series || []).forEach((item) => {
+          (item.points || []).forEach((point) => {
+            xValues.push(point.x);
+          });
+        });
+
+        (chart.xAxisTargetSeries || []).forEach((item) => {
+          (item.points || []).forEach((point) => {
+            xValues.push(point.x);
+          });
+        });
+      });
+
+      if (xValues.length === 0) {
+        return { min: 0, max: 1 };
+      }
+
+      return {
+        min: Math.min(...xValues),
+        max: Math.max(...xValues),
+      };
+    }
+
+    const globalXAxisDomain = getGlobalXAxisDomain();
+
+    function formatValue(value, format) {
+      const fixed = (number, digits) => Number(number).toFixed(digits);
+      const trimZeros = (text) => text.replace(/\.?0+$/, '');
+
+      if (format === 'integer') {
+        return String(Math.round(value));
+      }
+      if (format === 'percent') {
+        return fixed(value, 2) + '%';
+      }
+      if (format === 'percent-integer') {
+        return Math.round(value) + '%';
+      }
+      if (format === 'milliseconds-integer') {
+        return String(Math.round(value));
+      }
+      if (format === 'milliseconds') {
+        return fixed(value, 2);
+      }
+      return trimZeros(fixed(value, 2));
+    }
+
+    function formatElapsedSeconds(totalSeconds) {
+      const seconds = Math.max(0, Math.round(totalSeconds));
+      const minutes = Math.floor(seconds / 60);
+      const remainderSeconds = seconds % 60;
+
+      if (minutes === 0) {
+        return seconds + 's';
+      }
+
+      if (remainderSeconds === 0) {
+        return minutes + 'm';
+      }
+
+      return minutes + 'm ' + remainderSeconds + 's';
+    }
+
+    function sampledPointValue(points, xValue) {
+      if (!points || points.length === 0) {
+        return null;
+      }
+
+      const target = Math.max(0, Math.round(xValue));
+      let currentValue = points[0].y;
+
+      for (let index = 0; index < points.length; index++) {
+        const point = points[index];
+        if (point.x > target) {
+          break;
+        }
+        currentValue = point.y;
+      }
+
+      return currentValue;
+    }
+
+    function movingAverageSeries(points, windowSize) {
+      if (!points || points.length === 0 || windowSize <= 1) {
+        return points || [];
+      }
+
+      const result = [];
+      let sum = 0;
+      const values = [];
+
+      points.forEach((point, index) => {
+        const value = Number(point.y || 0);
+        values.push(value);
+        sum += value;
+
+        if (values.length > windowSize) {
+          sum -= values.shift();
+        }
+
+        result.push({
+          x: point.x,
+          y: sum / values.length,
+        });
+      });
+
+      return result;
+    }
+
+    function formatTargetTickLabel(chart, xValue) {
+      // Finished runs must not keep contributing their last target to later stages.
+      const targetSeries = (chart.xAxisTargetSeries || []).filter((item) =>
+        item.points.length > 1 && xValue >= item.points[0].x && xValue < item.points[item.points.length - 1].x
+      );
+      if (targetSeries.length === 0) {
+        return '';
+      }
+
+      const values = targetSeries.map((item) => sampledPointValue(item.points, xValue));
+      if (values.some((value) => value === null)) {
+        return '';
+      }
+
+      const roundedValues = values.map((value) => Math.round(value));
+      const firstValue = roundedValues[0];
+      const sameAcrossRuns = roundedValues.every((value) => value === firstValue);
+
+      if (!sameAcrossRuns) {
+        return '';
+      }
+
+      return 'T ' + String(firstValue);
+    }
+
+    function drawChart(canvasId, legendId, chart) {
+      const canvas = document.getElementById(canvasId);
+      const legend = document.getElementById(legendId);
+      if (!canvas || !legend) {
+        return;
+      }
+
+      const series = chart.series.filter((item) => item.points.length > 0);
+      if (series.length === 0) {
+        legend.textContent = 'No data available.';
+        return;
+      }
+
+      const smoothingWindow = Math.max(0, Math.round(Number(chart.smoothingWindow || 0)));
+      const displaySeries = series.map((item) => ({
+        ...item,
+        displayPoints: smoothingWindow > 1 ? movingAverageSeries(item.points, smoothingWindow) : item.points,
+      }));
+
+      const dpr = window.devicePixelRatio || 1;
+      const cssWidth = canvas.clientWidth || canvas.width;
+      const cssHeight = canvas.clientHeight || canvas.height;
+      canvas.width = cssWidth * dpr;
+      canvas.height = cssHeight * dpr;
+
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, cssWidth, cssHeight);
+
+      const margin = { top: 18, right: 24, bottom: 52, left: 64 };
+      const width = cssWidth - margin.left - margin.right;
+      const height = cssHeight - margin.top - margin.bottom;
+
+      const yValues = displaySeries
+        .filter((item) => item.affectsYAxis !== false)
+        .flatMap((item) => item.displayPoints.map((point) => point.y));
+      const xMin = globalXAxisDomain.min;
+      const xMax = globalXAxisDomain.max;
+      const rawYMax = Math.max(...yValues);
+      const configuredYMax = Number(chart.yMax || 0);
+      const yMax = configuredYMax > 0 ? configuredYMax : (rawYMax > 0 ? rawYMax * 1.08 : 1);
+
+      ctx.strokeStyle = 'rgba(31, 41, 51, 0.14)';
+      ctx.lineWidth = 1;
+      ctx.fillStyle = '#5c6b73';
+      ctx.font = '12px Menlo, Consolas, monospace';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'right';
+
+      for (let i = 0; i <= 5; i++) {
+        const y = margin.top + (height / 5) * i;
+        ctx.beginPath();
+        ctx.moveTo(margin.left, y);
+        ctx.lineTo(margin.left + width, y);
+        ctx.stroke();
+
+        const value = yMax - (yMax / 5) * i;
+        ctx.fillText(formatValue(value, chart.format), margin.left - 10, y);
+      }
+
+      ctx.textBaseline = 'top';
+      ctx.textAlign = 'center';
+      ctx.font = '12px Menlo, Consolas, monospace';
+      const stageTicks = [...new Set((chart.xAxisTargetSeries || [])
+        .flatMap((item) => item.points.slice(0, -1).map((point) => point.x)))].sort((a, b) => a - b);
+      const ticks = stageTicks.length > 1 ? stageTicks : Array.from(
+        { length: X_AXIS_TICK_DIVISIONS + 1 },
+        (_, i) => xMin + ((xMax - xMin) / X_AXIS_TICK_DIVISIONS) * i
+      );
+      for (const value of ticks) {
+        const x = margin.left + ((value - xMin) / Math.max(1, xMax - xMin)) * width;
+        ctx.beginPath();
+        ctx.moveTo(x, margin.top);
+        ctx.lineTo(x, margin.top + height);
+        ctx.stroke();
+
+        ctx.fillText(formatElapsedSeconds(value), x, margin.top + height + 10);
+
+        const targetLabel = formatTargetTickLabel(chart, value);
+        if (targetLabel !== '') {
+          ctx.fillText(targetLabel, x, margin.top + height + 24);
+        }
+      }
+
+      ctx.strokeStyle = '#1f2933';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(margin.left, margin.top);
+      ctx.lineTo(margin.left, margin.top + height);
+      ctx.lineTo(margin.left + width, margin.top + height);
+      ctx.stroke();
+
+      const toCanvasX = (x) => margin.left + ((x - xMin) / Math.max(1, xMax - xMin)) * width;
+      const toCanvasY = (y) => margin.top + height - (y / yMax) * height;
+      const startMarkerSeries = displaySeries.filter((item) => item.startMarker);
+
+      const highlightedRun = legend.dataset.highlightedRun || null;
+      const isHighlighted = (item) => (item.runLabel || item.label) === highlightedRun;
+      const opacity = (item) => highlightedRun && !isHighlighted(item) ? 0.12 : 1;
+      // Draw the highlighted run last so overlapping lines cannot hide it.
+      const orderedSeries = [...displaySeries].sort((a, b) => Number(isHighlighted(a)) - Number(isHighlighted(b)));
+
+      // Target and error rates may exceed the scale based on successful responses.
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(margin.left, margin.top, width, height);
+      ctx.clip();
+
+      orderedSeries.forEach((item) => {
+        if (smoothingWindow > 1) {
+          drawLine(ctx, toCanvasX, toCanvasY, item.points, item.color, item.dash, 1.2, 0.22 * opacity(item));
+        }
+
+        drawLine(ctx, toCanvasX, toCanvasY, item.displayPoints, item.color, item.dash, isHighlighted(item) ? 4 : 2.2, opacity(item), item.stepped);
+
+        ctx.save();
+        ctx.globalAlpha = opacity(item);
+        if (chart.showPoints || item.showPoints) {
+          ctx.fillStyle = item.color;
+          item.displayPoints.forEach((point) => {
+            const x = toCanvasX(point.x);
+            const y = toCanvasY(point.y);
+            ctx.beginPath();
+            ctx.arc(x, y, 2.2, 0, Math.PI * 2);
+            ctx.fill();
+          });
+        }
+        ctx.restore();
+      });
+
+      orderedSeries.forEach((item) => {
+        ctx.save();
+        ctx.globalAlpha = opacity(item);
+        drawMarker(ctx, toCanvasX, toCanvasY, item.displayPoints, item.capSecond, item.color, 'circle');
+        drawMarker(ctx, toCanvasX, toCanvasY, item.displayPoints, item.errorStartSecond, item.color, 'cross');
+        ctx.restore();
+      });
+
+      startMarkerSeries.forEach((item, markerIndex) => {
+        ctx.save();
+        ctx.globalAlpha = opacity(item);
+        drawStartMarker(
+          ctx,
+          toCanvasX,
+          toCanvasY,
+          item.displayPoints,
+          item.color,
+          markerIndex,
+          startMarkerSeries.length,
+        );
+        ctx.restore();
+      });
+
+      ctx.restore();
+
+      const runs = [];
+      const seenRuns = new Set();
+      series.forEach((item) => {
+        const key = (item.runLabel || item.label) + '|' + item.color;
+        if (seenRuns.has(key)) {
+          return;
+        }
+        seenRuns.add(key);
+        runs.push({
+          label: item.runLabel || item.label,
+          color: item.color,
+        });
+      });
+
+      if (legend.childElementCount === 0) {
+        let hoveredRun = null;
+        let focusedRun = null;
+        const updateHighlight = () => {
+          legend.dataset.highlightedRun = hoveredRun || focusedRun || '';
+          drawChart(canvasId, legendId, chart);
+        };
+
+        runs.sort((a, b) => a.label.localeCompare(b.label, 'en', { sensitivity: 'base' }));
+        runs.forEach((item) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'legend-item';
+          button.dataset.runLabel = item.label;
+          const swatch = document.createElement('span');
+          swatch.className = 'legend-swatch';
+          swatch.style.background = item.color;
+          swatch.setAttribute('aria-hidden', 'true');
+          button.append(swatch, document.createTextNode(item.label));
+          button.addEventListener('mouseenter', () => {
+            hoveredRun = item.label;
+            updateHighlight();
+          });
+          button.addEventListener('mouseleave', () => {
+            hoveredRun = null;
+            updateHighlight();
+          });
+          button.addEventListener('focus', () => {
+            focusedRun = item.label;
+            updateHighlight();
+          });
+          button.addEventListener('blur', () => {
+            focusedRun = null;
+            updateHighlight();
+          });
+          legend.append(button);
+        });
+      }
+
+      legend.querySelectorAll('.legend-item').forEach((button) => {
+        button.classList.toggle('is-highlighted', button.dataset.runLabel === highlightedRun);
+        button.classList.toggle('is-dimmed', highlightedRun !== null && button.dataset.runLabel !== highlightedRun);
+      });
+    }
+
+    function render() {
+      reportData.charts.forEach((chart) => {
+        drawChart('chart-' + chart.id, 'legend-' + chart.id, chart);
+      });
+    }
+
+    function drawLine(ctx, toCanvasX, toCanvasY, points, color, dash, lineWidth, alpha, stepped = false) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lineWidth;
+      ctx.globalAlpha = alpha;
+      if (dash && dash.length > 0) {
+        ctx.setLineDash(dash);
+      } else {
+        ctx.setLineDash([]);
+      }
+
+      points.forEach((point, index) => {
+        const x = toCanvasX(point.x);
+        const y = toCanvasY(point.y);
+        if (index === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          if (stepped) {
+            ctx.lineTo(x, toCanvasY(points[index - 1].y));
+          }
+          ctx.lineTo(x, y);
+        }
+      });
+
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawMarker(ctx, toCanvasX, toCanvasY, points, second, color, markerType) {
+      if (second === null || second === undefined) {
+        return;
+      }
+
+      const yValue = sampledPointValue(points, second);
+      if (yValue === null) {
+        return;
+      }
+
+      const x = toCanvasX(second);
+      const y = toCanvasY(yValue);
+
+      ctx.save();
+      ctx.setLineDash([]);
+      ctx.lineCap = 'round';
+
+      if (markerType === 'circle') {
+        ctx.strokeStyle = '#fffdf8';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+        return;
+      }
+
+      ctx.strokeStyle = '#fffdf8';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(x - 5, y - 5);
+      ctx.lineTo(x + 5, y + 5);
+      ctx.moveTo(x + 5, y - 5);
+      ctx.lineTo(x - 5, y + 5);
+      ctx.stroke();
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(x - 5, y - 5);
+      ctx.lineTo(x + 5, y + 5);
+      ctx.moveTo(x + 5, y - 5);
+      ctx.lineTo(x - 5, y + 5);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawStartMarker(ctx, toCanvasX, toCanvasY, points, color, markerIndex, markerCount) {
+      if (!points || points.length === 0) {
+        return;
+      }
+
+      const firstPoint = points[0];
+      const baseX = toCanvasX(firstPoint.x);
+      const y = toCanvasY(firstPoint.y);
+      const offset = ((markerIndex - ((markerCount - 1) / 2)) * 5);
+      const x = baseX + offset;
+
+      ctx.save();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#fffdf8';
+      ctx.beginPath();
+      ctx.arc(x, y, 4.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(x, y, 3.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    document.querySelectorAll('.summary-table').forEach((table) => {
+      table.querySelectorAll('thead th').forEach((header, column) => {
+        header.querySelector('button').addEventListener('click', () => {
+          const ascending = header.getAttribute('aria-sort') !== 'ascending';
+          table.querySelectorAll('thead th').forEach((item) => item.setAttribute('aria-sort', 'none'));
+          header.setAttribute('aria-sort', ascending ? 'ascending' : 'descending');
+          const rows = Array.from(table.tBodies[0].rows);
+          const numeric = header.dataset.sortType === 'number';
+          rows.sort((a, b) => {
+            const value = (row) => row.cells[column].dataset.sortValue ?? row.cells[column].textContent.trim();
+            const left = value(a), right = value(b);
+            // Missing measurements stay last in either direction.
+            if (left === '' || right === '') return (left === '') - (right === '');
+            const order = numeric ? Number(left) - Number(right) : left.localeCompare(right);
+            return ascending ? order : -order;
+          });
+          table.tBodies[0].append(...rows);
+        });
+      });
+    });
+
+    window.addEventListener('resize', render);
+    render();
+  </script>
+</body>
+</html>

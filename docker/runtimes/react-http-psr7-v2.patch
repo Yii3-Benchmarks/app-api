@@ -1,0 +1,821 @@
+--- a/src/Io/AbstractMessage.php
++++ b/src/Io/AbstractMessage.php
+@@ -65,12 +65,12 @@
+         $this->body = $body;
+     }
+ 
+-    public function getProtocolVersion()
++    public function getProtocolVersion(): string
+     {
+         return $this->protocolVersion;
+     }
+ 
+-    public function withProtocolVersion($version)
++    public function withProtocolVersion($version): \Psr\Http\Message\MessageInterface
+     {
+         if ((string) $version === $this->protocolVersion) {
+             return $this;
+@@ -82,28 +82,28 @@
+         return $message;
+     }
+ 
+-    public function getHeaders()
++    public function getHeaders(): array
+     {
+         return $this->headers;
+     }
+ 
+-    public function hasHeader($name)
++    public function hasHeader($name): bool
+     {
+         return isset($this->headerNamesLowerCase[\strtolower($name)]);
+     }
+ 
+-    public function getHeader($name)
++    public function getHeader($name): array
+     {
+         $lower = \strtolower($name);
+         return isset($this->headerNamesLowerCase[$lower]) ? $this->headers[$this->headerNamesLowerCase[$lower]] : array();
+     }
+ 
+-    public function getHeaderLine($name)
++    public function getHeaderLine($name): string
+     {
+         return \implode(', ', $this->getHeader($name));
+     }
+ 
+-    public function withHeader($name, $value)
++    public function withHeader($name, $value): \Psr\Http\Message\MessageInterface
+     {
+         if ($value === array()) {
+             return $this->withoutHeader($name);
+@@ -131,7 +131,7 @@
+         return $message;
+     }
+ 
+-    public function withAddedHeader($name, $value)
++    public function withAddedHeader($name, $value): \Psr\Http\Message\MessageInterface
+     {
+         if ($value === array()) {
+             return $this;
+@@ -140,7 +140,7 @@
+         return $this->withHeader($name, \array_merge($this->getHeader($name), \is_array($value) ? $value : array($value)));
+     }
+ 
+-    public function withoutHeader($name)
++    public function withoutHeader($name): \Psr\Http\Message\MessageInterface
+     {
+         $lower = \strtolower($name);
+         if (!isset($this->headerNamesLowerCase[$lower])) {
+@@ -153,12 +153,12 @@
+         return $message;
+     }
+ 
+-    public function getBody()
++    public function getBody(): \Psr\Http\Message\StreamInterface
+     {
+         return $this->body;
+     }
+ 
+-    public function withBody(StreamInterface $body)
++    public function withBody(StreamInterface $body): \Psr\Http\Message\MessageInterface
+     {
+         if ($body === $this->body) {
+             return $this;
+--- a/src/Io/AbstractRequest.php
++++ b/src/Io/AbstractRequest.php
+@@ -71,7 +71,7 @@
+         $this->uri = $uri;
+     }
+ 
+-    public function getRequestTarget()
++    public function getRequestTarget(): string
+     {
+         if ($this->requestTarget !== null) {
+             return $this->requestTarget;
+@@ -88,7 +88,7 @@
+         return $target;
+     }
+ 
+-    public function withRequestTarget($requestTarget)
++    public function withRequestTarget($requestTarget): \Psr\Http\Message\RequestInterface
+     {
+         if ((string) $requestTarget === $this->requestTarget) {
+             return $this;
+@@ -100,12 +100,12 @@
+         return $request;
+     }
+ 
+-    public function getMethod()
++    public function getMethod(): string
+     {
+         return $this->method;
+     }
+ 
+-    public function withMethod($method)
++    public function withMethod($method): \Psr\Http\Message\RequestInterface
+     {
+         if ((string) $method === $this->method) {
+             return $this;
+@@ -117,12 +117,12 @@
+         return $request;
+     }
+ 
+-    public function getUri()
++    public function getUri(): \Psr\Http\Message\UriInterface
+     {
+         return $this->uri;
+     }
+ 
+-    public function withUri(UriInterface $uri, $preserveHost = false)
++    public function withUri(UriInterface $uri, $preserveHost = false): \Psr\Http\Message\RequestInterface
+     {
+         if ($uri === $this->uri) {
+             return $this;
+--- a/src/Io/BufferedBody.php
++++ b/src/Io/BufferedBody.php
+@@ -23,7 +23,7 @@
+         $this->buffer = $buffer;
+     }
+ 
+-    public function __toString()
++    public function __toString(): string
+     {
+         if ($this->closed) {
+             return '';
+@@ -34,7 +34,7 @@
+         return $this->getContents();
+     }
+ 
+-    public function close()
++    public function close(): void
+     {
+         $this->buffer = '';
+         $this->position = 0;
+@@ -48,12 +48,12 @@
+         return null;
+     }
+ 
+-    public function getSize()
++    public function getSize(): ?int
+     {
+         return $this->closed ? null : \strlen($this->buffer);
+     }
+ 
+-    public function tell()
++    public function tell(): int
+     {
+         if ($this->closed) {
+             throw new \RuntimeException('Unable to tell position of closed stream');
+@@ -62,17 +62,17 @@
+         return $this->position;
+     }
+ 
+-    public function eof()
++    public function eof(): bool
+     {
+         return $this->position >= \strlen($this->buffer);
+     }
+ 
+-    public function isSeekable()
++    public function isSeekable(): bool
+     {
+         return !$this->closed;
+     }
+ 
+-    public function seek($offset, $whence = \SEEK_SET)
++    public function seek($offset, $whence = \SEEK_SET): void
+     {
+         if ($this->closed) {
+             throw new \RuntimeException('Unable to seek on closed stream');
+@@ -96,17 +96,17 @@
+         }
+     }
+ 
+-    public function rewind()
++    public function rewind(): void
+     {
+         $this->seek(0);
+     }
+ 
+-    public function isWritable()
++    public function isWritable(): bool
+     {
+         return !$this->closed;
+     }
+ 
+-    public function write($string)
++    public function write($string): int
+     {
+         if ($this->closed) {
+             throw new \RuntimeException('Unable to write to closed stream');
+@@ -127,12 +127,12 @@
+         return $len;
+     }
+ 
+-    public function isReadable()
++    public function isReadable(): bool
+     {
+         return !$this->closed;
+     }
+ 
+-    public function read($length)
++    public function read($length): string
+     {
+         if ($this->closed) {
+             throw new \RuntimeException('Unable to read from closed stream');
+@@ -156,7 +156,7 @@
+         return \substr($this->buffer, $pos, $length);
+     }
+ 
+-    public function getContents()
++    public function getContents(): string
+     {
+         if ($this->closed) {
+             throw new \RuntimeException('Unable to read from closed stream');
+--- a/src/Io/EmptyBodyStream.php
++++ b/src/Io/EmptyBodyStream.php
+@@ -29,7 +29,7 @@
+ {
+     private $closed = false;
+ 
+-    public function isReadable()
++    public function isReadable(): bool
+     {
+         return !$this->closed;
+     }
+@@ -51,7 +51,7 @@
+         return $dest;
+     }
+ 
+-    public function close()
++    public function close(): void
+     {
+         if ($this->closed) {
+             return;
+@@ -63,13 +63,13 @@
+         $this->removeAllListeners();
+     }
+ 
+-    public function getSize()
++    public function getSize(): ?int
+     {
+         return 0;
+     }
+ 
+     /** @ignore */
+-    public function __toString()
++    public function __toString(): string
+     {
+         return '';
+     }
+@@ -81,55 +81,55 @@
+     }
+ 
+     /** @ignore */
+-    public function tell()
++    public function tell(): int
+     {
+         throw new \BadMethodCallException();
+     }
+ 
+     /** @ignore */
+-    public function eof()
++    public function eof(): bool
+     {
+         throw new \BadMethodCallException();
+     }
+ 
+     /** @ignore */
+-    public function isSeekable()
++    public function isSeekable(): bool
+     {
+         return false;
+     }
+ 
+     /** @ignore */
+-    public function seek($offset, $whence = SEEK_SET)
++    public function seek($offset, $whence = SEEK_SET): void
+     {
+         throw new \BadMethodCallException();
+     }
+ 
+     /** @ignore */
+-    public function rewind()
++    public function rewind(): void
+     {
+         throw new \BadMethodCallException();
+     }
+ 
+     /** @ignore */
+-    public function isWritable()
++    public function isWritable(): bool
+     {
+         return false;
+     }
+ 
+     /** @ignore */
+-    public function write($string)
++    public function write($string): int
+     {
+         throw new \BadMethodCallException();
+     }
+ 
+     /** @ignore */
+-    public function read($length)
++    public function read($length): string
+     {
+         throw new \BadMethodCallException();
+     }
+ 
+     /** @ignore */
+-    public function getContents()
++    public function getContents(): string
+     {
+         return '';
+     }
+--- a/src/Io/HttpBodyStream.php
++++ b/src/Io/HttpBodyStream.php
+@@ -45,7 +45,7 @@
+         $this->input->on('close', array($this, 'close'));
+     }
+ 
+-    public function isReadable()
++    public function isReadable(): bool
+     {
+         return !$this->closed && $this->input->isReadable();
+     }
+@@ -67,7 +67,7 @@
+         return $dest;
+     }
+ 
+-    public function close()
++    public function close(): void
+     {
+         if ($this->closed) {
+             return;
+@@ -81,13 +81,13 @@
+         $this->removeAllListeners();
+     }
+ 
+-    public function getSize()
++    public function getSize(): ?int
+     {
+         return $this->size;
+     }
+ 
+     /** @ignore */
+-    public function __toString()
++    public function __toString(): string
+     {
+         return '';
+     }
+@@ -99,55 +99,55 @@
+     }
+ 
+     /** @ignore */
+-    public function tell()
++    public function tell(): int
+     {
+         throw new \BadMethodCallException();
+     }
+ 
+     /** @ignore */
+-    public function eof()
++    public function eof(): bool
+     {
+         throw new \BadMethodCallException();
+     }
+ 
+     /** @ignore */
+-    public function isSeekable()
++    public function isSeekable(): bool
+     {
+         return false;
+     }
+ 
+     /** @ignore */
+-    public function seek($offset, $whence = SEEK_SET)
++    public function seek($offset, $whence = SEEK_SET): void
+     {
+         throw new \BadMethodCallException();
+     }
+ 
+     /** @ignore */
+-    public function rewind()
++    public function rewind(): void
+     {
+         throw new \BadMethodCallException();
+     }
+ 
+     /** @ignore */
+-    public function isWritable()
++    public function isWritable(): bool
+     {
+         return false;
+     }
+ 
+     /** @ignore */
+-    public function write($string)
++    public function write($string): int
+     {
+         throw new \BadMethodCallException();
+     }
+ 
+     /** @ignore */
+-    public function read($length)
++    public function read($length): string
+     {
+         throw new \BadMethodCallException();
+     }
+ 
+     /** @ignore */
+-    public function getContents()
++    public function getContents(): string
+     {
+         return '';
+     }
+--- a/src/Io/ReadableBodyStream.php
++++ b/src/Io/ReadableBodyStream.php
+@@ -41,7 +41,7 @@
+         $input->on('close', array($that, 'close'));
+     }
+ 
+-    public function close()
++    public function close(): void
+     {
+         if (!$this->closed) {
+             $this->closed = true;
+@@ -52,7 +52,7 @@
+         }
+     }
+ 
+-    public function isReadable()
++    public function isReadable(): bool
+     {
+         return $this->input->isReadable();
+     }
+@@ -74,12 +74,12 @@
+         return $dest;
+     }
+ 
+-    public function eof()
++    public function eof(): bool
+     {
+         return !$this->isReadable();
+     }
+ 
+-    public function __toString()
++    public function __toString(): string
+     {
+         return '';
+     }
+@@ -89,47 +89,47 @@
+         throw new \BadMethodCallException();
+     }
+ 
+-    public function getSize()
++    public function getSize(): ?int
+     {
+         return $this->size;
+     }
+ 
+-    public function tell()
++    public function tell(): int
+     {
+         throw new \BadMethodCallException();
+     }
+ 
+-    public function isSeekable()
++    public function isSeekable(): bool
+     {
+         return false;
+     }
+ 
+-    public function seek($offset, $whence = SEEK_SET)
++    public function seek($offset, $whence = SEEK_SET): void
+     {
+         throw new \BadMethodCallException();
+     }
+ 
+-    public function rewind()
++    public function rewind(): void
+     {
+         throw new \BadMethodCallException();
+     }
+ 
+-    public function isWritable()
++    public function isWritable(): bool
+     {
+         return false;
+     }
+ 
+-    public function write($string)
++    public function write($string): int
+     {
+         throw new \BadMethodCallException();
+     }
+ 
+-    public function read($length)
++    public function read($length): string
+     {
+         throw new \BadMethodCallException();
+     }
+ 
+-    public function getContents()
++    public function getContents(): string
+     {
+         throw new \BadMethodCallException();
+     }
+--- a/src/Io/UploadedFile.php
++++ b/src/Io/UploadedFile.php
+@@ -79,7 +79,7 @@
+     /**
+      * {@inheritdoc}
+      */
+-    public function getStream()
++    public function getStream(): \Psr\Http\Message\StreamInterface
+     {
+         if ($this->error !== \UPLOAD_ERR_OK) {
+             throw new RuntimeException('Cannot retrieve stream due to upload error');
+@@ -91,7 +91,7 @@
+     /**
+      * {@inheritdoc}
+      */
+-    public function moveTo($targetPath)
++    public function moveTo($targetPath): void
+     {
+        throw new RuntimeException('Not implemented');
+     }
+@@ -99,7 +99,7 @@
+     /**
+      * {@inheritdoc}
+      */
+-    public function getSize()
++    public function getSize(): ?int
+     {
+         return $this->size;
+     }
+@@ -107,7 +107,7 @@
+     /**
+      * {@inheritdoc}
+      */
+-    public function getError()
++    public function getError(): int
+     {
+         return $this->error;
+     }
+@@ -115,7 +115,7 @@
+     /**
+      * {@inheritdoc}
+      */
+-    public function getClientFilename()
++    public function getClientFilename(): ?string
+     {
+         return $this->filename;
+     }
+@@ -123,7 +123,7 @@
+     /**
+      * {@inheritdoc}
+      */
+-    public function getClientMediaType()
++    public function getClientMediaType(): ?string
+     {
+         return $this->mediaType;
+     }
+--- a/src/Message/Response.php
++++ b/src/Message/Response.php
+@@ -321,12 +321,12 @@
+         $this->reasonPhrase = ($reason !== '' && $reason !== null) ? (string) $reason : self::getReasonPhraseForStatusCode($status);
+     }
+ 
+-    public function getStatusCode()
++    public function getStatusCode(): int
+     {
+         return $this->statusCode;
+     }
+ 
+-    public function withStatus($code, $reasonPhrase = '')
++    public function withStatus($code, $reasonPhrase = ''): \Psr\Http\Message\ResponseInterface
+     {
+         if ((string) $reasonPhrase === '') {
+             $reasonPhrase = self::getReasonPhraseForStatusCode($code);
+@@ -343,7 +343,7 @@
+         return $response;
+     }
+ 
+-    public function getReasonPhrase()
++    public function getReasonPhrase(): string
+     {
+         return $this->reasonPhrase;
+     }
+--- a/src/Message/ServerRequest.php
++++ b/src/Message/ServerRequest.php
+@@ -87,41 +87,41 @@
+         }
+     }
+ 
+-    public function getServerParams()
++    public function getServerParams(): array
+     {
+         return $this->serverParams;
+     }
+ 
+-    public function getCookieParams()
++    public function getCookieParams(): array
+     {
+         return $this->cookies;
+     }
+ 
+-    public function withCookieParams(array $cookies)
++    public function withCookieParams(array $cookies): \Psr\Http\Message\ServerRequestInterface
+     {
+         $new = clone $this;
+         $new->cookies = $cookies;
+         return $new;
+     }
+ 
+-    public function getQueryParams()
++    public function getQueryParams(): array
+     {
+         return $this->queryParams;
+     }
+ 
+-    public function withQueryParams(array $query)
++    public function withQueryParams(array $query): \Psr\Http\Message\ServerRequestInterface
+     {
+         $new = clone $this;
+         $new->queryParams = $query;
+         return $new;
+     }
+ 
+-    public function getUploadedFiles()
++    public function getUploadedFiles(): array
+     {
+         return $this->fileParams;
+     }
+ 
+-    public function withUploadedFiles(array $uploadedFiles)
++    public function withUploadedFiles(array $uploadedFiles): \Psr\Http\Message\ServerRequestInterface
+     {
+         $new = clone $this;
+         $new->fileParams = $uploadedFiles;
+@@ -133,14 +133,14 @@
+         return $this->parsedBody;
+     }
+ 
+-    public function withParsedBody($data)
++    public function withParsedBody($data): \Psr\Http\Message\ServerRequestInterface
+     {
+         $new = clone $this;
+         $new->parsedBody = $data;
+         return $new;
+     }
+ 
+-    public function getAttributes()
++    public function getAttributes(): array
+     {
+         return $this->attributes;
+     }
+@@ -153,14 +153,14 @@
+         return $this->attributes[$name];
+     }
+ 
+-    public function withAttribute($name, $value)
++    public function withAttribute($name, $value): \Psr\Http\Message\ServerRequestInterface
+     {
+         $new = clone $this;
+         $new->attributes[$name] = $value;
+         return $new;
+     }
+ 
+-    public function withoutAttribute($name)
++    public function withoutAttribute($name): \Psr\Http\Message\ServerRequestInterface
+     {
+         $new = clone $this;
+         unset($new->attributes[$name]);
+--- a/src/Message/Uri.php
++++ b/src/Message/Uri.php
+@@ -88,12 +88,12 @@
+         }
+     }
+ 
+-    public function getScheme()
++    public function getScheme(): string
+     {
+         return $this->scheme;
+     }
+ 
+-    public function getAuthority()
++    public function getAuthority(): string
+     {
+         if ($this->host === '') {
+             return '';
+@@ -102,37 +102,37 @@
+         return ($this->userInfo !== '' ? $this->userInfo . '@' : '') . $this->host . ($this->port !== null ? ':' . $this->port : '');
+     }
+ 
+-    public function getUserInfo()
++    public function getUserInfo(): string
+     {
+         return $this->userInfo;
+     }
+ 
+-    public function getHost()
++    public function getHost(): string
+     {
+         return $this->host;
+     }
+ 
+-    public function getPort()
++    public function getPort(): ?int
+     {
+         return $this->port;
+     }
+ 
+-    public function getPath()
++    public function getPath(): string
+     {
+         return $this->path;
+     }
+ 
+-    public function getQuery()
++    public function getQuery(): string
+     {
+         return $this->query;
+     }
+ 
+-    public function getFragment()
++    public function getFragment(): string
+     {
+         return $this->fragment;
+     }
+ 
+-    public function withScheme($scheme)
++    public function withScheme($scheme): \Psr\Http\Message\UriInterface
+     {
+         $scheme = \strtolower($scheme);
+         if ($scheme === $this->scheme) {
+@@ -153,7 +153,7 @@
+         return $new;
+     }
+ 
+-    public function withUserInfo($user, $password = null)
++    public function withUserInfo($user, $password = null): \Psr\Http\Message\UriInterface
+     {
+         $userInfo = $this->encode($user, \PHP_URL_USER) . ($password !== null ? ':' . $this->encode($password, \PHP_URL_PASS) : '');
+         if ($userInfo === $this->userInfo) {
+@@ -166,7 +166,7 @@
+         return $new;
+     }
+ 
+-    public function withHost($host)
++    public function withHost($host): \Psr\Http\Message\UriInterface
+     {
+         $host = \strtolower($host);
+         if ($host === $this->host) {
+@@ -183,7 +183,7 @@
+         return $new;
+     }
+ 
+-    public function withPort($port)
++    public function withPort($port): \Psr\Http\Message\UriInterface
+     {
+         $port = $port === null ? null : (int) $port;
+         if (($port === 80 && $this->scheme === 'http') || ($port === 443 && $this->scheme === 'https')) {
+@@ -204,7 +204,7 @@
+         return $new;
+     }
+ 
+-    public function withPath($path)
++    public function withPath($path): \Psr\Http\Message\UriInterface
+     {
+         $path = $this->encode($path, \PHP_URL_PATH);
+         if ($path === $this->path) {
+@@ -217,7 +217,7 @@
+         return $new;
+     }
+ 
+-    public function withQuery($query)
++    public function withQuery($query): \Psr\Http\Message\UriInterface
+     {
+         $query = $this->encode($query, \PHP_URL_QUERY);
+         if ($query === $this->query) {
+@@ -230,7 +230,7 @@
+         return $new;
+     }
+ 
+-    public function withFragment($fragment)
++    public function withFragment($fragment): \Psr\Http\Message\UriInterface
+     {
+         $fragment = $this->encode($fragment, \PHP_URL_FRAGMENT);
+         if ($fragment === $this->fragment) {
+@@ -243,7 +243,7 @@
+         return $new;
+     }
+ 
+-    public function __toString()
++    public function __toString(): string
+     {
+         $uri = '';
+         if ($this->scheme !== '') {

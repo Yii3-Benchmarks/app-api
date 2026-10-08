@@ -1,0 +1,183 @@
+[
+    {
+        "Id": "sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873",
+        "RepoTags": [
+            "postgres:18.6-alpine"
+        ],
+        "RepoDigests": [
+            "postgres@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873"
+        ],
+        "Comment": "buildkit.dockerfile.v0",
+        "Created": "2026-09-17T21:29:50.207676277Z",
+        "Config": {
+            "ExposedPorts": {
+                "5432/tcp": {}
+            },
+            "Env": [
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "GOSU_VERSION=1.19",
+                "LANG=en_US.utf8",
+                "PG_MAJOR=18",
+                "PG_VERSION=18.6",
+                "PG_SHA256=555610c24d53e4316da5b7d3fc25c279d96856d5e0e23ee308c328c5fa881d9f",
+                "DOCKER_PG_LLVM_DEPS=llvm21-dev \t\tclang21",
+                "PGDATA=/var/lib/postgresql/18/docker"
+            ],
+            "Entrypoint": [
+                "docker-entrypoint.sh"
+            ],
+            "Cmd": [
+                "postgres"
+            ],
+            "Volumes": {
+                "/var/lib/postgresql": {}
+            },
+            "WorkingDir": "/",
+            "StopSignal": "SIGINT"
+        },
+        "Architecture": "amd64",
+        "Os": "linux",
+        "Size": 432729433,
+        "RootFS": {
+            "Type": "layers",
+            "Layers": [
+                "sha256:74d97c428c51a828f9051a7a40a53ff1fc99e54fc30323ce36760701b0b7f711",
+                "sha256:0c215ed2e2d3befa88ee4967365c3a0dafd92551ea50ce2632cd5c3e54de80df",
+                "sha256:afaa93afde1c6674beeb827cf0214759e7d6be6527ea301ac23c45883ccafab8",
+                "sha256:64da5ceddd11db95af72f22788a20d9167a14a49bcd786ea54e33f152824c426",
+                "sha256:c098e77d88f2829ea186b1b2e2f40d5858f19c09e9726fce61c38febe33c65af",
+                "sha256:139076bf0b4422f3219cb0cbae85dde24dd97ae0ef077036324265fa8e5e5a8d",
+                "sha256:68240e981e1a68580381069bf47f0b9b307f0c5449112cccdb24900412ef9cd0",
+                "sha256:0317a57309e527ae290973cc0c0c7977255d84dd00a9f3c8c6c7daf0c396e76c",
+                "sha256:66cdd92492be99d2bead50be69cdfa33cb789a19f69bb3038554b567b3e18636"
+            ]
+        },
+        "Metadata": {
+            "LastTagTime": "2026-09-21T22:02:00.648595778Z"
+        },
+        "Descriptor": {
+            "mediaType": "application/vnd.oci.image.index.v1+json",
+            "digest": "sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873",
+            "size": 10293
+        },
+        "Identity": {
+            "Pull": [
+                {
+                    "Repository": "docker.io/library/postgres"
+                }
+            ]
+        }
+    },
+    {
+        "Id": "sha256:48332870af354a799964c0012ae1194a0bf2bf894eb508f945810596dc2d8d11",
+        "RepoTags": [
+            "valkey/valkey:9.1.2-alpine"
+        ],
+        "RepoDigests": [
+            "valkey/valkey@sha256:48332870af354a799964c0012ae1194a0bf2bf894eb508f945810596dc2d8d11"
+        ],
+        "Comment": "buildkit.dockerfile.v0",
+        "Created": "2026-09-21T07:46:04.58660376Z",
+        "Config": {
+            "ExposedPorts": {
+                "6379/tcp": {}
+            },
+            "Env": [
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "VALKEY_VERSION=9.1.2"
+            ],
+            "Entrypoint": [
+                "tini",
+                "--",
+                "docker-entrypoint.sh"
+            ],
+            "Cmd": [
+                "valkey-server"
+            ],
+            "WorkingDir": "/data",
+            "Labels": {
+                "org.opencontainers.image.source": "https://github.com/valkey-io/valkey"
+            },
+            "ArgsEscaped": true
+        },
+        "Architecture": "amd64",
+        "Os": "linux",
+        "Size": 65953065,
+        "RootFS": {
+            "Type": "layers",
+            "Layers": [
+                "sha256:74d97c428c51a828f9051a7a40a53ff1fc99e54fc30323ce36760701b0b7f711",
+                "sha256:7aef48e64e146c6ea0c4845df8402313d7b4e0e19de9aef8d5b22cd7ea0f679b",
+                "sha256:a487746cd1bc511e4ad3613e8fc8934b11f92086ced0e5dc18df2d4502bcc48b",
+                "sha256:bd707852b5d0eac2312d97cfff55edaef3a46456275d4d890a62392be226dd3a",
+                "sha256:1669b30fe033e57593d2ee4e99532dbdbde380b7b05dcda8065158e66c5e1a40",
+                "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+                "sha256:03bb3a971173c75d4e065008ce0d3466f05560a69712c103e8fdb4f3cdb8987a"
+            ]
+        },
+        "Metadata": {
+            "LastTagTime": "2026-09-21T22:01:42.754201051Z"
+        },
+        "Descriptor": {
+            "mediaType": "application/vnd.oci.image.index.v1+json",
+            "digest": "sha256:48332870af354a799964c0012ae1194a0bf2bf894eb508f945810596dc2d8d11",
+            "size": 1216
+        },
+        "Identity": {
+            "Pull": [
+                {
+                    "Repository": "docker.io/valkey/valkey"
+                }
+            ]
+        }
+    },
+    {
+        "Id": "sha256:8821dec48ffe258a0c542d8bdc30c229190c9d4ef7b768d0e90ca3c310fc3308",
+        "RepoTags": [
+            "yii3-benchmarks-wrkx:latest"
+        ],
+        "RepoDigests": [
+            "yii3-benchmarks-wrkx@sha256:8821dec48ffe258a0c542d8bdc30c229190c9d4ef7b768d0e90ca3c310fc3308"
+        ],
+        "Comment": "buildkit.dockerfile.v0",
+        "Created": "2026-10-02T15:08:59.849755989+03:00",
+        "Config": {
+            "Env": [
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            ],
+            "Entrypoint": [
+                "wrkx"
+            ],
+            "Labels": {
+                "org.opencontainers.image.version": "24.04"
+            }
+        },
+        "Architecture": "amd64",
+        "Os": "linux",
+        "Size": 132217607,
+        "RootFS": {
+            "Type": "layers",
+            "Layers": [
+                "sha256:d81fb2a7c6ee3be05fdefaa7fd223be219c1ab172083ec1b994c3ecda33ac0a8",
+                "sha256:78bd256b19286fbd1fe91c975fe279f8281924df6c97689f8795b3fbee14739c",
+                "sha256:296564b93bf3715e7f9ef9400ddf3fedd06b087d9232c8a83b887a52104e41db"
+            ]
+        },
+        "Metadata": {
+            "LastTagTime": "2026-10-08T13:15:14.151954643Z"
+        },
+        "Descriptor": {
+            "mediaType": "application/vnd.oci.image.index.v1+json",
+            "digest": "sha256:8821dec48ffe258a0c542d8bdc30c229190c9d4ef7b768d0e90ca3c310fc3308",
+            "size": 855
+        },
+        "Identity": {
+            "Build": [
+                {
+                    "Ref": "nko8cvyrgmezus8vf82ub2y9a",
+                    "CreatedAt": "2026-10-08T16:15:14.165448981+03:00"
+                }
+            ]
+        }
+    }
+]

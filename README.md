@@ -10,11 +10,13 @@ made on the same machine with the same settings and minimal background activity.
 
 The [published benchmark report](https://yii3-benchmarks.github.io/app-api/) combines the October 5, 2026
 full rerun of ten runtimes, the October 7 Swoole measurements, and the October 8 Apache + mod_php and
-Workerman measurements. All sessions used PHP 8.5.11, OPcache file override, PostgreSQL's
+Workerman measurements, plus a separate October 8 session for ReactPHP and Amp. All sessions used
+PHP 8.5.11, OPcache file override, PostgreSQL's
 2,000-connection limit, and the same load settings on the same host. They are separate measurement
 sessions; existing runtimes were not rerun when the additions were measured.
 Raw results and run context are in `results/samdark_2026-10-05-pg2000/`,
-`results/samdark_2026-10-07-swoole/`, and `results/samdark_2026-10-08-apache-workerman/`;
+`results/samdark_2026-10-07-swoole/`, `results/samdark_2026-10-08-apache-workerman/`, and
+`results/samdark_2026-10-08-reactphp-amphp/`;
 the combined report is saved as `results/report.html`. The earlier 200-connection run remains in
 `results/samdark_2026-10-05/` for comparison; older measurements remain in Git history.
 
@@ -27,6 +29,8 @@ the combined report is saved as `results/report.html`. The earlier 200-connectio
 | `oxphp-classic` | OxPHP | A normal PHP application bootstrap for each request |
 | `oxphp-worker` | OxPHP | A persistent Yii worker with per-request state reset |
 | `apache-mod-php` | Apache + mod_php | A normal PHP application bootstrap in each prefork process |
+| `reactphp` | ReactPHP HTTP | A persistent Yii worker using the Event loop |
+| `amphp` | Amp HTTP Server | A persistent Yii worker using Revolt’s Event driver |
 | `workerman` | Workerman | A persistent Yii worker using the Event loop |
 | `swoole` | Swoole | A persistent Yii worker with coroutine request handling disabled |
 | `roadrunner` | RoadRunner | A persistent Yii worker managed by RoadRunner |
@@ -48,7 +52,7 @@ The runtime configs use a production-oriented benchmark baseline:
   for web and CLI SAPIs, JIT is disabled, errors go to stderr, and PHP memory is limited to 256 MiB.
 - OPcache timestamp validation is disabled. **Restart the runtime after changing PHP files**, including
   files in the mounted source tree. The benchmark suite rebuilds and restarts each runtime automatically.
-- FPM, FreeUnit, Rapira, OxPHP, Swoole, Workerman, Apache and FrankenPHP workers recycle after 10,000 requests; RoadRunner uses its
+- FPM, FreeUnit, Rapira, OxPHP, Swoole, Workerman, ReactPHP, Amp, Apache and FrankenPHP workers recycle after 10,000 requests; RoadRunner uses its
   memory supervisor. API body limits are 8 MiB, and request/queue timeouts are configured where supported.
 - HTTP readiness checks gate benchmark startup. Containers have a 45-second shutdown grace period,
   bounded Docker logs, and an increased open-file limit. Nginx access logging is disabled to match the
@@ -71,6 +75,8 @@ Server releases checked on 2026-09-22 are pinned in the benchmark Dockerfile and
 | PHP / PHP-FPM | [8.5.11](https://www.php.net/downloads.php) (updated 2026-10-05) |
 | FrankenPHP | [1.13.0](https://github.com/php/frankenphp/releases/tag/v1.13.0) (updated 2026-10-05) |
 | Apache / mod_php | 2.4.68 / PHP 8.5.11 (added 2026-10-08) |
+| ReactPHP HTTP | [1.11.1](https://github.com/reactphp/http/releases/tag/v1.11.1), with the isolated PSR-7 v2 return-type patch described below |
+| Amp HTTP Server / Revolt | [3.4.6](https://github.com/amphp/http-server/releases/tag/v3.4.6) / 1.0.9 |
 | Workerman / Event | [5.2.2](https://github.com/walkor/workerman/releases/tag/v5.2.2) / [3.1.6](https://pecl.php.net/package/event/3.1.6) (added 2026-10-08) |
 | Swoole | [6.2.3](https://github.com/swoole/swoole-src/releases/tag/v6.2.3) (added 2026-10-07) |
 | RoadRunner | [2025.1.15](https://github.com/roadrunner-server/roadrunner/releases/tag/v2025.1.15) |
@@ -116,6 +122,25 @@ Run both additions with:
 
 ```sh
 make bench-all RUNTIMES="apache-mod-php workerman" MODE=ramp THREADS=32 CONNECTIONS=256
+```
+
+ReactPHP and Amp each run 20 independent PHP processes under Supervisor. They use Linux
+`SO_REUSEPORT` on port 8080, TCP_NODELAY, Event 3.1.6, persistent Yii applications, and recycling after 10,000
+requests. ReactPHP uses `ExtEventLoop`; Amp uses Revolt's `EventDriver`. Both limit request-handler
+concurrency to one per process, detach responses before resetting Yii state, and use the same
+synchronous PDO database code as the other runtimes. These runs compare application-server overhead;
+they do not measure asynchronous database clients. Amp's compression and HTTP/2 support are disabled.
+The adapters support the benchmark endpoints; they are not general-purpose framework runners.
+
+React HTTP 1.11.1 requires PSR-7 v1, while Yii's installed emitter requires v2. Its image downloads
+the checksummed upstream release into `/opt/react-http` and applies
+`docker/runtimes/react-http-psr7-v2.patch`, which only adds the interface return-type declarations.
+The server and HTTP parsing logic are unchanged. The patched source is loaded only by
+`worker-reactphp.php`; its compatible supporting packages use the shared Composer dependencies.
+The report identifies this as a patched React HTTP release, not an unmodified upstream configuration.
+
+```sh
+make bench-all RUNTIMES="reactphp amphp" MODE=ramp THREADS=32 CONNECTIONS=256
 ```
 
 Two endpoints are benchmarked:
@@ -243,7 +268,7 @@ The default mode is `ramp`. Configuration is passed as Make variables or environ
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `RUNTIME` | `frankenphp-classic` | Runtime used by `make bench` and `make bench-db` |
-| `RUNTIMES` | all thirteen runtimes | Space-separated runtimes used by `make bench-all` |
+| `RUNTIMES` | all fifteen runtimes | Space-separated runtimes used by `make bench-all` |
 | `TARGETS` | `home postgres-orders` | Space-separated endpoint keys for the suite script |
 | `MODE` | `ramp` | `steady` for one rate or `ramp` for sequential rate stages |
 | `RATE` | `10000` | Requests per second in steady mode |
@@ -290,7 +315,7 @@ make bench-report INPUT="runtime/benchmarks/<run-1> runtime/benchmarks/<run-2>"
 Rebuild the published comparison from the recorded full runs:
 
 ```shell
-make bench-report INPUT="results/samdark_2026-10-05-pg2000 results/samdark_2026-10-07-swoole results/samdark_2026-10-08-apache-workerman" OUTPUT=results/report.html
+make bench-report INPUT="results/samdark_2026-10-05-pg2000 results/samdark_2026-10-07-swoole results/samdark_2026-10-08-apache-workerman results/samdark_2026-10-08-reactphp-amphp" OUTPUT=results/report.html
 ```
 
 Raw wrkx output and exact run settings are retained next to the compact data. Include them when reporting unexpected
@@ -313,6 +338,8 @@ worker-frankenphp.php           FrankenPHP persistent worker entry point
 worker-roadrunner.php           RoadRunner persistent worker entry point
 worker-swoole.php               Swoole persistent worker entry point
 worker-workerman.php            Workerman persistent worker entry point
+worker-reactphp.php             ReactPHP persistent worker entry point
+worker-amphp.php                Amp persistent worker entry point
 worker-rapira.php               Rapira entry point for all three modes
 ```
 

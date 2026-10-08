@@ -68,7 +68,7 @@ COPY --from=composer /composer /usr/bin/composer
 RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 COPY docker/runtimes/php-production.ini /usr/local/etc/php/conf.d/zz-production.ini
 WORKDIR /app
-FROM php-cli-base AS workerman
+FROM php-cli-base AS php-event-base
 RUN install-php-extensions pcntl
 # Pin upstream source directly: PECL's release endpoint is not always available.
 ADD --checksum=sha256:4ac43b6ba60d762f530e941fb406e66cc17a089401c7f9a58b048a780edba44b \
@@ -82,8 +82,29 @@ RUN apt-get update \
     && make -j"$(nproc)" && make install \
     && docker-php-ext-enable --ini-name zz-event.ini event \
     && rm -rf /tmp/event /tmp/event.tar.gz /var/lib/apt/lists/*
+FROM php-event-base AS workerman
 STOPSIGNAL SIGQUIT
 CMD ["php", "worker-workerman.php", "start"]
+
+FROM php-event-base AS event-server-base
+RUN apt-get update && apt-get install -y --no-install-recommends supervisor patch \
+    && rm -rf /var/lib/apt/lists/*
+COPY docker/runtimes/event-server-supervisord.conf /etc/supervisor/benchmark.conf
+STOPSIGNAL SIGTERM
+CMD ["supervisord", "-c", "/etc/supervisor/benchmark.conf"]
+
+FROM event-server-base AS reactphp
+ADD --checksum=sha256:98bea73c3b4688a145678a7c1320b8e7fdbc9b38acc966f0558d44f807720520 \
+    https://github.com/reactphp/http/archive/refs/tags/v1.11.1.tar.gz /tmp/react-http.tar.gz
+COPY docker/runtimes/react-http-psr7-v2.patch /tmp/react-http-psr7-v2.patch
+RUN mkdir /opt/react-http \
+    && tar -xzf /tmp/react-http.tar.gz -C /opt/react-http --strip-components=1 \
+    && cd /opt/react-http && patch -p1 < /tmp/react-http-psr7-v2.patch \
+    && rm /tmp/react-http.tar.gz /tmp/react-http-psr7-v2.patch
+ENV BENCH_RUNTIME=reactphp
+
+FROM event-server-base AS amphp
+ENV BENCH_RUNTIME=amphp
 
 FROM php-cli-base AS swoole
 RUN install-php-extensions swoole-6.2.3

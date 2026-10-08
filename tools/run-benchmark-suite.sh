@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_FILE="$ROOT_DIR/docker/benchmarks.compose.yml"
-RUNTIMES="${RUNTIMES:-frankenphp-classic frankenphp-worker roadrunner php-fpm freeunit rapira rapira-classic rapira-dispatcher oxphp-classic oxphp-worker swoole apache-mod-php workerman}"
+RUNTIMES="${RUNTIMES:-frankenphp-classic frankenphp-worker roadrunner php-fpm freeunit rapira rapira-classic rapira-dispatcher oxphp-classic oxphp-worker swoole apache-mod-php workerman reactphp amphp}"
 TARGETS="${TARGETS:-home postgres-orders}"
 OUTPUT_ROOT="${OUTPUT_ROOT:-$ROOT_DIR/runtime/benchmarks/$(date -u +%Y%m%dT%H%M%SZ)-suite}"
 
@@ -15,7 +15,9 @@ dependencies_are_ready() {
             exit(1);
         }
         require $autoload;
-        exit(class_exists("Workerman\\Worker")
+        exit(class_exists("Amp\\Http\\Server\\SocketHttpServer")
+            && class_exists("React\\Socket\\SocketServer")
+            && class_exists("Workerman\\Worker")
             && class_exists("Yiisoft\\Db\\Cache\\SchemaCache")
             && class_exists("Yiisoft\\Yii\\Runner\\Rapira\\RapiraApplicationRunner") ? 0 : 1);
     ' "$ROOT_DIR" 2>/dev/null
@@ -47,6 +49,8 @@ runtime_label() {
         oxphp-classic) echo "OxPHP classic" ;;
         oxphp-worker) echo "OxPHP worker" ;;
         apache-mod-php) echo "Apache + mod_php" ;;
+        reactphp) echo "ReactPHP" ;;
+        amphp) echo "Amp" ;;
         workerman) echo "Workerman" ;;
         swoole) echo "Swoole" ;;
         roadrunner) echo "RoadRunner" ;;

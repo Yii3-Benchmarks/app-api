@@ -1,0 +1,34 @@
+{
+  "20261008T131330Z-Amp-home-steady": {
+    "schema": "wrkx-summary-v1",
+    "runs": [
+      {
+        "durationUs": 19999063,
+        "requests": 499542,
+        "responses": 499542,
+        "errors": 2404,
+        "bytes": 130180264,
+        "latencyAvgUs": 1470.209,
+        "latencyP95Us": 2663,
+        "latencyP99Us": 3565,
+        "targetRate": 25000
+      }
+    ]
+  },
+  "20261008T131218Z-ReactPHP-home-steady": {
+    "schema": "wrkx-summary-v1",
+    "runs": [
+      {
+        "durationUs": 19988789,
+        "requests": 499612,
+        "responses": 499612,
+        "errors": 1184,
+        "bytes": 103919296,
+        "latencyAvgUs": 1121.311,
+        "latencyP95Us": 1935,
+        "latencyP99Us": 2353,
+        "targetRate": 25000
+      }
+    ]
+  }
+}
