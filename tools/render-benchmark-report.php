@@ -594,8 +594,10 @@ function buildRunLabel(string $runDirectory, array $metadata): string
 {
     $benchmarkName = trim((string) ($metadata['BENCH_NAME'] ?? ''));
     if ($benchmarkName !== '') {
-        // Preserve labels for results recorded before the worker mode was named explicitly.
+        // Normalize historical labels without changing the recorded measurements.
         return match ($benchmarkName) {
+            'RoadRunner' => 'RoadRunner v2025',
+            'RoadRunner DB' => 'RoadRunner v2025 DB',
             'Rapira' => 'Rapira worker',
             'Rapira DB' => 'Rapira worker DB',
             default => $benchmarkName,
@@ -776,7 +778,7 @@ function parseDockerStats(string $dockerStatsFile): array
 
         $service = (string) ($record['service'] ?? 'unknown');
         $service = match ($service) {
-            'frankenphp-classic', 'frankenphp-worker', 'roadrunner',
+            'frankenphp-classic', 'frankenphp-worker', 'roadrunner', 'roadrunner-v3',
             'php', 'nginx', 'freeunit', 'rapira', 'rapira-classic', 'rapira-dispatcher', 'oxphp-classic', 'oxphp-worker', 'swoole', 'apache-mod-php', 'workerman', 'reactphp', 'amphp' => 'app',
             default => $service,
         };
@@ -810,7 +812,8 @@ function buildRunPalette(array $runs): array
 {
     $colors = [
         'FrankenPHP worker' => '#c46060',
-        'RoadRunner' => '#448c18',
+        'RoadRunner v2025' => '#448c18',
+        'RoadRunner v3' => '#0000ee',
         'Rapira worker' => '#a000c8',
         'Rapira dispatcher' => '#0078c8',
         'OxPHP worker' => '#6b4c00',
@@ -825,7 +828,8 @@ function buildRunPalette(array $runs): array
         'FreeUnit' => '#007d34',
         'OxPHP classic' => '#5666de',
         'FrankenPHP worker DB' => '#737b89',
-        'RoadRunner DB' => '#222222',
+        'RoadRunner v2025 DB' => '#222222',
+        'RoadRunner v3 DB' => '#770088',
         'Rapira worker DB' => '#d95700',
         'Rapira dispatcher DB' => '#a50021',
         'OxPHP worker DB' => '#00538a',
@@ -956,8 +960,8 @@ function renderHtmlReport(array $runs): string
     $palette = buildRunPalette($runs);
     $allRuns = $runs;
     $groups = [
-        'worker-home' => ['Worker no DB', false, ['FrankenPHP worker', 'RoadRunner', 'Rapira worker', 'Rapira dispatcher', 'OxPHP worker', 'Swoole', 'Workerman', 'ReactPHP', 'Amp']],
-        'worker-db' => ['Worker DB', true, ['FrankenPHP worker', 'RoadRunner', 'Rapira worker', 'Rapira dispatcher', 'OxPHP worker', 'Swoole', 'Workerman', 'ReactPHP', 'Amp']],
+        'worker-home' => ['Worker no DB', false, ['FrankenPHP worker', 'RoadRunner v2025', 'RoadRunner v3', 'Rapira worker', 'Rapira dispatcher', 'OxPHP worker', 'Swoole', 'Workerman', 'ReactPHP', 'Amp']],
+        'worker-db' => ['Worker DB', true, ['FrankenPHP worker', 'RoadRunner v2025', 'RoadRunner v3', 'Rapira worker', 'Rapira dispatcher', 'OxPHP worker', 'Swoole', 'Workerman', 'ReactPHP', 'Amp']],
         'non-worker-home' => ['Non-worker no DB', false, ['FrankenPHP classic', 'PHP-FPM + Nginx', 'Rapira classic', 'FreeUnit', 'OxPHP classic', 'Apache + mod_php']],
         'non-worker-db' => ['Non-worker DB', true, ['FrankenPHP classic', 'PHP-FPM + Nginx', 'Rapira classic', 'FreeUnit', 'OxPHP classic', 'Apache + mod_php']],
     ];

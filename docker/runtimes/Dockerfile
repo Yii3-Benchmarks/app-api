@@ -1,6 +1,7 @@
 FROM composer/composer:2-bin AS composer
 FROM ghcr.io/mlocati/php-extension-installer:2 AS php-extension-installer
 FROM ghcr.io/roadrunner-server/roadrunner:2025.1.15 AS roadrunner-bin
+FROM ghcr.io/roadrunner-server/roadrunner:3.0.0 AS roadrunner-v3-bin
 FROM ghcr.io/oxphp/oxphp:0.12.0 AS oxphp-bin
 
 # Follow OxPHP's Yii3 recipe: PHP CLI and extensions share the server's ZTS ABI.
@@ -113,6 +114,10 @@ CMD ["php", "worker-swoole.php"]
 FROM php-cli-base AS roadrunner
 COPY --from=roadrunner-bin /usr/bin/rr /usr/local/bin/rr
 CMD ["rr", "serve", "-c", "docker/runtimes/roadrunner.yaml", "-w", "/app"]
+
+FROM php-cli-base AS roadrunner-v3
+COPY --from=roadrunner-v3-bin /usr/bin/rr /usr/local/bin/rr
+CMD ["rr", "serve", "-c", "docker/runtimes/roadrunner-v3.yaml", "-w", "/app"]
 
 FROM php:8.5.11-fpm-bookworm AS php-fpm
 COPY --from=php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/install-php-extensions

@@ -10,13 +10,14 @@ made on the same machine with the same settings and minimal background activity.
 
 The [published benchmark report](https://yii3-benchmarks.github.io/app-api/) combines the October 5, 2026
 full rerun of ten runtimes, the October 7 Swoole measurements, and the October 8 Apache + mod_php and
-Workerman measurements, plus a separate October 8 session for ReactPHP and Amp. All sessions used
+Workerman measurements, a separate October 8 session for ReactPHP and Amp, and the October 13
+RoadRunner v3 measurements. RoadRunner v2025 retains its October 5 results. All sessions used
 PHP 8.5.11, OPcache file override, PostgreSQL's
 2,000-connection limit, and the same load settings on the same host. They are separate measurement
 sessions; existing runtimes were not rerun when the additions were measured.
 Raw results and run context are in `results/samdark_2026-10-05-pg2000/`,
-`results/samdark_2026-10-07-swoole/`, `results/samdark_2026-10-08-apache-workerman/`, and
-`results/samdark_2026-10-08-reactphp-amphp/`;
+`results/samdark_2026-10-07-swoole/`, `results/samdark_2026-10-08-apache-workerman/`,
+`results/samdark_2026-10-08-reactphp-amphp/`, and `results/samdark_2026-10-13-roadrunner-v3/`;
 the combined report is saved as `results/report.html`. The earlier 200-connection run remains in
 `results/samdark_2026-10-05/` for comparison; older measurements remain in Git history.
 
@@ -33,7 +34,8 @@ the combined report is saved as `results/report.html`. The earlier 200-connectio
 | `amphp` | Amp HTTP Server | A persistent Yii worker using Revolt’s Event driver |
 | `workerman` | Workerman | A persistent Yii worker using the Event loop |
 | `swoole` | Swoole | A persistent Yii worker with coroutine request handling disabled |
-| `roadrunner` | RoadRunner | A persistent Yii worker managed by RoadRunner |
+| `roadrunner` | RoadRunner v2025 | A persistent Yii worker managed by RoadRunner 2025.1.15 |
+| `roadrunner-v3` | RoadRunner v3 | The same Yii worker managed by RoadRunner 3.0.0 |
 | `php-fpm` | PHP-FPM + Nginx | Traditional FastCGI processes behind Nginx |
 | `freeunit` | FreeUnit | PHP application hosted by FreeUnit; grouped with non-worker runtimes |
 | `rapira` | Rapira worker | A persistent Yii worker using [yii-runner-rapira](https://github.com/yiisoft/yii-runner-rapira) |
@@ -79,13 +81,23 @@ Server releases checked on 2026-09-22 are pinned in the benchmark Dockerfile and
 | Amp HTTP Server / Revolt | [3.4.6](https://github.com/amphp/http-server/releases/tag/v3.4.6) / 1.0.9 |
 | Workerman / Event | [5.2.2](https://github.com/walkor/workerman/releases/tag/v5.2.2) / [3.1.6](https://pecl.php.net/package/event/3.1.6) (added 2026-10-08) |
 | Swoole | [6.2.3](https://github.com/swoole/swoole-src/releases/tag/v6.2.3) (added 2026-10-07) |
-| RoadRunner | [2025.1.15](https://github.com/roadrunner-server/roadrunner/releases/tag/v2025.1.15) |
+| RoadRunner v2025 | [2025.1.15](https://github.com/roadrunner-server/roadrunner/releases/tag/v2025.1.15) |
+| RoadRunner v3 | [3.0.0](https://github.com/roadrunner-server/roadrunner/releases/tag/v3.0.0) (added 2026-10-13) |
 | FreeUnit | [1.37.0](https://docs.freeunit.org/news/2026/unit-1.37.0-released/) (updated 2026-10-05) |
 | Rapira (all modes) | [Nightly for PHP 8.5](https://rapira.rs/docs/intro/installation) (`nightly-php8.5`) |
 | OxPHP (both modes) | [0.12.0](https://github.com/oxphp/oxphp/releases/tag/v0.12.0) (added 2026-10-02) |
 | Nginx | [1.31.6 (mainline)](https://nginx.org/en/download.html) |
 | PostgreSQL | [18.6](https://www.postgresql.org/support/versioning/) |
 | Valkey | [9.1.2](https://github.com/valkey-io/valkey/releases/tag/9.1.2) |
+
+RoadRunner v2025 and v3 have separate Docker targets, Compose profiles, and configuration files.
+Both use `worker-roadrunner.php` and the same locked PHP packages. Following the
+[v3 migration guide](https://docs.roadrunner.dev/docs/general/v3-migration), v3 retains configuration
+`version: "3"` and reverses the middleware list to `[gzip, static]` to preserve execution order.
+The pinned Docker image supplies the executable; the Composer `spiral/roadrunner` metapackage
+version does not select the benchmark binary. Historical raw results retain their original labels;
+the report renders them as RoadRunner v2025. The v3 measurements are a separate session with
+different background activity, so the comparison is not a simultaneous controlled A/B test.
 
 FreeUnit's build target compiles the checksummed 1.37.0 release source against PHP 8.5.11, with TLS
 and compression support. The Docker entrypoint remains pinned to 1.36.1 because the 1.37.0 source
@@ -315,7 +327,7 @@ make bench-report INPUT="runtime/benchmarks/<run-1> runtime/benchmarks/<run-2>"
 Rebuild the published comparison from the recorded full runs:
 
 ```shell
-make bench-report INPUT="results/samdark_2026-10-05-pg2000 results/samdark_2026-10-07-swoole results/samdark_2026-10-08-apache-workerman results/samdark_2026-10-08-reactphp-amphp" OUTPUT=results/report.html
+make bench-report INPUT="results/samdark_2026-10-05-pg2000 results/samdark_2026-10-07-swoole results/samdark_2026-10-08-apache-workerman results/samdark_2026-10-08-reactphp-amphp results/samdark_2026-10-13-roadrunner-v3" OUTPUT=results/report.html
 ```
 
 Raw wrkx output and exact run settings are retained next to the compact data. Include them when reporting unexpected
@@ -358,7 +370,7 @@ Run the automated checks relevant to your change:
 
 ```shell
 make test
-docker compose -f docker/benchmarks.compose.yml --profile roadrunner config --quiet
+docker compose -f docker/benchmarks.compose.yml --profile roadrunner --profile roadrunner-v3 config --quiet
 bash -n tools/run-benchmark-suite.sh tools/run-wrkx-benchmark.sh
 ```
 
@@ -366,7 +378,7 @@ Before submitting benchmark-related changes, run at least one short steady bench
 duration of 20 seconds or more so wrkx calibration is meaningful:
 
 ```shell
-make bench RUNTIME=roadrunner MODE=steady RATE=100 DURATION=20s THREADS=2 CONNECTIONS=8
+make bench RUNTIME=roadrunner-v3 MODE=steady RATE=100 DURATION=20s THREADS=2 CONNECTIONS=8
 ```
 
 Changes that affect shared application behavior should be checked against every runtime with `make bench-all` when

@@ -1,0 +1,27 @@
+version: "3"
+
+server:
+  # The supervisor enforces per-request timeouts; PHP must not time the entire worker loop.
+  command: "php -d max_execution_time=0 worker-roadrunner.php"
+  relay: pipes
+
+http:
+  address: 0.0.0.0:8080
+  max_request_size: 8
+  # v3 runs middleware left to right; preserve the v2025 execution order.
+  middleware: [gzip, static]
+  pool:
+    num_workers: 20
+    max_queue_size: 1024
+    allocate_timeout: 30s
+    destroy_timeout: 30s
+    supervisor:
+      max_worker_memory: 256
+      exec_ttl: 30s
+  static:
+    dir: ./public
+    forbid: [.php, .htaccess]
+
+logs:
+  mode: production
+  level: warn

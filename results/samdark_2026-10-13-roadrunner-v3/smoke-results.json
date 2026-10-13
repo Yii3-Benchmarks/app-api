@@ -1,0 +1,38 @@
+{
+  "/": {
+    "status": 200,
+    "payload_checked": true
+  },
+  "/postgres/orders": {
+    "status": 200,
+    "payload_checked": true
+  },
+  "gzip": {
+    "status": 200,
+    "content_encoding": "gzip"
+  },
+  "static": {
+    "status": 200
+  },
+  "php_source_forbidden": {
+    "status": 404
+  },
+  "steady": [
+    {
+      "schema": "wrkx-summary-v1",
+      "runs": [
+        {
+          "durationUs": 20001567,
+          "requests": 2002,
+          "responses": 2002,
+          "errors": 0,
+          "bytes": 460460,
+          "latencyAvgUs": 1106.933,
+          "latencyP95Us": 1616,
+          "latencyP99Us": 1855,
+          "targetRate": 100
+        }
+      ]
+    }
+  ]
+}

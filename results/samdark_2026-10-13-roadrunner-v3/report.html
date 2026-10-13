@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Benchmark Report</title>
+  <style>
+    :root {
+      --bg: #f4f1ea;
+      --panel: #fffdf8;
+      --text: #1f2933;
+      --muted: #5c6b73;
+      --line: #d6d0c4;
+      --accent: #b56576;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+      background:
+        radial-gradient(circle at top left, rgba(181, 101, 118, 0.12), transparent 30%),
+        linear-gradient(180deg, #f8f4ec 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 28px 24px 48px;
+    }
+    h1, h2 {
+      margin: 0 0 12px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+    h1 {
+      font-size: 2.2rem;
+    }
+    h2 {
+      font-size: 1.25rem;
+    }
+    p {
+      margin: 0 0 8px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .path {
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: 0.9rem;
+      word-break: break-all;
+    }
+    .grid {
+      display: grid;
+      gap: 20px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(31, 41, 51, 0.08);
+      border-radius: 18px;
+      padding: 20px 22px;
+      box-shadow: 0 18px 42px rgba(31, 41, 51, 0.06);
+    }
+    .summary-table, .metadata-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .summary-table th,
+    .summary-table td,
+    .metadata-table th,
+    .metadata-table td {
+      border-top: 1px solid var(--line);
+      padding: 10px 8px;
+      text-align: left;
+      vertical-align: top;
+      font-size: 0.95rem;
+    }
+    .summary-table th,
+    .metadata-table th {
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      width: 15%;
+    }
+    .summary-table tbody tr:hover { background-color: rgba(37, 99, 235, 0.08); }
+    .summary-table th button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; text-align: left; }
+    .summary-table th button::after { content: ' ↕'; }
+    .summary-table th[aria-sort="ascending"] button::after { content: ' ↑'; }
+    .summary-table th[aria-sort="descending"] button::after { content: ' ↓'; }
+    .chart-panel {
+      overflow: hidden;
+    }
+    .chart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+    .chart-header h2 {
+      margin-bottom: 0;
+    }
+    .chart-wrap {
+      width: 100%;
+      overflow-x: hidden;
+    }
+    .chart {
+      width: 100%;
+      height: auto;
+      display: block;
+      background: linear-gradient(180deg, rgba(255,255,255,0.55), rgba(246,241,233,0.95));
+      border-radius: 14px;
+      border: 1px solid rgba(31, 41, 51, 0.08);
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 18px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .style-legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 12px 18px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    button.legend-item {
+      font: inherit;
+      color: inherit;
+      background: transparent;
+      border: 0;
+      border-radius: 4px;
+      padding: 4px;
+      cursor: pointer;
+    }
+    .legend-item.is-dimmed {
+      opacity: 0.3;
+    }
+    .legend-item.is-highlighted {
+      color: var(--text);
+      box-shadow: 0 0 0 2px currentColor;
+    }
+    .legend-item:focus-visible {
+      outline: 2px solid var(--text);
+      outline-offset: 3px;
+    }
+    .summary-run {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .style-legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .legend-swatch {
+      width: 12px;
+      height: 12px;
+      display: inline-block;
+      border-radius: 999px;
+    }
+    .style-legend-swatch {
+      width: 24px;
+      height: 8px;
+      display: inline-block;
+    }
+    .style-legend-target {
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .meta-grid {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    @media (max-width: 720px) {
+      .meta-grid { grid-template-columns: 1fr; }
+      main { padding: 20px 14px 36px; }
+      h1 { font-size: 1.8rem; }
+      .panel { padding: 16px; }
+      .chart-header { align-items: flex-start; flex-direction: column; }
+      .style-legend { justify-content: flex-start; }
+      .summary-table th, .summary-table td, .metadata-table th, .metadata-table td { padding: 8px 6px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="grid">
+    <section class="panel">
+      <h1>Benchmark Report</h1>
+      <p>Generated 2026-10-13 09:08:56 UTC. This report combines wrkx stage summaries with Docker CPU and memory samples.</p>
+      <p><strong>Test system.</strong> <strong>OS:</strong> Ubuntu 26.04.1 LTS (x86_64); <strong>Kernel:</strong> Linux 7.0.0-34-generic; <strong>CPU:</strong> AMD Ryzen 9 7950X, 16 cores / 32 threads; <strong>Memory:</strong> 93 GiB usable RAM.</p>
+      <p><strong>Run dates.</strong> 2026-10-13: RoadRunner v3.</p>
+<details class="run-notes"><summary>Run notes</summary><p><strong>Run note (2026-10-13).</strong> RoadRunner v3 is 3.0.0, measured on October 13 with PHP 8.5.11, 20 workers, PostgreSQL max_connections=2000, and the same 32-thread, 256-connection ramp settings as the earlier sessions. RoadRunner v2025 retains the October 5 measurements of 2025.1.15; these are separate sessions with different background activity and Docker versions, not a simultaneous controlled A/B test.</p>
+      <p><strong>Run note (2026-10-13).</strong> RoadRunner v3 keeps configuration version 3 and reverses the HTTP middleware list to [gzip, static] to preserve the v2025 execution order. Both versions use the same locked PHP dependencies and worker entry point; the executable is supplied by the corresponding pinned Docker image, independently of the Composer spiral/roadrunner metapackage.</p>
+      <p><strong>Run note (2026-10-13).</strong> Both RoadRunner v3 endpoint ramps completed all 13 stages with zero recorded request errors. No PHP application errors were logged. Throughput saturation and overload latency remain visible in the report.</p></details>
+      <p>Charts show raw samples. For stage results, RPS cap marks the first stage with successful throughput more than 5% below target; per-second results use a sustained latency surge. The load generator can also limit throughput.</p>
+      <p>Hover over a chart legend label or focus it with Tab to highlight that run.</p>
+    </section>
+
+        <section class="panel">
+      <h2>Run Summary — Non-DB</h2>
+      <p>Normal latency averages samples before a detected latency surge or throughput cap, whichever comes first. Overloaded latency comes from the throughput-cap sample shown in the RPS columns. Runs may include different load levels in their normal averages, so these are not equal-load comparisons. Mean p95 averages the included sample percentiles, not pooled requests. — means no qualifying measurement.</p>
+      <details>
+        <summary>Calculation details</summary>
+        <p>For stage data, each sample represents one load stage. The first stage provides the latency baseline. A surge is detected when average latency reaches the largest of 20 ms, 4× baseline average latency, or baseline average latency + 12 ms. When baseline p95 is available, the stage must also have a p95 reaching the largest of 30 ms, 2.5× baseline p95, or baseline p95 + 15 ms. These thresholds are a heuristic, not a latency guarantee.</p>
+        <p>Normal averages exclude the first qualifying surge stage and all later stages, or stop earlier at the throughput cap. If the cap occurs in the first stage, no normal measurement is available. If no cap is reached, no overloaded measurement is available. For per-second data, the existing sustained latency-surge detector determines the cutoff, and averages use per-second samples.</p>
+      </details>
+      <table class="summary-table">
+        <thead>
+          <tr>
+            <th scope="col" aria-sort="none" data-sort-type="text"><button type="button">Run</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="text"><button type="button">Path</button></th>
+            <th scope="col" aria-sort="descending" data-sort-type="number"><button type="button">Successful RPS</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Target RPS</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Normal latency (avg)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Normal latency (mean p95)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Overloaded latency (avg)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Overloaded latency (p95)</button></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="summary-run"><span class="legend-swatch" style="background:#0000ee"></span>RoadRunner v3</span></td><td>/</td><td data-sort-value="45599.381033124">45599</td><td data-sort-value="50000">50000</td><td data-sort-value="1.561525">1.56 ms</td><td data-sort-value="2.715">2.71 ms</td><td data-sort-value="1836.233">1836.23 ms</td><td data-sort-value="2555.903">2555.90 ms</td></tr>
+        </tbody>
+      </table>
+    </section>    <section class="panel">
+      <h2>Run Summary — DB</h2>
+      <p>Normal latency averages samples before a detected latency surge or throughput cap, whichever comes first. Overloaded latency comes from the throughput-cap sample shown in the RPS columns. Runs may include different load levels in their normal averages, so these are not equal-load comparisons. Mean p95 averages the included sample percentiles, not pooled requests. — means no qualifying measurement.</p>
+      <details>
+        <summary>Calculation details</summary>
+        <p>For stage data, each sample represents one load stage. The first stage provides the latency baseline. A surge is detected when average latency reaches the largest of 20 ms, 4× baseline average latency, or baseline average latency + 12 ms. When baseline p95 is available, the stage must also have a p95 reaching the largest of 30 ms, 2.5× baseline p95, or baseline p95 + 15 ms. These thresholds are a heuristic, not a latency guarantee.</p>
+        <p>Normal averages exclude the first qualifying surge stage and all later stages, or stop earlier at the throughput cap. If the cap occurs in the first stage, no normal measurement is available. If no cap is reached, no overloaded measurement is available. For per-second data, the existing sustained latency-surge detector determines the cutoff, and averages use per-second samples.</p>
+      </details>
+      <table class="summary-table">
+        <thead>
+          <tr>
+            <th scope="col" aria-sort="none" data-sort-type="text"><button type="button">Run</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="text"><button type="button">Path</button></th>
+            <th scope="col" aria-sort="descending" data-sort-type="number"><button type="button">Successful RPS</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Target RPS</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Normal latency (avg)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Normal latency (mean p95)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Overloaded latency (avg)</button></th>
+            <th scope="col" aria-sort="none" data-sort-type="number"><button type="button">Overloaded latency (p95)</button></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="summary-run"><span class="legend-swatch" style="background:#770088"></span>RoadRunner v3 DB</span></td><td>/postgres/orders</td><td data-sort-value="10722.739854945">10723</td><td data-sort-value="15000">15000</td><td data-sort-value="4.3214666666667">4.32 ms</td><td data-sort-value="7.6683333333333">7.67 ms</td><td data-sort-value="5734.5912">5734.59 ms</td><td data-sort-value="8269.823">8269.82 ms</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <h2>Worker no DB</h2><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Request Rate Per Second</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  successful
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="2 4" stroke-linecap="round"></line>
+  </svg>
+  target
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  errored
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-home-requests-per-second" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-home-requests-per-second" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Latency (ms)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  avg
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  p95
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-home-latency" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-home-latency" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP CPU (% of one core, 100% = 1 core)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-home-cpu-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-home-cpu-app" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP Memory (MiB)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-home-memory-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-home-memory-app" class="legend"></div>
+</section><h2>Worker DB</h2><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Request Rate Per Second</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  successful
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="2 4" stroke-linecap="round"></line>
+  </svg>
+  target
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  errored
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-db-requests-per-second" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-db-requests-per-second" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>Latency (ms)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="" stroke-linecap="round"></line>
+  </svg>
+  avg
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 8" aria-hidden="true">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="#1f2933" stroke-width="2" stroke-dasharray="8 4" stroke-linecap="round"></line>
+  </svg>
+  p95
+</span><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-db-latency" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-db-latency" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP CPU (% of one core, 100% = 1 core)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-db-cpu-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-db-cpu-app" class="legend"></div>
+</section><section class="panel chart-panel">
+  <div class="chart-header">
+    <h2>APP Memory (MiB)</h2>
+  <div class="style-legend"><span class="style-legend-item">
+  <svg class="style-legend-swatch" viewBox="0 0 24 12" aria-hidden="true">
+    <circle cx="12" cy="6" r="4" fill="none" stroke="#1f2933" stroke-width="2"></circle>
+  </svg>
+  RPS cap
+</span><span class="style-legend-item">
+  <span class="style-legend-target">T</span>
+  Target RPS
+</span></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="chart-worker-db-memory-app" class="chart" width="1400" height="380"></canvas>
+  </div>
+  <div id="legend-worker-db-memory-app" class="legend"></div>
+</section>
+
+    <section class="meta-grid">
+      <section class="panel">
+  <h2>RoadRunner v3</h2>
+  <p class="path">/home/samdark/src/yii3-benchmarks/app-api/results/samdark_2026-10-13-roadrunner-v3/20261013T085434Z-RoadRunner-v3-home-ramp</p>
+  <table class="metadata-table">
+    <tr><th>BASE_URL</th><td>http://localhost:9991</td></tr><tr><th>TARGET_NAME</th><td>home</td></tr><tr><th>TARGET_PATH</th><td>/</td></tr><tr><th>BENCH_NAME</th><td>RoadRunner v3</td></tr><tr><th>MODE</th><td>ramp</td></tr><tr><th>CAPTURE_METRICS</th><td>1</td></tr><tr><th>RATE</th><td>10000</td></tr><tr><th>DURATION</th><td>160s</td></tr><tr><th>THREADS</th><td>32</td></tr><tr><th>CONNECTIONS</th><td>256</td></tr><tr><th>STAGES</th><td>[{&quot;target&quot;:2500,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:5000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:10000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:15000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:20000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:25000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:30000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:40000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:50000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:75000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:100000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:150000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:200000,&quot;duration&quot;:&quot;30s&quot;}]</td></tr><tr><th>COMPOSE_PROJECT_NAME</th><td>yii3-benchmarks-roadrunner-v3</td></tr><tr><th>WRKX_REF</th><td>bec57539360771bedc2fc63a48e3746f1b7a9975</td></tr><tr><th>WARMUP_DURATION</th><td>10s</td></tr><tr><th>WARMUP_RATE</th><td>1000</td></tr>
+  </table>
+</section><section class="panel">
+  <h2>RoadRunner v3 DB</h2>
+  <p class="path">/home/samdark/src/yii3-benchmarks/app-api/results/samdark_2026-10-13-roadrunner-v3/20261013T090121Z-RoadRunner-v3-DB-postgres-orders-ramp</p>
+  <table class="metadata-table">
+    <tr><th>BASE_URL</th><td>http://localhost:9991</td></tr><tr><th>TARGET_NAME</th><td>postgres-orders</td></tr><tr><th>TARGET_PATH</th><td>/postgres/orders</td></tr><tr><th>BENCH_NAME</th><td>RoadRunner v3 DB</td></tr><tr><th>MODE</th><td>ramp</td></tr><tr><th>CAPTURE_METRICS</th><td>1</td></tr><tr><th>RATE</th><td>10000</td></tr><tr><th>DURATION</th><td>160s</td></tr><tr><th>THREADS</th><td>32</td></tr><tr><th>CONNECTIONS</th><td>256</td></tr><tr><th>STAGES</th><td>[{&quot;target&quot;:2500,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:5000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:10000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:15000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:20000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:25000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:30000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:40000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:50000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:75000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:100000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:150000,&quot;duration&quot;:&quot;30s&quot;},{&quot;target&quot;:200000,&quot;duration&quot;:&quot;30s&quot;}]</td></tr><tr><th>COMPOSE_PROJECT_NAME</th><td>yii3-benchmarks-roadrunner-v3</td></tr><tr><th>WRKX_REF</th><td>bec57539360771bedc2fc63a48e3746f1b7a9975</td></tr><tr><th>WARMUP_DURATION</th><td>10s</td></tr><tr><th>WARMUP_RATE</th><td>1000</td></tr>
+  </table>
+</section>
+    </section>
+  </main>
+
+  <script>
+    const reportData = {"charts":[{"id":"worker-home-requests-per-second","title":"Request Rate Per Second","series":[{"label":"RoadRunner v3 target","runLabel":"RoadRunner v3","color":"#0000ee","runIndex":0,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[2,4],"capSecond":240,"errorStartSecond":null},{"label":"RoadRunner v3 successful","runLabel":"RoadRunner v3","color":"#0000ee","runIndex":0,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":2500.9213},{"x":30,"y":5002.677},{"x":60,"y":9994.8946},{"x":90,"y":14988.7405},{"x":120,"y":19997.7333},{"x":150,"y":24982.1674},{"x":180,"y":29980.7598},{"x":210,"y":39993.2817},{"x":240,"y":45599.381},{"x":270,"y":45420.0044},{"x":300,"y":46079.4857},{"x":330,"y":45546.5823},{"x":360,"y":45270.1254}],"showPoints":false,"dash":[],"capSecond":240,"errorStartSecond":null,"startMarker":true},{"label":"RoadRunner v3 errored","runLabel":"RoadRunner v3","color":"#0000ee","runIndex":0,"affectsYAxis":false,"stepped":false,"points":[{"x":0,"y":0},{"x":30,"y":0},{"x":60,"y":0},{"x":90,"y":0},{"x":120,"y":0},{"x":150,"y":0},{"x":180,"y":0},{"x":210,"y":0},{"x":240,"y":0},{"x":270,"y":0},{"x":300,"y":0},{"x":330,"y":0},{"x":360,"y":0}],"showPoints":false,"dash":[8,4],"capSecond":240,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"RoadRunner v3","runLabel":"RoadRunner v3","color":"#0000ee","runIndex":0,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":240,"errorStartSecond":null}],"styleLegend":[{"label":"successful","dash":[]},{"label":"target","dash":[2,4]},{"label":"errored","dash":[8,4]}],"format":"integer","smoothingWindow":0,"group":"Worker no DB"},{"id":"worker-home-latency","title":"Latency (ms)","series":[{"label":"RoadRunner v3 avg","runLabel":"RoadRunner v3","color":"#0000ee","runIndex":0,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":1.2709},{"x":30,"y":1.1437},{"x":60,"y":1.4103},{"x":90,"y":1.8821},{"x":120,"y":1.6779},{"x":150,"y":1.5835},{"x":180,"y":1.5399},{"x":210,"y":1.9839},{"x":240,"y":1836.233},{"x":270,"y":7894.0592},{"x":300,"y":10764.7547},{"x":330,"y":13896.7712},{"x":360,"y":15400.7411}],"showPoints":false,"dash":[],"capSecond":240,"errorStartSecond":null},{"label":"RoadRunner v3 p95","runLabel":"RoadRunner v3","color":"#0000ee","runIndex":0,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":2.109},{"x":30,"y":1.837},{"x":60,"y":2.467},{"x":90,"y":3.457},{"x":120,"y":3.043},{"x":150,"y":2.715},{"x":180,"y":2.679},{"x":210,"y":3.413},{"x":240,"y":2555.903},{"x":270,"y":11444.223},{"x":300,"y":15613.951},{"x":330,"y":20185.087},{"x":360,"y":22396.927}],"showPoints":false,"dash":[8,4],"capSecond":240,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"RoadRunner v3","runLabel":"RoadRunner v3","color":"#0000ee","runIndex":0,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":240,"errorStartSecond":null}],"styleLegend":[{"label":"avg","dash":[]},{"label":"p95","dash":[8,4]}],"format":"milliseconds-integer","smoothingWindow":0,"yMax":2555.903,"group":"Worker no DB"},{"id":"worker-home-cpu-app","title":"APP CPU (% of one core, 100% = 1 core)","series":[{"label":"RoadRunner v3","runLabel":"RoadRunner v3","color":"#0000ee","points":[{"x":0,"y":113.7},{"x":3,"y":122.32},{"x":6,"y":111.1},{"x":9,"y":118.3},{"x":12,"y":111.46},{"x":15,"y":114.08},{"x":18,"y":109.34},{"x":21,"y":115.38},{"x":25,"y":111.78},{"x":28,"y":120.96},{"x":31,"y":215.09},{"x":34,"y":234.01},{"x":37,"y":215.17},{"x":40,"y":220.09},{"x":43,"y":219.94},{"x":46,"y":214.09},{"x":49,"y":220.65},{"x":52,"y":213.3},{"x":55,"y":211.83},{"x":58,"y":221.74},{"x":61,"y":422.44},{"x":64,"y":426.12},{"x":67,"y":416.56},{"x":70,"y":414.79},{"x":73,"y":417.49},{"x":76,"y":419.66},{"x":79,"y":419.61},{"x":82,"y":422.53},{"x":85,"y":420.87},{"x":88,"y":451.79},{"x":91,"y":622},{"x":94,"y":619.54},{"x":97,"y":620.52},{"x":100,"y":622.51},{"x":103,"y":626.39},{"x":106,"y":621.29},{"x":109,"y":628.66},{"x":112,"y":630.56},{"x":115,"y":650.58},{"x":118,"y":641.42},{"x":121,"y":864.05},{"x":124,"y":862.38},{"x":127,"y":867.04},{"x":130,"y":861.41},{"x":133,"y":844.61},{"x":136,"y":845.31},{"x":139,"y":849.72},{"x":142,"y":875.2},{"x":145,"y":860.45},{"x":148,"y":850.92},{"x":151,"y":580.93},{"x":154,"y":1084.76},{"x":158,"y":1083.58},{"x":161,"y":1066.29},{"x":164,"y":1080.35},{"x":167,"y":1079.3},{"x":170,"y":1067.89},{"x":173,"y":1067.96},{"x":176,"y":1069.75},{"x":179,"y":1073.58},{"x":182,"y":1310.35},{"x":185,"y":1315.86},{"x":188,"y":1306.85},{"x":191,"y":1294.58},{"x":194,"y":1310.03},{"x":197,"y":1294.83},{"x":200,"y":1302.02},{"x":203,"y":1300.81},{"x":206,"y":1330.59},{"x":209,"y":1332.38},{"x":212,"y":1787.91},{"x":215,"y":1789.95},{"x":218,"y":1797.84},{"x":221,"y":1788.36},{"x":224,"y":1824.72},{"x":227,"y":1788.95},{"x":230,"y":1799.49},{"x":233,"y":1796.94},{"x":236,"y":1776.05},{"x":239,"y":1805.8},{"x":242,"y":1127.62},{"x":245,"y":2048.13},{"x":248,"y":2009.39},{"x":251,"y":2049},{"x":254,"y":2060.87},{"x":257,"y":2062.11},{"x":261,"y":2070.54},{"x":264,"y":2078.28},{"x":267,"y":2052.63},{"x":270,"y":2101.99},{"x":273,"y":2038.03},{"x":276,"y":2086.65},{"x":279,"y":2085.07},{"x":282,"y":2067.5},{"x":285,"y":2089.94},{"x":288,"y":2021.15},{"x":291,"y":2069.33},{"x":294,"y":2038.37},{"x":297,"y":2088.38},{"x":300,"y":2100.22},{"x":303,"y":1406.82},{"x":306,"y":2086.56},{"x":309,"y":2094.27},{"x":312,"y":2077.84},{"x":315,"y":2098.29},{"x":318,"y":2112.07},{"x":321,"y":2090.15},{"x":324,"y":2105.53},{"x":327,"y":2120.95},{"x":330,"y":2108.89},{"x":333,"y":1964.62},{"x":336,"y":2076.31},{"x":339,"y":2088.74},{"x":342,"y":2056.63},{"x":345,"y":2064.11},{"x":348,"y":2089.11},{"x":352,"y":2093.48},{"x":355,"y":2098.68},{"x":358,"y":2012.42},{"x":361,"y":2096.32},{"x":364,"y":1988.13},{"x":367,"y":2103.64},{"x":370,"y":2074.09},{"x":373,"y":2067.84},{"x":376,"y":2058.13},{"x":379,"y":2083.93},{"x":382,"y":2084.27},{"x":385,"y":2071.95},{"x":387,"y":2008.18},{"x":390,"y":2049.88}],"capSecond":240,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"RoadRunner v3","runLabel":"RoadRunner v3","color":"#0000ee","runIndex":0,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":240,"errorStartSecond":null}],"format":"percent-integer","smoothingWindow":0,"group":"Worker no DB"},{"id":"worker-home-memory-app","title":"APP Memory (MiB)","series":[{"label":"RoadRunner v3","runLabel":"RoadRunner v3","color":"#0000ee","points":[{"x":0,"y":537.8},{"x":3,"y":539.3},{"x":6,"y":539.5},{"x":9,"y":537.3},{"x":12,"y":537.7},{"x":15,"y":538.9},{"x":18,"y":538.7},{"x":21,"y":538.4},{"x":25,"y":539.2},{"x":28,"y":539.8},{"x":31,"y":537.6},{"x":34,"y":540.1},{"x":37,"y":539},{"x":40,"y":538.9},{"x":43,"y":538},{"x":46,"y":538.6},{"x":49,"y":539},{"x":52,"y":540.1},{"x":55,"y":539.1},{"x":58,"y":538.9},{"x":61,"y":539.1},{"x":64,"y":538.7},{"x":67,"y":539.4},{"x":70,"y":538.9},{"x":73,"y":539.6},{"x":76,"y":539.5},{"x":79,"y":540.9},{"x":82,"y":539.6},{"x":85,"y":539.2},{"x":88,"y":539.7},{"x":91,"y":538.9},{"x":94,"y":538.9},{"x":97,"y":539.8},{"x":100,"y":540},{"x":103,"y":540},{"x":106,"y":539.8},{"x":109,"y":540.6},{"x":112,"y":541.2},{"x":115,"y":540.9},{"x":118,"y":541},{"x":121,"y":541},{"x":124,"y":541.1},{"x":127,"y":540.2},{"x":130,"y":540.3},{"x":133,"y":539.6},{"x":136,"y":539.2},{"x":139,"y":541},{"x":142,"y":540.1},{"x":145,"y":539.6},{"x":148,"y":539.8},{"x":151,"y":539.7},{"x":154,"y":541.2},{"x":158,"y":540.3},{"x":161,"y":540.4},{"x":164,"y":541.4},{"x":167,"y":540.1},{"x":170,"y":539.8},{"x":173,"y":540.7},{"x":176,"y":539.5},{"x":179,"y":540.4},{"x":182,"y":540.7},{"x":185,"y":541},{"x":188,"y":540.2},{"x":191,"y":540.2},{"x":194,"y":539.6},{"x":197,"y":541.3},{"x":200,"y":540.9},{"x":203,"y":541.2},{"x":206,"y":540.8},{"x":209,"y":540.7},{"x":212,"y":541},{"x":215,"y":539.7},{"x":218,"y":542.2},{"x":221,"y":541.6},{"x":224,"y":541.5},{"x":227,"y":541.3},{"x":230,"y":541.2},{"x":233,"y":541.6},{"x":236,"y":541.2},{"x":239,"y":541.1},{"x":242,"y":541.1},{"x":245,"y":546.6},{"x":248,"y":544.6},{"x":251,"y":546.3},{"x":254,"y":544.7},{"x":257,"y":545},{"x":261,"y":544.1},{"x":264,"y":545},{"x":267,"y":544},{"x":270,"y":544.8},{"x":273,"y":544.8},{"x":276,"y":545.7},{"x":279,"y":545.4},{"x":282,"y":544.9},{"x":285,"y":544.1},{"x":288,"y":544.6},{"x":291,"y":545.8},{"x":294,"y":545.1},{"x":297,"y":544.7},{"x":300,"y":545.3},{"x":303,"y":539},{"x":306,"y":544.5},{"x":309,"y":544.5},{"x":312,"y":544.1},{"x":315,"y":543.9},{"x":318,"y":544.4},{"x":321,"y":545.3},{"x":324,"y":544.9},{"x":327,"y":543.6},{"x":330,"y":544.9},{"x":333,"y":544.7},{"x":336,"y":545.5},{"x":339,"y":544.7},{"x":342,"y":544.7},{"x":345,"y":545.7},{"x":348,"y":544.2},{"x":352,"y":544.9},{"x":355,"y":544},{"x":358,"y":544.9},{"x":361,"y":544.4},{"x":364,"y":543.2},{"x":367,"y":545.4},{"x":370,"y":544.9},{"x":373,"y":543.9},{"x":376,"y":544.6},{"x":379,"y":544.7},{"x":382,"y":545.1},{"x":385,"y":544.5},{"x":387,"y":545.1},{"x":390,"y":545}],"capSecond":240,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"RoadRunner v3","runLabel":"RoadRunner v3","color":"#0000ee","runIndex":0,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":240,"errorStartSecond":null}],"format":"integer","group":"Worker no DB"},{"id":"worker-db-requests-per-second","title":"Request Rate Per Second","series":[{"label":"RoadRunner v3 DB target","runLabel":"RoadRunner v3 DB","color":"#770088","runIndex":1,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[2,4],"capSecond":90,"errorStartSecond":null},{"label":"RoadRunner v3 DB successful","runLabel":"RoadRunner v3 DB","color":"#770088","runIndex":1,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":2500.8863},{"x":30,"y":5003.1065},{"x":60,"y":9997.0018},{"x":90,"y":10722.7399},{"x":120,"y":10763.2497},{"x":150,"y":10594.4996},{"x":180,"y":10591.985},{"x":210,"y":10635.6415},{"x":240,"y":10660.4825},{"x":270,"y":10518.4119},{"x":300,"y":10607.9177},{"x":330,"y":10625.2283},{"x":360,"y":10608.2013}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":null,"startMarker":true},{"label":"RoadRunner v3 DB errored","runLabel":"RoadRunner v3 DB","color":"#770088","runIndex":1,"affectsYAxis":false,"stepped":false,"points":[{"x":0,"y":0},{"x":30,"y":0},{"x":60,"y":0},{"x":90,"y":0},{"x":120,"y":0},{"x":150,"y":0},{"x":180,"y":0},{"x":210,"y":0},{"x":240,"y":0},{"x":270,"y":0},{"x":300,"y":0},{"x":330,"y":0},{"x":360,"y":0}],"showPoints":false,"dash":[8,4],"capSecond":90,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"RoadRunner v3 DB","runLabel":"RoadRunner v3 DB","color":"#770088","runIndex":1,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":null}],"styleLegend":[{"label":"successful","dash":[]},{"label":"target","dash":[2,4]},{"label":"errored","dash":[8,4]}],"format":"integer","smoothingWindow":0,"group":"Worker DB"},{"id":"worker-db-latency","title":"Latency (ms)","series":[{"label":"RoadRunner v3 DB avg","runLabel":"RoadRunner v3 DB","color":"#770088","runIndex":1,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":4.5951},{"x":30,"y":3.8854},{"x":60,"y":4.4839},{"x":90,"y":5734.5912},{"x":120,"y":9242.4237},{"x":150,"y":11485.561},{"x":180,"y":12930.4373},{"x":210,"y":14642.0892},{"x":240,"y":15712.4456},{"x":270,"y":17202.2074},{"x":300,"y":17878.3053},{"x":330,"y":18577.8265},{"x":360,"y":18935.9424}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":null},{"label":"RoadRunner v3 DB p95","runLabel":"RoadRunner v3 DB","color":"#770088","runIndex":1,"affectsYAxis":true,"stepped":false,"points":[{"x":0,"y":9.927},{"x":30,"y":6.527},{"x":60,"y":6.551},{"x":90,"y":8269.823},{"x":120,"y":13385.727},{"x":150,"y":16678.911},{"x":180,"y":18743.295},{"x":210,"y":21266.431},{"x":240,"y":22790.143},{"x":270,"y":24920.063},{"x":300,"y":25903.103},{"x":330,"y":26935.295},{"x":360,"y":27443.199}],"showPoints":false,"dash":[8,4],"capSecond":90,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"RoadRunner v3 DB","runLabel":"RoadRunner v3 DB","color":"#770088","runIndex":1,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":null}],"styleLegend":[{"label":"avg","dash":[]},{"label":"p95","dash":[8,4]}],"format":"milliseconds-integer","smoothingWindow":0,"yMax":8269.823,"group":"Worker DB"},{"id":"worker-db-cpu-app","title":"APP CPU (% of one core, 100% = 1 core)","series":[{"label":"RoadRunner v3 DB","runLabel":"RoadRunner v3 DB","color":"#770088","points":[{"x":0,"y":208.05},{"x":3,"y":239.9},{"x":6,"y":234.25},{"x":9,"y":241.65},{"x":12,"y":240.88},{"x":15,"y":243.39},{"x":18,"y":233.93},{"x":21,"y":242.69},{"x":24,"y":235.08},{"x":27,"y":237.88},{"x":30,"y":463.46},{"x":33,"y":472.08},{"x":36,"y":467.9},{"x":39,"y":488.98},{"x":42,"y":459.92},{"x":45,"y":461.87},{"x":48,"y":475.45},{"x":51,"y":481.61},{"x":54,"y":466.67},{"x":57,"y":463.37},{"x":61,"y":944.41},{"x":64,"y":952.8},{"x":67,"y":947.61},{"x":70,"y":952.84},{"x":73,"y":951.27},{"x":76,"y":957.58},{"x":79,"y":962.55},{"x":82,"y":969.49},{"x":85,"y":960.77},{"x":88,"y":950.73},{"x":91,"y":988.74},{"x":94,"y":995.1},{"x":97,"y":988.42},{"x":100,"y":986.71},{"x":103,"y":992.12},{"x":106,"y":987.75},{"x":109,"y":983.21},{"x":112,"y":990.95},{"x":115,"y":991.01},{"x":118,"y":986.53},{"x":121,"y":990.68},{"x":124,"y":989.72},{"x":127,"y":988.4},{"x":130,"y":973.21},{"x":133,"y":985.38},{"x":136,"y":990.27},{"x":139,"y":993.23},{"x":142,"y":991.56},{"x":145,"y":986.56},{"x":148,"y":986.18},{"x":151,"y":988.68},{"x":155,"y":989.87},{"x":158,"y":993.75},{"x":161,"y":986.8},{"x":164,"y":992.36},{"x":167,"y":996.63},{"x":170,"y":992.12},{"x":173,"y":991.75},{"x":176,"y":985.99},{"x":179,"y":995.76},{"x":182,"y":993.44},{"x":185,"y":997.11},{"x":188,"y":1000.87},{"x":191,"y":979.39},{"x":194,"y":995.91},{"x":197,"y":996.02},{"x":200,"y":990.56},{"x":203,"y":992.31},{"x":206,"y":994.65},{"x":209,"y":987.71},{"x":212,"y":634.41},{"x":214,"y":994.5},{"x":217,"y":990.19},{"x":220,"y":994.27},{"x":223,"y":990.94},{"x":226,"y":983.8},{"x":229,"y":991.79},{"x":232,"y":991.23},{"x":235,"y":997.32},{"x":238,"y":989.53},{"x":241,"y":985.24},{"x":245,"y":993.6},{"x":248,"y":986.21},{"x":251,"y":972.89},{"x":254,"y":988.86},{"x":257,"y":984.05},{"x":260,"y":994.77},{"x":263,"y":990.27},{"x":266,"y":976.89},{"x":269,"y":992.33},{"x":272,"y":638.94},{"x":275,"y":995.07},{"x":278,"y":983.83},{"x":281,"y":989.8},{"x":284,"y":992.85},{"x":287,"y":983.31},{"x":290,"y":993.36},{"x":293,"y":989.08},{"x":296,"y":991.59},{"x":299,"y":989.91},{"x":302,"y":666.68},{"x":305,"y":987.66},{"x":307,"y":991.08},{"x":310,"y":984},{"x":313,"y":992.45},{"x":316,"y":986.55},{"x":319,"y":994.31},{"x":322,"y":989.1},{"x":325,"y":994.9},{"x":328,"y":994.98},{"x":331,"y":987.59},{"x":334,"y":994.19},{"x":338,"y":987.67},{"x":341,"y":991.61},{"x":344,"y":988.4},{"x":347,"y":983.56},{"x":350,"y":999.62},{"x":353,"y":980.36},{"x":356,"y":994.2},{"x":359,"y":995.31},{"x":362,"y":983.07},{"x":365,"y":991.96},{"x":368,"y":976.14},{"x":371,"y":990.5},{"x":374,"y":991.07},{"x":377,"y":989.35},{"x":380,"y":991.84},{"x":383,"y":996.22},{"x":386,"y":993.9},{"x":389,"y":999.31},{"x":392,"y":987.83}],"capSecond":90,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"RoadRunner v3 DB","runLabel":"RoadRunner v3 DB","color":"#770088","runIndex":1,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":null}],"format":"percent-integer","smoothingWindow":0,"group":"Worker DB"},{"id":"worker-db-memory-app","title":"APP Memory (MiB)","series":[{"label":"RoadRunner v3 DB","runLabel":"RoadRunner v3 DB","color":"#770088","points":[{"x":0,"y":580.9},{"x":3,"y":578.5},{"x":6,"y":580.6},{"x":9,"y":580.3},{"x":12,"y":577.6},{"x":15,"y":579.3},{"x":18,"y":579.1},{"x":21,"y":579.6},{"x":24,"y":575.9},{"x":27,"y":578.4},{"x":30,"y":579.7},{"x":33,"y":575.6},{"x":36,"y":578.6},{"x":39,"y":578.6},{"x":42,"y":577.7},{"x":45,"y":578.1},{"x":48,"y":575.5},{"x":51,"y":575.5},{"x":54,"y":574.6},{"x":57,"y":572.8},{"x":61,"y":579.8},{"x":64,"y":578.1},{"x":67,"y":580.1},{"x":70,"y":578},{"x":73,"y":578.2},{"x":76,"y":579.8},{"x":79,"y":579.9},{"x":82,"y":580.2},{"x":85,"y":578.1},{"x":88,"y":578.3},{"x":91,"y":582.9},{"x":94,"y":582},{"x":97,"y":581.1},{"x":100,"y":582.2},{"x":103,"y":581.9},{"x":106,"y":582},{"x":109,"y":582.8},{"x":112,"y":582.2},{"x":115,"y":582.4},{"x":118,"y":581.8},{"x":121,"y":581.7},{"x":124,"y":582.3},{"x":127,"y":582.4},{"x":130,"y":582.3},{"x":133,"y":582.5},{"x":136,"y":583.1},{"x":139,"y":582.9},{"x":142,"y":582.3},{"x":145,"y":582.8},{"x":148,"y":581.5},{"x":151,"y":582.7},{"x":155,"y":582.9},{"x":158,"y":582.1},{"x":161,"y":582.2},{"x":164,"y":582.4},{"x":167,"y":582.3},{"x":170,"y":582.3},{"x":173,"y":581.9},{"x":176,"y":583},{"x":179,"y":582.4},{"x":182,"y":582.8},{"x":185,"y":582.7},{"x":188,"y":582.2},{"x":191,"y":582.7},{"x":194,"y":583},{"x":197,"y":581.3},{"x":200,"y":581.7},{"x":203,"y":581.7},{"x":206,"y":581.9},{"x":209,"y":582.1},{"x":212,"y":582.7},{"x":214,"y":582.2},{"x":217,"y":582},{"x":220,"y":583.2},{"x":223,"y":582.1},{"x":226,"y":581.7},{"x":229,"y":581.6},{"x":232,"y":580.6},{"x":235,"y":582},{"x":238,"y":583},{"x":241,"y":583},{"x":245,"y":582.8},{"x":248,"y":583.1},{"x":251,"y":583.4},{"x":254,"y":582.1},{"x":257,"y":581.6},{"x":260,"y":581.9},{"x":263,"y":582.3},{"x":266,"y":580.8},{"x":269,"y":583.2},{"x":272,"y":581},{"x":275,"y":582.7},{"x":278,"y":582.8},{"x":281,"y":582.6},{"x":284,"y":582.7},{"x":287,"y":582.4},{"x":290,"y":582.5},{"x":293,"y":582.2},{"x":296,"y":582.8},{"x":299,"y":581.6},{"x":302,"y":582.4},{"x":305,"y":582.2},{"x":307,"y":581.5},{"x":310,"y":582.9},{"x":313,"y":581.8},{"x":316,"y":581.2},{"x":319,"y":582.1},{"x":322,"y":582.4},{"x":325,"y":581.4},{"x":328,"y":582.7},{"x":331,"y":581.8},{"x":334,"y":582},{"x":338,"y":581.8},{"x":341,"y":582.6},{"x":344,"y":581},{"x":347,"y":582.2},{"x":350,"y":582.5},{"x":353,"y":581.8},{"x":356,"y":581.2},{"x":359,"y":581.3},{"x":362,"y":581.7},{"x":365,"y":581.7},{"x":368,"y":581.4},{"x":371,"y":581.9},{"x":374,"y":581.4},{"x":377,"y":582.4},{"x":380,"y":582},{"x":383,"y":581.4},{"x":386,"y":582.3},{"x":389,"y":582.3},{"x":392,"y":581.7}],"capSecond":90,"errorStartSecond":null}],"xAxisTargetSeries":[{"label":"RoadRunner v3 DB","runLabel":"RoadRunner v3 DB","color":"#770088","runIndex":1,"affectsYAxis":false,"stepped":true,"points":[{"x":0,"y":2500},{"x":30,"y":5000},{"x":60,"y":10000},{"x":90,"y":15000},{"x":120,"y":20000},{"x":150,"y":25000},{"x":180,"y":30000},{"x":210,"y":40000},{"x":240,"y":50000},{"x":270,"y":75000},{"x":300,"y":100000},{"x":330,"y":150000},{"x":360,"y":200000},{"x":390,"y":200000}],"showPoints":false,"dash":[],"capSecond":90,"errorStartSecond":null}],"format":"integer","group":"Worker DB"}]};
+    const X_AXIS_TICK_DIVISIONS = 10;
+
+    function getGlobalXAxisDomain() {
+      const xValues = [];
+
+      reportData.charts.forEach((chart) => {
+        (chart.series || []).forEach((item) => {
+          (item.points || []).forEach((point) => {
+            xValues.push(point.x);
+          });
+        });
+
+        (chart.xAxisTargetSeries || []).forEach((item) => {
+          (item.points || []).forEach((point) => {
+            xValues.push(point.x);
+          });
+        });
+      });
+
+      if (xValues.length === 0) {
+        return { min: 0, max: 1 };
+      }
+
+      return {
+        min: Math.min(...xValues),
+        max: Math.max(...xValues),
+      };
+    }
+
+    const globalXAxisDomain = getGlobalXAxisDomain();
+
+    function formatValue(value, format) {
+      const fixed = (number, digits) => Number(number).toFixed(digits);
+      const trimZeros = (text) => text.replace(/\.?0+$/, '');
+
+      if (format === 'integer') {
+        return String(Math.round(value));
+      }
+      if (format === 'percent') {
+        return fixed(value, 2) + '%';
+      }
+      if (format === 'percent-integer') {
+        return Math.round(value) + '%';
+      }
+      if (format === 'milliseconds-integer') {
+        return String(Math.round(value));
+      }
+      if (format === 'milliseconds') {
+        return fixed(value, 2);
+      }
+      return trimZeros(fixed(value, 2));
+    }
+
+    function formatElapsedSeconds(totalSeconds) {
+      const seconds = Math.max(0, Math.round(totalSeconds));
+      const minutes = Math.floor(seconds / 60);
+      const remainderSeconds = seconds % 60;
+
+      if (minutes === 0) {
+        return seconds + 's';
+      }
+
+      if (remainderSeconds === 0) {
+        return minutes + 'm';
+      }
+
+      return minutes + 'm ' + remainderSeconds + 's';
+    }
+
+    function sampledPointValue(points, xValue) {
+      if (!points || points.length === 0) {
+        return null;
+      }
+
+      const target = Math.max(0, Math.round(xValue));
+      let currentValue = points[0].y;
+
+      for (let index = 0; index < points.length; index++) {
+        const point = points[index];
+        if (point.x > target) {
+          break;
+        }
+        currentValue = point.y;
+      }
+
+      return currentValue;
+    }
+
+    function movingAverageSeries(points, windowSize) {
+      if (!points || points.length === 0 || windowSize <= 1) {
+        return points || [];
+      }
+
+      const result = [];
+      let sum = 0;
+      const values = [];
+
+      points.forEach((point, index) => {
+        const value = Number(point.y || 0);
+        values.push(value);
+        sum += value;
+
+        if (values.length > windowSize) {
+          sum -= values.shift();
+        }
+
+        result.push({
+          x: point.x,
+          y: sum / values.length,
+        });
+      });
+
+      return result;
+    }
+
+    function formatTargetTickLabel(chart, xValue) {
+      // Finished runs must not keep contributing their last target to later stages.
+      const targetSeries = (chart.xAxisTargetSeries || []).filter((item) =>
+        item.points.length > 1 && xValue >= item.points[0].x && xValue < item.points[item.points.length - 1].x
+      );
+      if (targetSeries.length === 0) {
+        return '';
+      }
+
+      const values = targetSeries.map((item) => sampledPointValue(item.points, xValue));
+      if (values.some((value) => value === null)) {
+        return '';
+      }
+
+      const roundedValues = values.map((value) => Math.round(value));
+      const firstValue = roundedValues[0];
+      const sameAcrossRuns = roundedValues.every((value) => value === firstValue);
+
+      if (!sameAcrossRuns) {
+        return '';
+      }
+
+      return 'T ' + String(firstValue);
+    }
+
+    function drawChart(canvasId, legendId, chart) {
+      const canvas = document.getElementById(canvasId);
+      const legend = document.getElementById(legendId);
+      if (!canvas || !legend) {
+        return;
+      }
+
+      const series = chart.series.filter((item) => item.points.length > 0);
+      if (series.length === 0) {
+        legend.textContent = 'No data available.';
+        return;
+      }
+
+      const smoothingWindow = Math.max(0, Math.round(Number(chart.smoothingWindow || 0)));
+      const displaySeries = series.map((item) => ({
+        ...item,
+        displayPoints: smoothingWindow > 1 ? movingAverageSeries(item.points, smoothingWindow) : item.points,
+      }));
+
+      const dpr = window.devicePixelRatio || 1;
+      const cssWidth = canvas.clientWidth || canvas.width;
+      const cssHeight = canvas.clientHeight || canvas.height;
+      canvas.width = cssWidth * dpr;
+      canvas.height = cssHeight * dpr;
+
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, cssWidth, cssHeight);
+
+      const margin = { top: 18, right: 24, bottom: 52, left: 64 };
+      const width = cssWidth - margin.left - margin.right;
+      const height = cssHeight - margin.top - margin.bottom;
+
+      const yValues = displaySeries
+        .filter((item) => item.affectsYAxis !== false)
+        .flatMap((item) => item.displayPoints.map((point) => point.y));
+      const xMin = globalXAxisDomain.min;
+      const xMax = globalXAxisDomain.max;
+      const rawYMax = Math.max(...yValues);
+      const configuredYMax = Number(chart.yMax || 0);
+      const yMax = configuredYMax > 0 ? configuredYMax : (rawYMax > 0 ? rawYMax * 1.08 : 1);
+
+      ctx.strokeStyle = 'rgba(31, 41, 51, 0.14)';
+      ctx.lineWidth = 1;
+      ctx.fillStyle = '#5c6b73';
+      ctx.font = '12px Menlo, Consolas, monospace';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'right';
+
+      for (let i = 0; i <= 5; i++) {
+        const y = margin.top + (height / 5) * i;
+        ctx.beginPath();
+        ctx.moveTo(margin.left, y);
+        ctx.lineTo(margin.left + width, y);
+        ctx.stroke();
+
+        const value = yMax - (yMax / 5) * i;
+        ctx.fillText(formatValue(value, chart.format), margin.left - 10, y);
+      }
+
+      ctx.textBaseline = 'top';
+      ctx.textAlign = 'center';
+      ctx.font = '12px Menlo, Consolas, monospace';
+      const stageTicks = [...new Set((chart.xAxisTargetSeries || [])
+        .flatMap((item) => item.points.slice(0, -1).map((point) => point.x)))].sort((a, b) => a - b);
+      const ticks = stageTicks.length > 1 ? stageTicks : Array.from(
+        { length: X_AXIS_TICK_DIVISIONS + 1 },
+        (_, i) => xMin + ((xMax - xMin) / X_AXIS_TICK_DIVISIONS) * i
+      );
+      for (const value of ticks) {
+        const x = margin.left + ((value - xMin) / Math.max(1, xMax - xMin)) * width;
+        ctx.beginPath();
+        ctx.moveTo(x, margin.top);
+        ctx.lineTo(x, margin.top + height);
+        ctx.stroke();
+
+        ctx.fillText(formatElapsedSeconds(value), x, margin.top + height + 10);
+
+        const targetLabel = formatTargetTickLabel(chart, value);
+        if (targetLabel !== '') {
+          ctx.fillText(targetLabel, x, margin.top + height + 24);
+        }
+      }
+
+      ctx.strokeStyle = '#1f2933';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(margin.left, margin.top);
+      ctx.lineTo(margin.left, margin.top + height);
+      ctx.lineTo(margin.left + width, margin.top + height);
+      ctx.stroke();
+
+      const toCanvasX = (x) => margin.left + ((x - xMin) / Math.max(1, xMax - xMin)) * width;
+      const toCanvasY = (y) => margin.top + height - (y / yMax) * height;
+      const startMarkerSeries = displaySeries.filter((item) => item.startMarker);
+
+      const highlightedRun = legend.dataset.highlightedRun || null;
+      const isHighlighted = (item) => (item.runLabel || item.label) === highlightedRun;
+      const opacity = (item) => highlightedRun && !isHighlighted(item) ? 0.12 : 1;
+      // Draw the highlighted run last so overlapping lines cannot hide it.
+      const orderedSeries = [...displaySeries].sort((a, b) => Number(isHighlighted(a)) - Number(isHighlighted(b)));
+
+      // Target and error rates may exceed the scale based on successful responses.
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(margin.left, margin.top, width, height);
+      ctx.clip();
+
+      orderedSeries.forEach((item) => {
+        if (smoothingWindow > 1) {
+          drawLine(ctx, toCanvasX, toCanvasY, item.points, item.color, item.dash, 1.2, 0.22 * opacity(item));
+        }
+
+        drawLine(ctx, toCanvasX, toCanvasY, item.displayPoints, item.color, item.dash, isHighlighted(item) ? 4 : 2.2, opacity(item), item.stepped);
+
+        ctx.save();
+        ctx.globalAlpha = opacity(item);
+        if (chart.showPoints || item.showPoints) {
+          ctx.fillStyle = item.color;
+          item.displayPoints.forEach((point) => {
+            const x = toCanvasX(point.x);
+            const y = toCanvasY(point.y);
+            ctx.beginPath();
+            ctx.arc(x, y, 2.2, 0, Math.PI * 2);
+            ctx.fill();
+          });
+        }
+        ctx.restore();
+      });
+
+      orderedSeries.forEach((item) => {
+        ctx.save();
+        ctx.globalAlpha = opacity(item);
+        drawMarker(ctx, toCanvasX, toCanvasY, item.displayPoints, item.capSecond, item.color, 'circle');
+        drawMarker(ctx, toCanvasX, toCanvasY, item.displayPoints, item.errorStartSecond, item.color, 'cross');
+        ctx.restore();
+      });
+
+      startMarkerSeries.forEach((item, markerIndex) => {
+        ctx.save();
+        ctx.globalAlpha = opacity(item);
+        drawStartMarker(
+          ctx,
+          toCanvasX,
+          toCanvasY,
+          item.displayPoints,
+          item.color,
+          markerIndex,
+          startMarkerSeries.length,
+        );
+        ctx.restore();
+      });
+
+      ctx.restore();
+
+      const runs = [];
+      const seenRuns = new Set();
+      series.forEach((item) => {
+        const key = (item.runLabel || item.label) + '|' + item.color;
+        if (seenRuns.has(key)) {
+          return;
+        }
+        seenRuns.add(key);
+        runs.push({
+          label: item.runLabel || item.label,
+          color: item.color,
+        });
+      });
+
+      if (legend.childElementCount === 0) {
+        let hoveredRun = null;
+        let focusedRun = null;
+        const updateHighlight = () => {
+          legend.dataset.highlightedRun = hoveredRun || focusedRun || '';
+          drawChart(canvasId, legendId, chart);
+        };
+
+        runs.sort((a, b) => a.label.localeCompare(b.label, 'en', { sensitivity: 'base' }));
+        runs.forEach((item) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'legend-item';
+          button.dataset.runLabel = item.label;
+          const swatch = document.createElement('span');
+          swatch.className = 'legend-swatch';
+          swatch.style.background = item.color;
+          swatch.setAttribute('aria-hidden', 'true');
+          button.append(swatch, document.createTextNode(item.label));
+          button.addEventListener('mouseenter', () => {
+            hoveredRun = item.label;
+            updateHighlight();
+          });
+          button.addEventListener('mouseleave', () => {
+            hoveredRun = null;
+            updateHighlight();
+          });
+          button.addEventListener('focus', () => {
+            focusedRun = item.label;
+            updateHighlight();
+          });
+          button.addEventListener('blur', () => {
+            focusedRun = null;
+            updateHighlight();
+          });
+          legend.append(button);
+        });
+      }
+
+      legend.querySelectorAll('.legend-item').forEach((button) => {
+        button.classList.toggle('is-highlighted', button.dataset.runLabel === highlightedRun);
+        button.classList.toggle('is-dimmed', highlightedRun !== null && button.dataset.runLabel !== highlightedRun);
+      });
+    }
+
+    function render() {
+      reportData.charts.forEach((chart) => {
+        drawChart('chart-' + chart.id, 'legend-' + chart.id, chart);
+      });
+    }
+
+    function drawLine(ctx, toCanvasX, toCanvasY, points, color, dash, lineWidth, alpha, stepped = false) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lineWidth;
+      ctx.globalAlpha = alpha;
+      if (dash && dash.length > 0) {
+        ctx.setLineDash(dash);
+      } else {
+        ctx.setLineDash([]);
+      }
+
+      points.forEach((point, index) => {
+        const x = toCanvasX(point.x);
+        const y = toCanvasY(point.y);
+        if (index === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          if (stepped) {
+            ctx.lineTo(x, toCanvasY(points[index - 1].y));
+          }
+          ctx.lineTo(x, y);
+        }
+      });
+
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawMarker(ctx, toCanvasX, toCanvasY, points, second, color, markerType) {
+      if (second === null || second === undefined) {
+        return;
+      }
+
+      const yValue = sampledPointValue(points, second);
+      if (yValue === null) {
+        return;
+      }
+
+      const x = toCanvasX(second);
+      const y = toCanvasY(yValue);
+
+      ctx.save();
+      ctx.setLineDash([]);
+      ctx.lineCap = 'round';
+
+      if (markerType === 'circle') {
+        ctx.strokeStyle = '#fffdf8';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+        return;
+      }
+
+      ctx.strokeStyle = '#fffdf8';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(x - 5, y - 5);
+      ctx.lineTo(x + 5, y + 5);
+      ctx.moveTo(x + 5, y - 5);
+      ctx.lineTo(x - 5, y + 5);
+      ctx.stroke();
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(x - 5, y - 5);
+      ctx.lineTo(x + 5, y + 5);
+      ctx.moveTo(x + 5, y - 5);
+      ctx.lineTo(x - 5, y + 5);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawStartMarker(ctx, toCanvasX, toCanvasY, points, color, markerIndex, markerCount) {
+      if (!points || points.length === 0) {
+        return;
+      }
+
+      const firstPoint = points[0];
+      const baseX = toCanvasX(firstPoint.x);
+      const y = toCanvasY(firstPoint.y);
+      const offset = ((markerIndex - ((markerCount - 1) / 2)) * 5);
+      const x = baseX + offset;
+
+      ctx.save();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#fffdf8';
+      ctx.beginPath();
+      ctx.arc(x, y, 4.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(x, y, 3.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    document.querySelectorAll('.summary-table').forEach((table) => {
+      table.querySelectorAll('thead th').forEach((header, column) => {
+        header.querySelector('button').addEventListener('click', () => {
+          const ascending = header.getAttribute('aria-sort') !== 'ascending';
+          table.querySelectorAll('thead th').forEach((item) => item.setAttribute('aria-sort', 'none'));
+          header.setAttribute('aria-sort', ascending ? 'ascending' : 'descending');
+          const rows = Array.from(table.tBodies[0].rows);
+          const numeric = header.dataset.sortType === 'number';
+          rows.sort((a, b) => {
+            const value = (row) => row.cells[column].dataset.sortValue ?? row.cells[column].textContent.trim();
+            const left = value(a), right = value(b);
+            // Missing measurements stay last in either direction.
+            if (left === '' || right === '') return (left === '') - (right === '');
+            const order = numeric ? Number(left) - Number(right) : left.localeCompare(right);
+            return ascending ? order : -order;
+          });
+          table.tBodies[0].append(...rows);
+        });
+      });
+    });
+
+    window.addEventListener('resize', render);
+    render();
+  </script>
+</body>
+</html>

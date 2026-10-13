@@ -10,6 +10,14 @@ require_once dirname(__DIR__, 2) . '/tools/render-benchmark-report.php';
 
 final class BenchmarkReportTest extends Unit
 {
+    public function testHistoricalRoadRunnerLabelsRemainDistinctFromV3(): void
+    {
+        $this->assertSame('RoadRunner v2025', buildRunLabel('/tmp/run', ['BENCH_NAME' => 'RoadRunner']));
+        $this->assertSame('RoadRunner v2025 DB', buildRunLabel('/tmp/run', ['BENCH_NAME' => 'RoadRunner DB']));
+        $this->assertSame('RoadRunner v3', buildRunLabel('/tmp/run', ['BENCH_NAME' => 'RoadRunner v3']));
+        $this->assertSame('RoadRunner v3 DB', buildRunLabel('/tmp/run', ['BENCH_NAME' => 'RoadRunner v3 DB']));
+    }
+
     public function testStageCapAllowsNoiseAndFindsSaturation(): void
     {
         $stages = [
@@ -85,7 +93,7 @@ final class BenchmarkReportTest extends Unit
     public function testReportSeparatesRuntimeAndEndpointGroups(): void
     {
         $runs = [];
-        foreach (['FrankenPHP worker', 'RoadRunner', 'Rapira worker', 'Rapira dispatcher', 'OxPHP worker', 'Swoole', 'Workerman', 'ReactPHP', 'Amp', 'FrankenPHP classic', 'PHP-FPM + Nginx', 'Rapira classic', 'FreeUnit', 'OxPHP classic', 'Apache + mod_php'] as $name) {
+        foreach (['FrankenPHP worker', 'RoadRunner v2025', 'RoadRunner v3', 'Rapira worker', 'Rapira dispatcher', 'OxPHP worker', 'Swoole', 'Workerman', 'ReactPHP', 'Amp', 'FrankenPHP classic', 'PHP-FPM + Nginx', 'Rapira classic', 'FreeUnit', 'OxPHP classic', 'Apache + mod_php'] as $name) {
             foreach ([false, true] as $db) {
                 $runs[] = [
                     'label' => $name . ($db ? ' DB' : ''),
@@ -123,12 +131,12 @@ final class BenchmarkReportTest extends Unit
             }
         }
         $this->assertSame([
-            'Worker no DB' => ['FrankenPHP worker', 'RoadRunner', 'Rapira worker', 'Rapira dispatcher', 'OxPHP worker', 'Swoole', 'Workerman', 'ReactPHP', 'Amp'],
-            'Worker DB' => ['FrankenPHP worker DB', 'RoadRunner DB', 'Rapira worker DB', 'Rapira dispatcher DB', 'OxPHP worker DB', 'Swoole DB', 'Workerman DB', 'ReactPHP DB', 'Amp DB'],
+            'Worker no DB' => ['FrankenPHP worker', 'RoadRunner v2025', 'RoadRunner v3', 'Rapira worker', 'Rapira dispatcher', 'OxPHP worker', 'Swoole', 'Workerman', 'ReactPHP', 'Amp'],
+            'Worker DB' => ['FrankenPHP worker DB', 'RoadRunner v2025 DB', 'RoadRunner v3 DB', 'Rapira worker DB', 'Rapira dispatcher DB', 'OxPHP worker DB', 'Swoole DB', 'Workerman DB', 'ReactPHP DB', 'Amp DB'],
             'Non-worker no DB' => ['FrankenPHP classic', 'PHP-FPM + Nginx', 'Rapira classic', 'FreeUnit', 'OxPHP classic', 'Apache + mod_php'],
             'Non-worker DB' => ['FrankenPHP classic DB', 'PHP-FPM + Nginx DB', 'Rapira classic DB', 'FreeUnit DB', 'OxPHP classic DB', 'Apache + mod_php DB'],
         ], $groups);
-        $this->assertCount(30, array_unique($runColors));
+        $this->assertCount(32, array_unique($runColors));
         foreach ($runColors as $color) {
             $this->assertLessThan(0.28, runColorCoordinates($color)[3]);
         }
